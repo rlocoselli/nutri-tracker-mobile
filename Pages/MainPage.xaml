@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="NutritionTracker.Pages.MainPage"
+             Title="NutritionTracker"
+             BackgroundColor="{StaticResource Background}">
+
+  <Grid Padding="24" RowDefinitions="Auto,*,Auto">
+
+    <Label Text="NutritionTracker" FontSize="28" FontAttributes="Bold" />
+
+    <VerticalStackLayout Grid.Row="1" Spacing="12" VerticalOptions="Center">
+      <ActivityIndicator IsRunning="True" />
+    <Label Text="Chargement..." HorizontalOptions="Center" TextColor="{StaticResource Muted}" />
+    </VerticalStackLayout>
+
+  </Grid>
+</ContentPage>

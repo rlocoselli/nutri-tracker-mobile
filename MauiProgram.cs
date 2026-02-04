@@ -1,0 +1,57 @@
+﻿using CommunityToolkit.Mvvm.Messaging;
+using NutritionTracker.Pages;
+using NutritionTracker.Services;
+using NutritionTracker.ViewModels;
+
+namespace NutritionTracker;
+
+public static class MauiProgram
+{
+    public static MauiApp CreateMauiApp()
+    {
+        var builder = MauiApp.CreateBuilder();
+        builder
+            .UseMauiApp<App>()
+            .ConfigureFonts(fonts =>
+            {
+                fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+                fonts.AddFont("OpenSans-SemiBold.ttf", "OpenSansSemiBold");
+            });
+
+        // Services
+        builder.Services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
+        builder.Services.AddSingleton<AuthService>();
+        builder.Services.AddSingleton(sp => new ApiService("https://nutrition-mvp-api.onrender.com"));
+
+        // ✅ DB: ne pas bloquer ici
+        builder.Services.AddSingleton<LocalDb>(sp =>
+        {
+            var dbPath = Path.Combine(FileSystem.AppDataDirectory, "nutrition.db3");
+            return new LocalDb(dbPath);
+        });
+
+        // ViewModels
+        builder.Services.AddTransient<LoginViewModel>();
+        builder.Services.AddTransient<DashboardViewModel>();
+        builder.Services.AddTransient<DiaryViewModel>();
+        builder.Services.AddTransient<AddMealViewModel>();
+        builder.Services.AddTransient<GoalsViewModel>();
+        builder.Services.AddTransient<RecommendationsViewModel>();
+        builder.Services.AddTransient<ProfileViewModel>();
+
+        // Pages
+        builder.Services.AddTransient<LoginPage>();
+        builder.Services.AddTransient<DashboardPage>();
+        builder.Services.AddTransient<DiaryPage>();
+        builder.Services.AddTransient<AddMealPage>();
+        builder.Services.AddTransient<GoalsPage>();
+        builder.Services.AddTransient<RecommendationsPage>();
+        builder.Services.AddTransient<ProfilePage>();
+
+        // Shell + Main (loading)
+        builder.Services.AddSingleton<AppShell>();
+        builder.Services.AddSingleton<MainPage>();
+
+        return builder.Build();
+    }
+}

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="NutritionTracker.Pages.RecommendationsPage"
+             Title="Conseils"
+             BackgroundColor="{StaticResource Background}">
+
+  <ScrollView>
+    <VerticalStackLayout Padding="20" Spacing="16">
+
+      <Label Text="Recommandations" Style="{StaticResource H1}" />
+      <Label Text="Basé sur votre historique, nous générons des conseils de consommation." Style="{StaticResource BodyMuted}" />
+
+      <Button Text="Générer" Command="{Binding GenerateCommand}" />
+      <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+
+      <Border Style="{StaticResource Card}" IsVisible="{Binding HasResult}">
+        <VerticalStackLayout Spacing="10">
+          <Label Text="Analyse" FontAttributes="Bold" />
+          <Label Text="{Binding InsightsText}" />
+        </VerticalStackLayout>
+      </Border>
+
+      <CollectionView ItemsSource="{Binding Items}" IsVisible="{Binding HasResult}">
+        <CollectionView.ItemTemplate>
+          <DataTemplate>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+              <VerticalStackLayout Spacing="6">
+                <Label Text="{Binding title}" FontAttributes="Bold" />
+                <Label Text="{Binding why}" FontSize="12" Opacity="0.75" />
+                <Label Text="Actions :" FontAttributes="Bold" FontSize="12" />
+                <CollectionView ItemsSource="{Binding actions}">
+                  <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                      <Label Text="• {Binding .}" />
+                    </DataTemplate>
+                  </CollectionView.ItemTemplate>
+                </CollectionView>
+              </VerticalStackLayout>
+            </Border>
+          </DataTemplate>
+        </CollectionView.ItemTemplate>
+      </CollectionView>
+
+    </VerticalStackLayout>
+  </ScrollView>
+</ContentPage>

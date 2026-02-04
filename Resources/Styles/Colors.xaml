@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- Brand -->
+    <Color x:Key="Primary">#16B39A</Color>
+    <Color x:Key="PrimaryDark">#0F8F7C</Color>
+    <Color x:Key="Accent">#2B7CFF</Color>
+
+    <!-- Surfaces -->
+    <Color x:Key="Background">#F5F7FB</Color>
+    <Color x:Key="Card2">#F0F7FF</Color>
+    <Color x:Key="Stroke">#E6EAF2</Color>
+
+    <!-- Keep Card as a Color (used by BackgroundColor setters) -->
+    <Color x:Key="Card">#FFFFFF</Color>
+    <!-- Use these for properties that expect Brush (e.g., Border.Background) -->
+    <SolidColorBrush x:Key="CardBrush" Color="{StaticResource Card}" />
+    <SolidColorBrush x:Key="Card2Brush" Color="{StaticResource Card2}" />
+
+    <!-- Text -->
+    <Color x:Key="Text">#0F172A</Color>
+    <Color x:Key="Muted">#64748B</Color>
+    <Color x:Key="OnPrimary">#FFFFFF</Color>
+
+    <!-- Macro colors -->
+    <Color x:Key="MacroCarbs">#2B7CFF</Color>
+    <Color x:Key="MacroProtein">#16B39A</Color>
+    <Color x:Key="MacroFat">#F4B740</Color>
+
+    <!-- Shadows -->
+    <Color x:Key="Shadow">#0A10201A</Color>
+
+</ResourceDictionary>

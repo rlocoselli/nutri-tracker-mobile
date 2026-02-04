@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="NutritionTracker.Pages.LoginPage"
+             Title="Connexion"
+             BackgroundColor="{StaticResource Background}">
+
+  <Grid Padding="24" RowDefinitions="*,Auto,Auto">
+
+    <VerticalStackLayout VerticalOptions="Center" Spacing="16">
+      <Image Source="logo.svg" HeightRequest="84" WidthRequest="84" HorizontalOptions="Start" />
+      <Label Text="NutritionTracker" Style="{StaticResource H1}" />
+      <Label Text="Suivez calories, protéines et glucides à partir d'un texte ou d'une photo." Style="{StaticResource BodyMuted}" />
+    </VerticalStackLayout>
+
+    <Button Grid.Row="1" Text="Continuer avec Google" Command="{Binding LoginCommand}" />
+
+    <Label Grid.Row="2" Text="En continuant, vous acceptez d'envoyer vos données de repas au service d'analyse." FontSize="12" TextColor="{StaticResource Muted}" />
+
+  </Grid>
+</ContentPage>

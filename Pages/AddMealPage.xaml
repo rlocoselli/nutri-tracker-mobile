@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="NutritionTracker.Pages.AddMealPage"
+             Title="Ajouter"
+             BackgroundColor="{StaticResource Background}">
+
+  <ScrollView>
+    <VerticalStackLayout Padding="20" Spacing="16">
+
+      <Label Text="Enregistrer un repas" Style="{StaticResource H1}" />
+      <Label Text="Décrivez votre repas ou ajoutez une photo." Style="{StaticResource BodyMuted}" />
+
+      <Border Style="{StaticResource Card}">
+        <Editor Text="{Binding Text}" AutoSize="TextChanges" Placeholder="Ex : salade de poulet, yaourt grec, pomme..." HeightRequest="120" />
+      </Border>
+
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+        <Button Text="Choisir une photo" Style="{StaticResource SecondaryButton}" Command="{Binding PickPhotoCommand}" />
+        <Button Grid.Column="1" Text="Prendre une photo" Style="{StaticResource SecondaryButton}" Command="{Binding CapturePhotoCommand}" />
+      </Grid>
+
+      <Border Style="{StaticResource Card}" IsVisible="{Binding HasPhoto}">
+        <Image Source="{Binding PhotoPath}" Aspect="AspectFill" HeightRequest="220" />
+      </Border>
+
+      <Button Text="Analyser" Command="{Binding AnalyzeCommand}" />
+
+      <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+
+      <Border Style="{StaticResource Card}" IsVisible="{Binding HasResult}">
+        <VerticalStackLayout Spacing="6">
+          <Label Text="Résultat" FontAttributes="Bold" />
+          <Label Text="{Binding ResultSummary}" />
+          <Label Text="{Binding ResultNotes}" FontSize="12" Opacity="0.7" />
+        </VerticalStackLayout>
+      </Border>
+
+    </VerticalStackLayout>
+  </ScrollView>
+</ContentPage>
