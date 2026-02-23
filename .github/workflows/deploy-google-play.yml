@@ -15,6 +15,10 @@ on:
         description: "Release status"
         required: true
         default: "completed"
+      rollout_percentage:
+        description: "Staged rollout percentage (1-100). <100 triggers inProgress rollout on supported tracks"
+        required: true
+        default: "100"
 
 jobs:
   deploy:
@@ -69,6 +73,7 @@ jobs:
           GOOGLE_PLAY_PACKAGE_NAME: ${{ vars.GOOGLE_PLAY_PACKAGE_NAME || 'com.audela.nutritiontracker' }}
           GOOGLE_PLAY_TRACK: ${{ github.event.inputs.track }}
           GOOGLE_PLAY_RELEASE_STATUS: ${{ github.event.inputs.release_status }}
+          GOOGLE_PLAY_ROLLOUT_PERCENTAGE: ${{ github.event.inputs.rollout_percentage }}
           GOOGLE_PLAY_DEFAULT_LANGUAGE: ${{ vars.GOOGLE_PLAY_DEFAULT_LANGUAGE || 'fr-FR' }}
           GOOGLE_PLAY_LISTING_TITLE: ${{ vars.GOOGLE_PLAY_LISTING_TITLE || 'NutritionTracker' }}
           GOOGLE_PLAY_SHORT_DESCRIPTION: ${{ vars.GOOGLE_PLAY_SHORT_DESCRIPTION || 'Suivi calories, protéines, glucides et activité.' }}

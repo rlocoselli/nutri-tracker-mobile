@@ -13,7 +13,7 @@
 
     <ApplicationTitle>NutritionTracker</ApplicationTitle>
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
-    <ApplicationVersion>3</ApplicationVersion>
+    <ApplicationVersion>4</ApplicationVersion>
   </PropertyGroup>
     <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
         <WindowsPackageType>None</WindowsPackageType>
@@ -22,6 +22,7 @@
   <!-- Identité Android -->
   <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-android'">
     <ApplicationId>com.audela.nutritiontracker</ApplicationId>
+    <AndroidTargetSdkVersion>35</AndroidTargetSdkVersion>
   </PropertyGroup>
 
   <!-- MAUI Controls explicite (corrige MA002) -->

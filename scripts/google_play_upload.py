@@ -14,7 +14,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--service-account", required=True, help="Path to service account JSON")
     parser.add_argument("--package-name", required=True, help="Android package name")
     parser.add_argument("--track", default="internal", help="Play track: internal, alpha, beta, production")
-    parser.add_argument("--release-status", default="completed", choices=["draft", "completed", "halted"], help="Release status")
+    parser.add_argument("--release-status", default="completed", choices=["draft", "completed", "halted", "inProgress"], help="Release status")
+    parser.add_argument("--rollout-percentage", default="100", help="Staged rollout percentage 1-100. <100 sets inProgress on supported tracks")
     parser.add_argument("--aab", required=True, help="Path to .aab file")
     parser.add_argument("--release-name", default="", help="Optional release name")
     parser.add_argument("--default-language", default="fr-FR", help="Play listing language code")
@@ -141,6 +142,22 @@ def main() -> None:
     args = parse_args()
 
     try:
+        rollout_percentage = float(args.rollout_percentage)
+    except ValueError as exc:
+        raise SystemExit("[ERROR] --rollout-percentage must be a number between 1 and 100") from exc
+
+    if rollout_percentage <= 0 or rollout_percentage > 100:
+        raise SystemExit("[ERROR] --rollout-percentage must be between 1 and 100")
+
+    resolved_status = args.release_status
+    user_fraction = None
+    if args.track != "internal" and rollout_percentage < 100:
+        resolved_status = "inProgress"
+        user_fraction = round(rollout_percentage / 100.0, 4)
+    elif args.track == "internal" and rollout_percentage < 100:
+        print("[WARN] rollout percentage < 100 ignored for internal track")
+
+    try:
         scopes = ["https://www.googleapis.com/auth/androidpublisher"]
         creds = service_account.Credentials.from_service_account_file(args.service_account, scopes=scopes)
         service = build("androidpublisher", "v3", credentials=creds, cache_discovery=False)
@@ -162,15 +179,15 @@ def main() -> None:
         print(f"[INFO] Uploaded bundle versionCode={version_code}")
 
         release_name = args.release_name or f"Automated release {dt.datetime.utcnow():%Y-%m-%d %H:%M UTC}"
-        track_body = {
-            "releases": [
-                {
-                    "name": release_name,
-                    "versionCodes": [version_code],
-                    "status": args.release_status,
-                }
-            ]
+        release_body = {
+            "name": release_name,
+            "versionCodes": [version_code],
+            "status": resolved_status,
         }
+        if user_fraction is not None:
+            release_body["userFraction"] = user_fraction
+
+        track_body = {"releases": [release_body]}
 
         service.edits().tracks().update(
             packageName=args.package_name,
@@ -178,7 +195,10 @@ def main() -> None:
             track=args.track,
             body=track_body,
         ).execute()
-        print(f"[INFO] Updated track '{args.track}'")
+        if user_fraction is not None:
+            print(f"[INFO] Updated track '{args.track}' with staged rollout {rollout_percentage:.2f}%")
+        else:
+            print(f"[INFO] Updated track '{args.track}'")
 
         update_listing(service, args.package_name, edit_id, args)
         update_graphics(service, args.package_name, edit_id, args)
@@ -189,6 +209,17 @@ def main() -> None:
     except HttpError as err:
         status = getattr(err.resp, "status", None)
         body = str(err)
+
+        if status == 404 and ("Package not found" in body or "edits" in body):
+            raise SystemExit(
+                "[ERROR] Google Play package not found for this account/project.\n"
+                f"Package requested: {args.package_name}\n"
+                "Fix:\n"
+                "  1) In Play Console, create/import the app with EXACT same package name.\n"
+                "  2) Ensure the service account has access to that app in Play Console (Users and permissions).\n"
+                "  3) Verify workflow variable GOOGLE_PLAY_PACKAGE_NAME matches csproj ApplicationId.\n"
+                f"Original error: {body}"
+            )
 
         if status == 403 and ("SERVICE_DISABLED" in body or "Android Developer API" in body or "androidpublisher.googleapis.com" in body):
             raise SystemExit(

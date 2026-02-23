@@ -6,6 +6,7 @@ PROJECT_PATH="${PROJECT_PATH:-$ROOT_DIR/NutritionTracker.csproj}"
 PACKAGE_NAME="${GOOGLE_PLAY_PACKAGE_NAME:-com.audela.nutritiontracker}"
 TRACK="${GOOGLE_PLAY_TRACK:-internal}"
 RELEASE_STATUS="${GOOGLE_PLAY_RELEASE_STATUS:-completed}"
+ROLLOUT_PERCENTAGE="${GOOGLE_PLAY_ROLLOUT_PERCENTAGE:-100}"
 SERVICE_ACCOUNT_JSON="${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:-}"
 AAB_PATH="${GOOGLE_PLAY_AAB_PATH:-}"
 DRY_RUN="${GOOGLE_PLAY_DRY_RUN:-false}"
@@ -153,6 +154,32 @@ if [[ "$DRY_RUN" != "true" ]]; then
       echo "[ERROR] No AAB found in $PUBLISH_DIR"
       exit 1
     fi
+
+    if ! command -v jarsigner >/dev/null 2>&1; then
+      echo "[ERROR] jarsigner not found in PATH. Install a JDK (Java 17 recommended in CI)."
+      exit 1
+    fi
+
+    echo "[INFO] Signing AAB with jarsigner..."
+    jarsigner \
+      -keystore "$ANDROID_SIGNING_KEYSTORE_PATH" \
+      -storepass "$ANDROID_SIGNING_STORE_PASS" \
+      -keypass "$SIGNING_KEY_PASS_EFFECTIVE" \
+      -sigalg SHA256withRSA \
+      -digestalg SHA-256 \
+      "$AAB_PATH" \
+      "$ANDROID_SIGNING_KEY_ALIAS" >/dev/null
+
+    VERIFY_OUT="$(jarsigner -verify -verbose "$AAB_PATH" 2>&1 || true)"
+    if echo "$VERIFY_OUT" | grep -qi "jar is unsigned"; then
+      echo "[ERROR] AAB is still unsigned/invalid after jarsigner step: $AAB_PATH"
+      exit 1
+    fi
+
+    if ! echo "$VERIFY_OUT" | grep -qi "jar verified"; then
+      echo "[WARN] jarsigner verification did not print 'jar verified'. Output:"
+      echo "$VERIFY_OUT"
+    fi
   fi
 fi
 
@@ -167,6 +194,7 @@ echo "[INFO] Uploading to Google Play..."
 echo "       Package: $PACKAGE_NAME"
 echo "       Track:   $TRACK"
 echo "       Status:  $RELEASE_STATUS"
+echo "       Rollout: $ROLLOUT_PERCENTAGE%"
 echo "       AAB:     $AAB_PATH"
 echo "       Lang:    $DEFAULT_LANGUAGE"
 echo "       First:   $FIRST_DEPLOY"
@@ -193,6 +221,7 @@ ARGS=(
   --package-name "$PACKAGE_NAME"
   --track "$TRACK"
   --release-status "$RELEASE_STATUS"
+  --rollout-percentage "$ROLLOUT_PERCENTAGE"
   --aab "$AAB_PATH"
   --default-language "$DEFAULT_LANGUAGE"
 )
