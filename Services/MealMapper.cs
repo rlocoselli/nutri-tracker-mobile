@@ -29,6 +29,7 @@ public static class MealMapper
             DayKeyUtc = dt.ToString("yyyy-MM-dd"),
             RawText = cleanedRaw,
             Description = description,
+            AiNotes = r.meal.notes?.Trim() ?? "",
             PhotoPath = photoPath ?? "",
             TotalCalories = r.meal.totals.calories,
             TotalCarbsG = r.meal.totals.carbs_g,

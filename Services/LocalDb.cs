@@ -31,6 +31,10 @@ public class LocalDb
         var hasDescription = columns.Any(c => string.Equals(c.Name, "Description", StringComparison.OrdinalIgnoreCase));
         if (!hasDescription)
             await _db.ExecuteAsync("ALTER TABLE MealEntry ADD COLUMN Description TEXT NOT NULL DEFAULT ''");
+
+        var hasAiNotes = columns.Any(c => string.Equals(c.Name, "AiNotes", StringComparison.OrdinalIgnoreCase));
+        if (!hasAiNotes)
+            await _db.ExecuteAsync("ALTER TABLE MealEntry ADD COLUMN AiNotes TEXT NOT NULL DEFAULT ''");
     }
 
     private sealed class TableInfoRow
@@ -96,6 +100,13 @@ public class LocalDb
     public Task<int> SaveExerciseAsync(ExerciseEntry entry)
     {
         return _db.InsertOrReplaceAsync(entry);
+    }
+
+    public Task<List<MealItem>> GetMealItemsForEntryAsync(string mealEntryId)
+    {
+        return _db.Table<MealItem>()
+            .Where(x => x.MealEntryId == mealEntryId)
+            .ToListAsync();
     }
 
     public async Task UpsertGoogleFitDailyAsync(DateTime dayLocal, int steps, double burnedCalories)

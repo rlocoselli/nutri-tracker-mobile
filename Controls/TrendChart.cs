@@ -59,6 +59,7 @@ public class TrendChart : GraphicsView
             var accent = TryGetColor("Accent") ?? Colors.DodgerBlue;
             var muted = TryGetColor("Muted") ?? Colors.Gray;
             var text = TryGetColor("Text") ?? Colors.Black;
+            var card = TryGetColor("Card") ?? Colors.White;
 
             var leftPad = 10f;
             var rightPad = 10f;
@@ -77,6 +78,20 @@ public class TrendChart : GraphicsView
             var max = values.Max();
             if (Math.Abs(max - min) < 0.0001) max = min + 1; // avoid flat division
 
+            // Background card
+            canvas.FillColor = card.WithAlpha(0.35f);
+            canvas.FillRoundedRectangle(plot, 8f);
+
+            // Horizontal grid lines
+            canvas.StrokeColor = muted.WithAlpha(0.35f);
+            canvas.StrokeSize = 1;
+            var gridSteps = 4;
+            for (var i = 0; i <= gridSteps; i++)
+            {
+                var y = plot.Top + plot.Height * i / gridSteps;
+                canvas.DrawLine(plot.Left, y, plot.Right, y);
+            }
+
             // Axis baseline
             canvas.StrokeColor = muted;
             canvas.StrokeSize = 1;
@@ -94,12 +109,24 @@ public class TrendChart : GraphicsView
             if (count >= 2)
             {
                 var p0 = new PointF(X(0), Y(values[0]));
+
+                // Area fill under line
+                var path = new PathF();
+                path.MoveTo(p0.X, plot.Bottom);
+                path.LineTo(p0.X, p0.Y);
+
                 for (var i = 1; i < count; i++)
                 {
                     var p1 = new PointF(X(i), Y(values[i]));
                     canvas.DrawLine(p0, p1);
+                    path.LineTo(p1.X, p1.Y);
                     p0 = p1;
                 }
+
+                path.LineTo(X(count - 1), plot.Bottom);
+                path.Close();
+                canvas.FillColor = accent.WithAlpha(0.15f);
+                canvas.FillPath(path);
             }
 
             // Points
@@ -110,6 +137,15 @@ public class TrendChart : GraphicsView
                 var py = Y(values[i]);
                 canvas.FillCircle(px, py, 2.8f);
             }
+
+            // Highlight latest point and value
+            var lastX = X(count - 1);
+            var lastY = Y(values[count - 1]);
+            canvas.FillColor = accent;
+            canvas.FillCircle(lastX, lastY, 4.2f);
+            canvas.FontColor = text;
+            canvas.FontSize = 11;
+            canvas.DrawString($"{Math.Round(values[count - 1])}", lastX + 6, Math.Max(plot.Top, lastY - 14), HorizontalAlignment.Left);
 
             // Labels (first / middle / last)
             var labels = _chart.Labels ?? Array.Empty<string>();
@@ -135,7 +171,9 @@ public class TrendChart : GraphicsView
             var muted = TryGetColor("Muted") ?? Colors.Gray;
             canvas.FontColor = muted;
             canvas.FontSize = 12;
-            canvas.DrawString("Sem dados", rect, HorizontalAlignment.Center, VerticalAlignment.Center);
+            var lang = Preferences.Default.Get("app_lang", "fr");
+            var label = lang == "en" ? "No data" : "Pas de données";
+            canvas.DrawString(label, rect, HorizontalAlignment.Center, VerticalAlignment.Center);
         }
 
         private static void DrawLabel(ICanvas canvas, RectF plot, string text, int index, Func<int, float> x)

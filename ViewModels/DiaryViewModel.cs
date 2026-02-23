@@ -249,6 +249,7 @@ public partial class DiaryViewModel : ObservableObject
             DayKeyUtc = item.DayKeyUtc,
             RawText = string.IsNullOrWhiteSpace(name) ? item.RawText : name.Trim(),
             Description = string.IsNullOrWhiteSpace(name) ? item.Description : name.Trim(),
+            AiNotes = item.AiNotes,
             PhotoPath = item.PhotoPath,
             TotalCalories = calories,
             TotalProteinG = protein,
@@ -305,7 +306,10 @@ public partial class DiaryViewModel : ObservableObject
         var entries = await _db.GetMealsBetweenUtcAsync(fromUtc, toUtc);
         var exercise = await _db.GetExerciseTotalsBetweenUtcAsync(fromUtc, toUtc);
         foreach (var e in entries.OrderByDescending(e => e.DateUtc))
-            Meals.Add(DiaryMealItem.FromEntry(e));
+        {
+            var items = await _db.GetMealItemsForEntryAsync(e.Id);
+            Meals.Add(DiaryMealItem.FromEntry(e, items));
+        }
 
         var cal = entries.Sum(x => x.TotalCalories);
         var carbs = entries.Sum(x => x.TotalCarbsG);
@@ -492,6 +496,7 @@ public class DiaryMealItem
     public string Id { get; set; } = "";
     public string RawText { get; set; } = "";
     public string Description { get; set; } = "";
+    public string AiNotes { get; set; } = "";
     public string PhotoPath { get; set; } = "";
     public DateTime DateUtc { get; set; }
     public string DayKeyUtc { get; set; } = "";
@@ -504,22 +509,33 @@ public class DiaryMealItem
     public string Subtitle { get; set; } = "";
     public string DescriptionText { get; set; } = "";
     public bool HasDescription => !string.IsNullOrWhiteSpace(DescriptionText);
+    public string AnalysisText { get; set; } = "";
+    public bool HasAnalysis => !string.IsNullOrWhiteSpace(AnalysisText);
     public string CaloriesText { get; set; } = "";
     public string ProteinText { get; set; } = "";
     public string CarbsText { get; set; } = "";
 
-    public static DiaryMealItem FromEntry(MealEntry e)
+    public static DiaryMealItem FromEntry(MealEntry e, List<MealItem>? items)
     {
         var local = e.DateUtc.ToLocalTime();
         var displayDescription = string.IsNullOrWhiteSpace(e.Description) ? e.RawText : e.Description;
         var title = string.IsNullOrWhiteSpace(e.RawText) ? (string.IsNullOrWhiteSpace(displayDescription) ? "Refeição" : displayDescription) : e.RawText;
         title = title.Length > 28 ? title.Substring(0, 28) + "…" : title;
+        var itemList = items == null
+            ? ""
+            : string.Join(", ", items
+                .Select(i => i.Name?.Trim())
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct()
+                .Take(5));
+        var analysisText = BuildAnalysisText(e.AiNotes, itemList);
 
         return new DiaryMealItem
         {
             Id = e.Id,
             RawText = e.RawText,
             Description = e.Description,
+            AiNotes = e.AiNotes,
             PhotoPath = e.PhotoPath,
             DateUtc = e.DateUtc,
             DayKeyUtc = e.DayKeyUtc,
@@ -530,9 +546,24 @@ public class DiaryMealItem
             Title = title,
             Subtitle = local.ToString("dddd dd MMM · HH:mm", CultureInfo.CurrentCulture),
             DescriptionText = displayDescription,
+            AnalysisText = analysisText,
             CaloriesText = $"{Math.Round(e.TotalCalories)} kcal",
             ProteinText = $"P {Math.Round(e.TotalProteinG)}g",
             CarbsText = $"C {Math.Round(e.TotalCarbsG)}g"
         };
+    }
+
+    private static string BuildAnalysisText(string aiNotes, string items)
+    {
+        var notes = aiNotes?.Trim() ?? "";
+        var itemsText = items?.Trim() ?? "";
+
+        if (!string.IsNullOrWhiteSpace(notes) && !string.IsNullOrWhiteSpace(itemsText))
+            return $"IA: {notes} · {itemsText}";
+        if (!string.IsNullOrWhiteSpace(notes))
+            return $"IA: {notes}";
+        if (!string.IsNullOrWhiteSpace(itemsText))
+            return $"IA: {itemsText}";
+        return "";
     }
 }

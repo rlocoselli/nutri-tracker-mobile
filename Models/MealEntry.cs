@@ -15,6 +15,7 @@ public class MealEntry
 
     public string RawText { get; set; } = "";
     public string Description { get; set; } = "";
+    public string AiNotes { get; set; } = "";
     public string PhotoPath { get; set; } = "";
 
     public double TotalCalories { get; set; }
