@@ -29,6 +29,12 @@ jobs:
         with:
           global-json-file: global.json
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
       - name: Install MAUI Android workload
         run: |
           dotnet --version
@@ -79,5 +85,8 @@ jobs:
           ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
           ANDROID_SIGNING_KEY_PASS: ${{ secrets.ANDROID_SIGNING_KEY_PASS }}
         run: |
+          export ANDROID_SIGNING_STORE_PASS="$(printf '%s' "$ANDROID_SIGNING_STORE_PASS" | tr -d '\r\n')"
+          export ANDROID_SIGNING_KEY_ALIAS="$(printf '%s' "$ANDROID_SIGNING_KEY_ALIAS" | tr -d '\r\n')"
+          export ANDROID_SIGNING_KEY_PASS="$(printf '%s' "$ANDROID_SIGNING_KEY_PASS" | tr -d '\r\n')"
           chmod +x scripts/deploy_google_play.sh
           ./scripts/deploy_google_play.sh

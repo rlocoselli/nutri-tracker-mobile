@@ -102,6 +102,27 @@ if [[ "$DRY_RUN" != "true" ]]; then
     : "${ANDROID_SIGNING_KEY_ALIAS:?ANDROID_SIGNING_KEY_ALIAS is required when GOOGLE_PLAY_AAB_PATH is not provided}"
     : "${ANDROID_SIGNING_KEY_PASS:?ANDROID_SIGNING_KEY_PASS is required when GOOGLE_PLAY_AAB_PATH is not provided}"
 
+    if [[ ! -f "$ANDROID_SIGNING_KEYSTORE_PATH" ]]; then
+      echo "[ERROR] Signing keystore not found: $ANDROID_SIGNING_KEYSTORE_PATH"
+      exit 1
+    fi
+
+    if ! command -v keytool >/dev/null 2>&1; then
+      echo "[ERROR] keytool not found in PATH. Install a JDK (Java 17 recommended in CI)."
+      exit 1
+    fi
+
+    if ! keytool -list -keystore "$ANDROID_SIGNING_KEYSTORE_PATH" -storepass "$ANDROID_SIGNING_STORE_PASS" >/dev/null 2>&1; then
+      echo "[ERROR] Cannot open keystore with provided ANDROID_SIGNING_STORE_PASS."
+      exit 1
+    fi
+
+    if ! keytool -list -v -keystore "$ANDROID_SIGNING_KEYSTORE_PATH" -storepass "$ANDROID_SIGNING_STORE_PASS" -alias "$ANDROID_SIGNING_KEY_ALIAS" -keypass "$ANDROID_SIGNING_KEY_PASS" >/dev/null 2>&1; then
+      echo "[ERROR] Cannot access alias '$ANDROID_SIGNING_KEY_ALIAS' with provided key password."
+      echo "        Verify ANDROID_SIGNING_KEY_ALIAS and ANDROID_SIGNING_KEY_PASS secrets."
+      exit 1
+    fi
+
     echo "[INFO] Building signed AAB..."
     dotnet publish "$PROJECT_PATH" \
       -f net8.0-android \
