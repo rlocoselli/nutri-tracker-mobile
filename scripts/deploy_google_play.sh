@@ -179,10 +179,50 @@ if [[ "$DRY_RUN" != "true" ]]; then
     dotnet publish "$PROJECT_PATH" "${PUBLISH_ARGS[@]}"
 
     ASSETS_FILE="$ROOT_DIR/obj/project.assets.json"
-    if [[ -f "$ASSETS_FILE" ]] && grep -Eq '"SQLitePCLRaw\.(bundle_green|lib\.e_sqlite3\.android|provider\.e_sqlite3)": "2\.1\.2"' "$ASSETS_FILE"; then
-      echo "[ERROR] Blocked: resolved SQLitePCLRaw version 2.1.2 (known 16 KB page-size issue in Play Console)."
-      echo "        Ensure dependencies resolve to SQLitePCLRaw 2.1.11+ before deployment."
-      exit 1
+    if [[ -f "$ASSETS_FILE" ]]; then
+      set +e
+      SQLITE_GUARD_OUT="$(python3 - "$ASSETS_FILE" <<'PY'
+import json
+import sys
+
+assets_path = sys.argv[1]
+tracked = {
+    "sqlitepclraw.bundle_green",
+    "sqlitepclraw.lib.e_sqlite3.android",
+    "sqlitepclraw.provider.e_sqlite3",
+}
+
+with open(assets_path, "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+resolved = {}
+for key in data.get("libraries", {}).keys():
+    if "/" not in key:
+        continue
+    package_name, version = key.split("/", 1)
+    name_l = package_name.lower()
+    if name_l in tracked:
+        resolved[name_l] = version
+
+for name in sorted(tracked):
+    version = resolved.get(name, "<not-resolved>")
+    print(f"{name}={version}")
+
+bad = [name for name, version in resolved.items() if version == "2.1.2"]
+if bad:
+    sys.exit(2)
+PY
+      )"
+      SQLITE_GUARD_STATUS=$?
+      set -e
+      if [[ $SQLITE_GUARD_STATUS -ne 0 ]]; then
+        echo "$SQLITE_GUARD_OUT"
+        echo "[ERROR] Blocked: resolved SQLitePCLRaw version 2.1.2 (known 16 KB page-size issue in Play Console)."
+        echo "        Ensure dependencies resolve to SQLitePCLRaw 2.1.11+ before deployment."
+        exit 1
+      fi
+      echo "[INFO] SQLite resolution check"
+      echo "$SQLITE_GUARD_OUT"
     fi
 
     PUBLISH_DIR="$ROOT_DIR/bin/Release/$ANDROID_TARGET_FRAMEWORK/publish"
