@@ -8,29 +8,32 @@
   <ScrollView>
     <VerticalStackLayout Padding="20" Spacing="16">
 
-      <Label Text="Enregistrer un repas" Style="{StaticResource H1}" />
-      <Label Text="Décrivez votre repas ou ajoutez une photo." Style="{StaticResource BodyMuted}" />
+      <Label Text="{Binding TitleText}" Style="{StaticResource H1}" />
+      <Label Text="{Binding SubtitleText}" Style="{StaticResource BodyMuted}" />
 
       <Border Style="{StaticResource Card}">
-        <Editor Text="{Binding Text}" AutoSize="TextChanges" Placeholder="Ex : salade de poulet, yaourt grec, pomme..." HeightRequest="120" />
+        <Editor Text="{Binding Text}" AutoSize="TextChanges" Placeholder="{Binding EditorPlaceholder}" HeightRequest="120" />
       </Border>
 
       <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-        <Button Text="Choisir une photo" Style="{StaticResource SecondaryButton}" Command="{Binding PickPhotoCommand}" />
-        <Button Grid.Column="1" Text="Prendre une photo" Style="{StaticResource SecondaryButton}" Command="{Binding CapturePhotoCommand}" />
+        <Button Text="{Binding PickPhotoText}" Style="{StaticResource SecondaryButton}" Command="{Binding PickPhotoCommand}" />
+        <Button Grid.Column="1" Text="{Binding CapturePhotoText}" Style="{StaticResource SecondaryButton}" Command="{Binding CapturePhotoCommand}" />
       </Grid>
 
       <Border Style="{StaticResource Card}" IsVisible="{Binding HasPhoto}">
         <Image Source="{Binding PhotoPath}" Aspect="AspectFill" HeightRequest="220" />
       </Border>
 
-      <Button Text="Analyser" Command="{Binding AnalyzeCommand}" />
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+        <Button Text="{Binding AnalyzeText}" Command="{Binding AnalyzeCommand}" />
+        <Button Grid.Column="1" Text="{Binding ClearText}" Style="{StaticResource SecondaryButton}" Command="{Binding ClearCommand}" />
+      </Grid>
 
       <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
 
       <Border Style="{StaticResource Card}" IsVisible="{Binding HasResult}">
         <VerticalStackLayout Spacing="6">
-          <Label Text="Résultat" FontAttributes="Bold" />
+          <Label Text="{Binding ResultTitle}" FontAttributes="Bold" />
           <Label Text="{Binding ResultSummary}" />
           <Label Text="{Binding ResultNotes}" FontSize="12" Opacity="0.7" />
         </VerticalStackLayout>

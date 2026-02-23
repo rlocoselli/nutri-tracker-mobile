@@ -2,19 +2,20 @@
 <ContentPage
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:NutritionTracker.Services"
     x:Class="NutritionTracker.Pages.GoalsPage"
-    Title="Objectifs"
+    Title="{local:Translate Key=goals_title}"
     BackgroundColor="{StaticResource Background}">
 
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="16">
 
-            <Label Text="Objectifs" Style="{StaticResource H1}" />
+            <Label Text="{local:Translate Key=goals_title}" Style="{StaticResource H1}" />
 
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Spacing="10">
                     <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="6">
-                        <Label Text="Objectif calories / jour" FontAttributes="Bold" />
+                        <Label Text="{local:Translate Key=goal_cal_day}" FontAttributes="Bold" />
                         <Label Grid.Column="1" Text="kcal" TextColor="{StaticResource Muted}" />
                         <Entry Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding CaloriesTarget}" Keyboard="Numeric" Placeholder="2000" />
                     </Grid>
@@ -25,7 +26,7 @@
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Spacing="10">
                     <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="6">
-                        <Label Text="Objectif protéines / jour" FontAttributes="Bold" />
+                        <Label Text="{local:Translate Key=goal_protein_day}" FontAttributes="Bold" />
                         <Label Grid.Column="1" Text="g" TextColor="{StaticResource Muted}" />
                         <Entry Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding ProteinGTarget}" Keyboard="Numeric" Placeholder="120" />
                     </Grid>
@@ -36,7 +37,7 @@
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Spacing="10">
                     <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="6">
-                        <Label Text="Objectif glucides / jour" FontAttributes="Bold" />
+                        <Label Text="{local:Translate Key=goal_carbs_day}" FontAttributes="Bold" />
                         <Label Grid.Column="1" Text="g" TextColor="{StaticResource Muted}" />
                         <Entry Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding CarbsGTarget}" Keyboard="Numeric" Placeholder="150" />
                     </Grid>
@@ -44,7 +45,7 @@
                 </VerticalStackLayout>
             </Border>
 
-            <Button Text="Enregistrer" Command="{Binding SaveCommand}" />
+            <Button Text="{local:Translate Key=save}" Command="{Binding SaveCommand}" />
 
         </VerticalStackLayout>
     </ScrollView>

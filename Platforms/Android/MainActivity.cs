@@ -7,6 +7,7 @@ namespace NutritionTracker;
 [Activity(
     Theme = "@style/Maui.SplashTheme",
     MainLauncher = true,
+    Icon = "@mipmap/appicon",
     ConfigurationChanges =
         ConfigChanges.ScreenSize |
         ConfigChanges.Orientation |

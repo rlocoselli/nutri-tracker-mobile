@@ -4,7 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:controls="clr-namespace:NutritionTracker.Controls"
     x:Class="NutritionTracker.Pages.DashboardPage"
-    Title="Tableau"
+    Title="{Binding DailySummaryText}"
     BackgroundColor="{StaticResource Background}">
 
     <ScrollView>
@@ -17,7 +17,7 @@
                 </Border>
 
                 <VerticalStackLayout Grid.Column="1" Padding="12,0" Spacing="2" VerticalOptions="Center">
-                    <Label Text="Bonjour," FontAttributes="Bold" FontSize="14" TextColor="{StaticResource Muted}" />
+                    <Label Text="{Binding HelloText}" FontAttributes="Bold" FontSize="14" TextColor="{StaticResource Muted}" />
                     <Label Text="{Binding UserName}" FontSize="22" FontAttributes="Bold" />
                 </VerticalStackLayout>
 
@@ -50,19 +50,31 @@
             </Border>
 
             <!-- Primary CTA -->
-            <Button Text="Enregistrer un repas +" Command="{Binding AddMealCommand}" />
+            <Button Text="{Binding RecordMealText}" Command="{Binding AddMealCommand}" />
 
             <!-- Quick actions -->
             <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-                <Button Text="Conseils" Style="{StaticResource SecondaryButton}" Command="{Binding OpenRecommendationsCommand}" />
-                <Button Grid.Column="1" Text="Objectifs" Style="{StaticResource SecondaryButton}" Command="{Binding OpenGoalsCommand}" />
+                <Button Text="{Binding AdviceText}" Style="{StaticResource SecondaryButton}" Command="{Binding OpenRecommendationsCommand}" />
+                <Button Grid.Column="1" Text="{Binding GoalsText}" Style="{StaticResource SecondaryButton}" Command="{Binding OpenGoalsCommand}" />
             </Grid>
 
             <!-- Summary hint -->
             <Border Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
                 <VerticalStackLayout Spacing="6">
-                    <Label Text="Résumé du jour" FontAttributes="Bold" />
-                    <Label Text="Ajoutez vos repas (texte ou photo) pour suivre calories, protéines et glucides." Style="{StaticResource BodyMuted}" />
+                    <Label Text="{Binding DailySummaryText}" FontAttributes="Bold" />
+                    <Label Text="{Binding DailySummaryHintText}" Style="{StaticResource BodyMuted}" />
+                    <Label Text="{Binding FitSyncStatusText}" FontSize="12" TextColor="{StaticResource Muted}" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,8,0,0">
+                        <VerticalStackLayout>
+                            <Label Text="{Binding StepsLabelText}" FontAttributes="Bold" FontSize="12" />
+                            <Label Text="{Binding TodayStepsText}" />
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="1">
+                            <Label Text="{Binding BurnLabelText}" FontAttributes="Bold" FontSize="12" />
+                            <Label Text="{Binding TodayBurnText}" />
+                        </VerticalStackLayout>
+                    </Grid>
+                    <Label Text="{Binding TodayNetCaloriesText}" FontAttributes="Bold" />
                 </VerticalStackLayout>
             </Border>
 

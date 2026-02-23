@@ -28,7 +28,8 @@ public class AuthService
 
     private static readonly Uri RedirectUri = new($"{RedirectScheme}:/oauth2redirect");
 
-    private const string Scope = "openid email profile";
+    private const string BaseScope = "openid email profile";
+    private const string FitScope = "https://www.googleapis.com/auth/fitness.activity.read";
 
     // OAuth2 "Authorization Code + PKCE" (robuste et recommandé pour mobile)
     private static string Base64Url(byte[] bytes) =>
@@ -52,6 +53,22 @@ public class AuthService
 
     public async Task<GoogleAuthResult> LoginAsync()
     {
+        try
+        {
+            var fitResult = await LoginWithScopeAsync($"{BaseScope} {FitScope}");
+            Preferences.Default.Set("fit_scope_granted", true);
+            return fitResult;
+        }
+        catch (Exception ex) when (IsAccessDenied(ex))
+        {
+            var basicResult = await LoginWithScopeAsync(BaseScope);
+            Preferences.Default.Set("fit_scope_granted", false);
+            return basicResult;
+        }
+    }
+
+    private async Task<GoogleAuthResult> LoginWithScopeAsync(string scope)
+    {
         var (verifier, challenge) = CreatePkce();
 
         var authUrl =
@@ -59,11 +76,12 @@ public class AuthService
             $"?client_id={Uri.EscapeDataString(AndroidClientId)}" +
             $"&redirect_uri={Uri.EscapeDataString(RedirectUri.ToString())}" +
             "&response_type=code" +
-            $"&scope={Uri.EscapeDataString(Scope)}" +
+            $"&scope={Uri.EscapeDataString(scope)}" +
+            "&include_granted_scopes=true" +
             $"&code_challenge={Uri.EscapeDataString(challenge)}" +
             "&code_challenge_method=S256" +
             "&access_type=offline" +
-            "&prompt=consent";
+            "&prompt=consent%20select_account";
 
         var result = await WebAuthenticator.Default.AuthenticateAsync(new Uri(authUrl), RedirectUri);
 
@@ -96,6 +114,14 @@ public class AuthService
             throw new Exception("Google login n'a pas renvoyé d'id_token. Vérifie le client OAuth + Redirect URI.");
 
         return profile;
+    }
+
+    private static bool IsAccessDenied(Exception ex)
+    {
+        var message = ex.ToString();
+        return message.Contains("access_denied", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("insufficient", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("cancel", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<(string AccessToken, string IdToken, string RefreshToken)> ExchangeCodeForTokensAsync(string code, string codeVerifier)

@@ -16,6 +16,7 @@ public class LocalDb
     {
         await _db.CreateTableAsync<MealEntry>();
         await _db.CreateTableAsync<MealItem>();
+        await _db.CreateTableAsync<ExerciseEntry>();
         await _db.CreateTableAsync<UserGoals>();
 
         var goals = await _db.Table<UserGoals>().FirstOrDefaultAsync();
@@ -33,6 +34,23 @@ public class LocalDb
             await _db.InsertOrReplaceAsync(it);
     }
 
+    public Task<int> UpsertMealEntryAsync(MealEntry entry)
+    {
+        return _db.InsertOrReplaceAsync(entry);
+    }
+
+    public async Task<int> DeleteMealAsync(string mealEntryId)
+    {
+        var linkedItems = await _db.Table<MealItem>()
+            .Where(x => x.MealEntryId == mealEntryId)
+            .ToListAsync();
+
+        foreach (var item in linkedItems)
+            await _db.DeleteAsync(item);
+
+        return await _db.DeleteAsync<MealEntry>(mealEntryId);
+    }
+
     public async Task<(double cal, double carbs, double prot)> GetTotalsForDayUtcAsync(DateTime dayUtc)
     {
         var key = dayUtc.ToString("yyyy-MM-dd");
@@ -46,11 +64,61 @@ public class LocalDb
         return _db.Table<MealEntry>().Where(m => m.DateUtc >= from).OrderBy(m => m.DateUtc).ToListAsync();
     }
 
+    public Task<List<ExerciseEntry>> GetExercisesLastDaysAsync(int days)
+    {
+        var from = DateTime.UtcNow.Date.AddDays(-days + 1);
+        return _db.Table<ExerciseEntry>().Where(x => x.DateUtc >= from).OrderBy(x => x.DateUtc).ToListAsync();
+    }
+
     public Task<List<MealEntry>> GetMealsBetweenUtcAsync(DateTime fromUtc, DateTime toUtc)
     {
         return _db.Table<MealEntry>()
             .Where(m => m.DateUtc >= fromUtc && m.DateUtc < toUtc)
             .OrderBy(m => m.DateUtc)
             .ToListAsync();
+    }
+
+    public Task<int> SaveExerciseAsync(ExerciseEntry entry)
+    {
+        return _db.InsertOrReplaceAsync(entry);
+    }
+
+    public async Task UpsertGoogleFitDailyAsync(DateTime dayLocal, int steps, double burnedCalories)
+    {
+        var dateUtc = DateTime.SpecifyKind(dayLocal, DateTimeKind.Local).ToUniversalTime();
+        var dayKeyUtc = dateUtc.ToString("yyyy-MM-dd");
+
+        var existing = await _db.Table<ExerciseEntry>()
+            .Where(x => x.DayKeyUtc == dayKeyUtc && x.Source == "google-fit-sync")
+            .ToListAsync();
+
+        foreach (var row in existing)
+            await _db.DeleteAsync(row);
+
+        var fresh = new ExerciseEntry
+        {
+            DateUtc = dateUtc,
+            DayKeyUtc = dayKeyUtc,
+            GoogleFitSteps = Math.Max(0, steps),
+            BurnedCalories = Math.Max(0, burnedCalories),
+            ExerciseMinutes = 0,
+            Source = "google-fit-sync",
+            Notes = "Google Fit"
+        };
+
+        await _db.InsertAsync(fresh);
+    }
+
+    public async Task<(double burnedCalories, int steps, double minutes)> GetExerciseTotalsBetweenUtcAsync(DateTime fromUtc, DateTime toUtc)
+    {
+        var entries = await _db.Table<ExerciseEntry>()
+            .Where(x => x.DateUtc >= fromUtc && x.DateUtc < toUtc)
+            .ToListAsync();
+
+        return (
+            entries.Sum(x => x.BurnedCalories),
+            entries.Sum(x => x.GoogleFitSteps),
+            entries.Sum(x => x.ExerciseMinutes)
+        );
     }
 }

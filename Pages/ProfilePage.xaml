@@ -3,13 +3,13 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     x:Class="NutritionTracker.Pages.ProfilePage"
-    Title="Profil"
+    Title="{Binding ProfileTitle}"
     BackgroundColor="{StaticResource Background}">
 
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="16">
 
-            <Label Text="Profil" Style="{StaticResource H1}" />
+            <Label Text="{Binding ProfileTitle}" Style="{StaticResource H1}" />
 
             <Border Style="{StaticResource Card}">
                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" VerticalOptions="Center">
@@ -25,13 +25,33 @@
 
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Spacing="12">
-                    <Label Text="Conseils" FontAttributes="Bold" />
-                    <Label Text="Générez des recommandations basées sur votre historique." Style="{StaticResource BodyMuted}" />
-                    <Button Text="Générer des recommandations" Command="{Binding OpenRecommendationsCommand}" />
+                    <Label Text="{Binding LanguageLabel}" FontAttributes="Bold" />
+                    <Picker ItemsSource="{Binding LanguageOptions}" SelectedItem="{Binding SelectedLanguage}" />
+                    <Label Text="{Binding CurrentLanguageText}" Style="{StaticResource BodyMuted}" />
+                    <Label Text="{Binding FitSyncStatusText}" FontSize="12" TextColor="{StaticResource Muted}" />
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Border Grid.Column="0" Style="{StaticResource Card}">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="{Binding StepsTodayLabel}" FontAttributes="Bold" FontSize="12" />
+                                <Label Text="{Binding TodayStepsText}" FontSize="18" FontAttributes="Bold" />
+                            </VerticalStackLayout>
+                        </Border>
+                        <Border Grid.Column="1" Style="{StaticResource Card}">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="{Binding BurnedCaloriesLabel}" FontAttributes="Bold" FontSize="12" />
+                                <Label Text="{Binding TodayBurnText}" FontSize="18" FontAttributes="Bold" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </Grid>
+
+                    <Label Text="{Binding AdviceTitle}" FontAttributes="Bold" />
+                    <Label Text="{Binding AdviceHint}" Style="{StaticResource BodyMuted}" />
+                    <Button Text="{Binding GenerateRecoText}" Command="{Binding OpenRecommendationsCommand}" />
                 </VerticalStackLayout>
             </Border>
 
-            <Button Text="Se déconnecter" Style="{StaticResource SecondaryButton}" Command="{Binding LogoutCommand}" />
+            <Button Text="{Binding LogoutText}" Style="{StaticResource SecondaryButton}" Command="{Binding LogoutCommand}" />
 
         </VerticalStackLayout>
     </ScrollView>

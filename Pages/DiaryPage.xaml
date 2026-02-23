@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:controls="clr-namespace:NutritionTracker.Controls"
     x:Class="NutritionTracker.Pages.DiaryPage"
+    x:Name="DiaryRoot"
     Title="Journal"
     BackgroundColor="{StaticResource Background}">
 
@@ -25,8 +26,8 @@
         <Border Grid.Row="1" Style="{StaticResource Card}">
             <VerticalStackLayout Spacing="12">
                 <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
-                    <Picker Title="Métrique" ItemsSource="{Binding MetricOptions}" SelectedItem="{Binding SelectedMetric}" />
-                    <Picker Grid.Column="1" Title="Période" ItemsSource="{Binding PeriodOptions}" SelectedItem="{Binding SelectedPeriod}" />
+                    <Picker Title="{Binding MetricTitle}" ItemsSource="{Binding MetricOptions}" SelectedItem="{Binding SelectedMetric}" />
+                    <Picker Grid.Column="1" Title="{Binding PeriodTitle}" ItemsSource="{Binding PeriodOptions}" SelectedItem="{Binding SelectedPeriod}" />
                 </Grid>
                 <controls:TrendChart HeightRequest="170"
                                      Values="{Binding ChartValues}"
@@ -34,14 +35,17 @@
             </VerticalStackLayout>
         </Border>
 
-        <Label Grid.Row="2" Text="Vos repas" Style="{StaticResource H1}" />
-        <Label Grid.Row="2" Margin="0,34,0,0" Text="Détails du jour sélectionné" Style="{StaticResource BodyMuted}" />
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="4">
+            <Label Text="{Binding MealsTitle}" Style="{StaticResource H1}" />
+            <Button Grid.Column="1" Text="{Binding AddManualText}" Style="{StaticResource SecondaryButton}" Command="{Binding AddManualCommand}" />
+            <Label Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding MealsSubtitle}" Style="{StaticResource BodyMuted}" />
+        </Grid>
 
         <CollectionView Grid.Row="3" ItemsSource="{Binding Meals}" SelectionMode="None">
             <CollectionView.ItemTemplate>
                 <DataTemplate>
                     <Border Style="{StaticResource Card}" Margin="0,0,0,12">
-                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="6">
+                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
                             <Label Text="{Binding Title}" FontAttributes="Bold" FontSize="15" />
                             <Label Grid.Column="1" Text="{Binding CaloriesText}" FontAttributes="Bold" />
                             <Label Grid.Row="1" Text="{Binding Subtitle}" TextColor="{StaticResource Muted}" FontSize="12" />
@@ -49,11 +53,71 @@
                                 <Label Text="{Binding ProteinText}" TextColor="{StaticResource MacroProtein}" FontSize="12" />
                                 <Label Text="{Binding CarbsText}" TextColor="{StaticResource MacroCarbs}" FontSize="12" />
                             </HorizontalStackLayout>
+                            <HorizontalStackLayout Grid.Row="2" Grid.ColumnSpan="2" Spacing="8" HorizontalOptions="End">
+                                <Button Style="{StaticResource SecondaryButton}"
+                                    Text="{Binding Source={x:Reference DiaryRoot}, Path=BindingContext.EditText}"
+                                        Command="{Binding Source={x:Reference DiaryRoot}, Path=BindingContext.EditMealCommand}"
+                                        CommandParameter="{Binding .}" />
+                                <Button Text="{Binding Source={x:Reference DiaryRoot}, Path=BindingContext.DeleteText}"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Command="{Binding Source={x:Reference DiaryRoot}, Path=BindingContext.DeleteMealCommand}"
+                                        CommandParameter="{Binding .}" />
+                            </HorizontalStackLayout>
                         </Grid>
                     </Border>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>
+
+        <Grid IsVisible="{Binding IsManualPopupVisible}"
+              BackgroundColor="#80000000"
+              InputTransparent="False"
+              Grid.RowSpan="4">
+            <Border Style="{StaticResource Card}"
+                    MaximumWidthRequest="460"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center"
+                    Margin="12">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="{Binding ManualPopupTitle}" Style="{StaticResource H1}" />
+
+                    <Label Text="{Binding ManualMealLabel}" FontAttributes="Bold" FontSize="12" />
+                    <Entry Text="{Binding ManualMealName}" Placeholder="{Binding ManualMealPlaceholder}" />
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="{Binding CaloriesLabel}" FontAttributes="Bold" FontSize="12" />
+                            <Entry Text="{Binding ManualCalories}" Keyboard="Numeric" Placeholder="{Binding CaloriesPlaceholder}" />
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="1" Spacing="4">
+                            <Label Text="{Binding ProteinLabel}" FontAttributes="Bold" FontSize="12" />
+                            <Entry Text="{Binding ManualProtein}" Keyboard="Numeric" Placeholder="{Binding ProteinPlaceholder}" />
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <Label Text="{Binding CarbsLabel}" FontAttributes="Bold" FontSize="12" />
+                    <Entry Text="{Binding ManualCarbs}" Keyboard="Numeric" Placeholder="{Binding CarbsPlaceholder}" />
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="{Binding StepsLabel}" FontAttributes="Bold" FontSize="12" />
+                            <Entry Text="{Binding ManualGoogleFitSteps}" Keyboard="Numeric" Placeholder="{Binding StepsPlaceholder}" />
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="1" Spacing="4">
+                            <Label Text="{Binding MinutesLabel}" FontAttributes="Bold" FontSize="12" />
+                            <Entry Text="{Binding ManualExerciseMinutes}" Keyboard="Numeric" Placeholder="{Binding MinutesPlaceholder}" />
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <Label Text="{Binding ManualBurnPreviewText}" Style="{StaticResource BodyMuted}" />
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Button Text="{Binding SaveText}" Command="{Binding SaveManualPopupCommand}" />
+                        <Button Grid.Column="1" Text="{Binding CancelText}" Style="{StaticResource SecondaryButton}" Command="{Binding CloseManualPopupCommand}" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+        </Grid>
 
     </Grid>
 </ContentPage>

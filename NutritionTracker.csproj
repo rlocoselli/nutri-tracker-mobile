@@ -13,7 +13,7 @@
 
     <ApplicationTitle>NutritionTracker</ApplicationTitle>
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
-    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationVersion>3</ApplicationVersion>
   </PropertyGroup>
     <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
         <WindowsPackageType>None</WindowsPackageType>
@@ -32,7 +32,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <MauiIcon Include="Resources\AppIcon\appicon.svg" />
+    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\Images\logo.svg" Color="#16B39A" />
     <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#F5F7FB" BaseSize="512,512" />
     <MauiImage Include="Resources\Images\*.svg" />
   </ItemGroup>
