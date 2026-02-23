@@ -5,6 +5,7 @@ from pathlib import Path
 
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
 
@@ -139,50 +140,68 @@ def update_graphics(service, package_name: str, edit_id: str, args: argparse.Nam
 def main() -> None:
     args = parse_args()
 
-    scopes = ["https://www.googleapis.com/auth/androidpublisher"]
-    creds = service_account.Credentials.from_service_account_file(args.service_account, scopes=scopes)
-    service = build("androidpublisher", "v3", credentials=creds, cache_discovery=False)
+    try:
+        scopes = ["https://www.googleapis.com/auth/androidpublisher"]
+        creds = service_account.Credentials.from_service_account_file(args.service_account, scopes=scopes)
+        service = build("androidpublisher", "v3", credentials=creds, cache_discovery=False)
 
-    edit = service.edits().insert(packageName=args.package_name, body={}).execute()
-    edit_id = edit["id"]
-    print(f"[INFO] Created edit: {edit_id}")
+        edit = service.edits().insert(packageName=args.package_name, body={}).execute()
+        edit_id = edit["id"]
+        print(f"[INFO] Created edit: {edit_id}")
 
-    detected_first_deploy = not has_existing_release(service, args.package_name, edit_id)
-    ensure_first_deploy_requirements(args, detected_first_deploy)
+        detected_first_deploy = not has_existing_release(service, args.package_name, edit_id)
+        ensure_first_deploy_requirements(args, detected_first_deploy)
 
-    bundle = service.edits().bundles().upload(
-        packageName=args.package_name,
-        editId=edit_id,
-        media_body=MediaFileUpload(args.aab, mimetype="application/octet-stream"),
-    ).execute()
+        bundle = service.edits().bundles().upload(
+            packageName=args.package_name,
+            editId=edit_id,
+            media_body=MediaFileUpload(args.aab, mimetype="application/octet-stream"),
+        ).execute()
 
-    version_code = str(bundle["versionCode"])
-    print(f"[INFO] Uploaded bundle versionCode={version_code}")
+        version_code = str(bundle["versionCode"])
+        print(f"[INFO] Uploaded bundle versionCode={version_code}")
 
-    release_name = args.release_name or f"Automated release {dt.datetime.utcnow():%Y-%m-%d %H:%M UTC}"
-    track_body = {
-        "releases": [
-            {
-                "name": release_name,
-                "versionCodes": [version_code],
-                "status": args.release_status,
-            }
-        ]
-    }
+        release_name = args.release_name or f"Automated release {dt.datetime.utcnow():%Y-%m-%d %H:%M UTC}"
+        track_body = {
+            "releases": [
+                {
+                    "name": release_name,
+                    "versionCodes": [version_code],
+                    "status": args.release_status,
+                }
+            ]
+        }
 
-    service.edits().tracks().update(
-        packageName=args.package_name,
-        editId=edit_id,
-        track=args.track,
-        body=track_body,
-    ).execute()
-    print(f"[INFO] Updated track '{args.track}'")
+        service.edits().tracks().update(
+            packageName=args.package_name,
+            editId=edit_id,
+            track=args.track,
+            body=track_body,
+        ).execute()
+        print(f"[INFO] Updated track '{args.track}'")
 
-    update_listing(service, args.package_name, edit_id, args)
-    update_graphics(service, args.package_name, edit_id, args)
+        update_listing(service, args.package_name, edit_id, args)
+        update_graphics(service, args.package_name, edit_id, args)
 
-    service.edits().commit(packageName=args.package_name, editId=edit_id).execute()
-    print("[OK] Edit committed successfully")
+        service.edits().commit(packageName=args.package_name, editId=edit_id).execute()
+        print("[OK] Edit committed successfully")
+
+    except HttpError as err:
+        status = getattr(err.resp, "status", None)
+        body = str(err)
+
+        if status == 403 and ("SERVICE_DISABLED" in body or "Android Developer API" in body or "androidpublisher.googleapis.com" in body):
+            raise SystemExit(
+                "[ERROR] Google Play Android Developer API is disabled or not yet propagated for the GCP project used by this service account.\n"
+                "Fix:\n"
+                "  1) Open Google Cloud Console for the SAME project as the service-account JSON.\n"
+                "  2) Enable API: https://console.developers.google.com/apis/api/androidpublisher.googleapis.com/overview\n"
+                "  3) Wait 2-10 minutes for propagation.\n"
+                "  4) In Play Console, ensure this service account is invited with release permissions for the app.\n"
+                f"Original error: {body}"
+            )
+
+        raise SystemExit(f"[ERROR] Google Play API request failed ({status}): {body}")
 
 
 if __name__ == "__main__":
