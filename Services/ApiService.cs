@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Net;
 using System.Text.Json;
 using NutritionTracker.Services.Dto;
 
@@ -9,10 +10,24 @@ public class ApiService
     private readonly HttpClient _http = new();
     private readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
     private readonly string _baseUrl;
+    private readonly SessionService _session;
 
-    public ApiService(string baseUrl)
+    public ApiService(string baseUrl, SessionService session)
     {
         _baseUrl = baseUrl.TrimEnd('/');
+        _session = session;
+    }
+
+    private async Task EnsureAuthorizedOrRedirectAsync(HttpResponseMessage resp, string json)
+    {
+        if (resp.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        {
+            await _session.RedirectToLoginAsync(clearAuth: true);
+            throw new Exception("Session expirée. Veuillez vous reconnecter.");
+        }
+
+        if (!resp.IsSuccessStatusCode)
+            throw new Exception($"API error {(int)resp.StatusCode}: {json}");
     }
 
     public async Task<AnalyzeResponse> AnalyzeMealAsync(string idToken, string lang, string text, byte[]? imageBytes, string? imageMime)
@@ -41,9 +56,7 @@ public class ApiService
 
         using var resp = await _http.SendAsync(req);
         var json = await resp.Content.ReadAsStringAsync();
-
-        if (!resp.IsSuccessStatusCode)
-            throw new Exception($"API error {(int)resp.StatusCode}: {json}");
+        await EnsureAuthorizedOrRedirectAsync(resp, json);
 
         var parsed = JsonSerializer.Deserialize<AnalyzeResponse>(json, _jsonOptions);
         if (parsed == null) throw new Exception("Invalid JSON from API");
@@ -60,8 +73,7 @@ public class ApiService
 
         using var resp = await _http.SendAsync(req);
         var json = await resp.Content.ReadAsStringAsync();
-        if (!resp.IsSuccessStatusCode)
-            throw new Exception($"API error {(int)resp.StatusCode}: {json}");
+        await EnsureAuthorizedOrRedirectAsync(resp, json);
 
         var parsed = JsonSerializer.Deserialize<RecommendationsResponse>(json, _jsonOptions);
         if (parsed == null) throw new Exception("Invalid JSON from API");

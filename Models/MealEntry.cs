@@ -14,6 +14,7 @@ public class MealEntry
     public string DayKeyUtc { get; set; } = ""; // yyyy-MM-dd
 
     public string RawText { get; set; } = "";
+    public string Description { get; set; } = "";
     public string PhotoPath { get; set; } = "";
 
     public double TotalCalories { get; set; }

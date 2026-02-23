@@ -7,10 +7,15 @@ namespace NutritionTracker.Services;
 
 public class GoogleFitService
 {
+    public static bool Enabled => Preferences.Default.Get("fit_integration_enabled", false);
+
     private readonly HttpClient _http = new();
 
     public async Task<(int steps, double burnedCalories)> GetTodaySummaryAsync(string accessToken)
     {
+        if (!Enabled)
+            return (0, 0);
+
         if (string.IsNullOrWhiteSpace(accessToken))
             return (0, 0);
 

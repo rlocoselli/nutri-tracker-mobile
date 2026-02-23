@@ -5,6 +5,12 @@
 
 # dotenv files
 .env
+.venv/
+scripts/local/
+
+# Local Google Play deployment secrets/helpers
+scripts/local/*.local.sh
+scripts/local/*.env.local
 
 # User-specific files
 *.rsuser

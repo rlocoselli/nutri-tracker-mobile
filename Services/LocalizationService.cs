@@ -52,6 +52,7 @@ public static class LocalizationService
         ["sync_ok"] = "Google Fit synchronisé",
         ["sync_no_token"] = "Reconnectez-vous pour autoriser Google Fit",
         ["sync_error"] = "Sync Google Fit en échec",
+        ["sync_disabled"] = "Intégration Google Fit temporairement désactivée",
     };
 
     private static readonly Dictionary<string, string> En = new()
@@ -102,6 +103,7 @@ public static class LocalizationService
         ["sync_ok"] = "Google Fit synced",
         ["sync_no_token"] = "Sign in again to allow Google Fit",
         ["sync_error"] = "Google Fit sync failed",
+        ["sync_disabled"] = "Google Fit integration temporarily disabled",
     };
 
     public static string T(string key)

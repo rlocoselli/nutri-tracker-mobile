@@ -21,8 +21,9 @@ public static class MauiProgram
         // Services
         builder.Services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
         builder.Services.AddSingleton<AuthService>();
+        builder.Services.AddSingleton<SessionService>();
         builder.Services.AddSingleton<GoogleFitService>();
-        builder.Services.AddSingleton(sp => new ApiService("https://nutrition-mvp-api.onrender.com"));
+        builder.Services.AddSingleton(sp => new ApiService("https://nutrition-mvp-api.onrender.com", sp.GetRequiredService<SessionService>()));
 
         // ✅ DB: ne pas bloquer ici
         builder.Services.AddSingleton<LocalDb>(sp =>

@@ -29,7 +29,6 @@ public class AuthService
     private static readonly Uri RedirectUri = new($"{RedirectScheme}:/oauth2redirect");
 
     private const string BaseScope = "openid email profile";
-    private const string FitScope = "https://www.googleapis.com/auth/fitness.activity.read";
 
     // OAuth2 "Authorization Code + PKCE" (robuste et recommandé pour mobile)
     private static string Base64Url(byte[] bytes) =>
@@ -50,21 +49,46 @@ public class AuthService
         return (verifier, challenge);
     }
 
+    public static bool IsIdTokenStillValid(string idToken, int skewSeconds = 60)
+    {
+        if (string.IsNullOrWhiteSpace(idToken))
+            return false;
+
+        try
+        {
+            var parts = idToken.Split('.');
+            if (parts.Length < 2)
+                return false;
+
+            var payload = parts[1]
+                .Replace('-', '+')
+                .Replace('_', '/');
+
+            var pad = payload.Length % 4;
+            if (pad > 0)
+                payload = payload.PadRight(payload.Length + (4 - pad), '=');
+
+            var json = Encoding.UTF8.GetString(Convert.FromBase64String(payload));
+            using var doc = JsonDocument.Parse(json);
+
+            if (!doc.RootElement.TryGetProperty("exp", out var expProp))
+                return false;
+
+            var expUnix = expProp.GetInt64();
+            var expiry = DateTimeOffset.FromUnixTimeSeconds(expUnix);
+            return expiry > DateTimeOffset.UtcNow.AddSeconds(skewSeconds);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
 
     public async Task<GoogleAuthResult> LoginAsync()
     {
-        try
-        {
-            var fitResult = await LoginWithScopeAsync($"{BaseScope} {FitScope}");
-            Preferences.Default.Set("fit_scope_granted", true);
-            return fitResult;
-        }
-        catch (Exception ex) when (IsAccessDenied(ex))
-        {
-            var basicResult = await LoginWithScopeAsync(BaseScope);
-            Preferences.Default.Set("fit_scope_granted", false);
-            return basicResult;
-        }
+        Preferences.Default.Set("fit_scope_granted", false);
+        return await LoginWithScopeAsync(BaseScope);
     }
 
     private async Task<GoogleAuthResult> LoginWithScopeAsync(string scope)
@@ -114,14 +138,6 @@ public class AuthService
             throw new Exception("Google login n'a pas renvoyé d'id_token. Vérifie le client OAuth + Redirect URI.");
 
         return profile;
-    }
-
-    private static bool IsAccessDenied(Exception ex)
-    {
-        var message = ex.ToString();
-        return message.Contains("access_denied", StringComparison.OrdinalIgnoreCase)
-            || message.Contains("insufficient", StringComparison.OrdinalIgnoreCase)
-            || message.Contains("cancel", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<(string AccessToken, string IdToken, string RefreshToken)> ExchangeCodeForTokensAsync(string code, string codeVerifier)

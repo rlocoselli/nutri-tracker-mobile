@@ -58,7 +58,11 @@ public partial class ProfileViewModel : ObservableObject
         OnPropertyChanged(nameof(LogoutText));
 
         var accessToken = Preferences.Default.Get("auth_access_token", "");
-        if (!string.IsNullOrWhiteSpace(accessToken))
+        if (!GoogleFitService.Enabled)
+        {
+            FitSyncStatusText = LocalizationService.T("sync_disabled");
+        }
+        else if (!string.IsNullOrWhiteSpace(accessToken))
         {
             try
             {

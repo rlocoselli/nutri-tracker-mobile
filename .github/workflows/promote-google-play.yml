@@ -1,0 +1,52 @@
+name: Promote Google Play Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      from_track:
+        description: "Source track"
+        required: true
+        default: "internal"
+      to_track:
+        description: "Target track"
+        required: true
+        default: "production"
+      release_status:
+        description: "Release status on target track"
+        required: true
+        default: "completed"
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scripts/requirements-google-play.txt
+
+      - name: Prepare Google service account
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_B64: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_B64 }}
+        run: |
+          echo "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_B64" | base64 -d > google-play-service-account.json
+
+      - name: Promote release
+        env:
+          GOOGLE_PLAY_PACKAGE_NAME: ${{ vars.GOOGLE_PLAY_PACKAGE_NAME || 'com.audela.nutritiontracker' }}
+        run: |
+          python scripts/google_play_promote.py \
+            --service-account "$GITHUB_WORKSPACE/google-play-service-account.json" \
+            --package-name "$GOOGLE_PLAY_PACKAGE_NAME" \
+            --from-track "${{ github.event.inputs.from_track }}" \
+            --to-track "${{ github.event.inputs.to_track }}" \
+            --release-status "${{ github.event.inputs.release_status }}"

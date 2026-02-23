@@ -169,6 +169,7 @@ public partial class DiaryViewModel : ObservableObject
             DateUtc = dateUtc,
             DayKeyUtc = dateUtc.ToString("yyyy-MM-dd"),
             RawText = ManualMealName.Trim(),
+            Description = ManualMealName.Trim(),
             TotalCalories = calories,
             TotalProteinG = protein,
             TotalCarbsG = carbs,
@@ -247,6 +248,7 @@ public partial class DiaryViewModel : ObservableObject
             DateUtc = item.DateUtc,
             DayKeyUtc = item.DayKeyUtc,
             RawText = string.IsNullOrWhiteSpace(name) ? item.RawText : name.Trim(),
+            Description = string.IsNullOrWhiteSpace(name) ? item.Description : name.Trim(),
             PhotoPath = item.PhotoPath,
             TotalCalories = calories,
             TotalProteinG = protein,
@@ -489,6 +491,7 @@ public class DiaryMealItem
 {
     public string Id { get; set; } = "";
     public string RawText { get; set; } = "";
+    public string Description { get; set; } = "";
     public string PhotoPath { get; set; } = "";
     public DateTime DateUtc { get; set; }
     public string DayKeyUtc { get; set; } = "";
@@ -499,6 +502,8 @@ public class DiaryMealItem
 
     public string Title { get; set; } = "";
     public string Subtitle { get; set; } = "";
+    public string DescriptionText { get; set; } = "";
+    public bool HasDescription => !string.IsNullOrWhiteSpace(DescriptionText);
     public string CaloriesText { get; set; } = "";
     public string ProteinText { get; set; } = "";
     public string CarbsText { get; set; } = "";
@@ -506,13 +511,15 @@ public class DiaryMealItem
     public static DiaryMealItem FromEntry(MealEntry e)
     {
         var local = e.DateUtc.ToLocalTime();
-        var title = string.IsNullOrWhiteSpace(e.RawText) ? "Refeição" : e.RawText;
+        var displayDescription = string.IsNullOrWhiteSpace(e.Description) ? e.RawText : e.Description;
+        var title = string.IsNullOrWhiteSpace(e.RawText) ? (string.IsNullOrWhiteSpace(displayDescription) ? "Refeição" : displayDescription) : e.RawText;
         title = title.Length > 28 ? title.Substring(0, 28) + "…" : title;
 
         return new DiaryMealItem
         {
             Id = e.Id,
             RawText = e.RawText,
+            Description = e.Description,
             PhotoPath = e.PhotoPath,
             DateUtc = e.DateUtc,
             DayKeyUtc = e.DayKeyUtc,
@@ -522,6 +529,7 @@ public class DiaryMealItem
             OverallConfidence = e.OverallConfidence,
             Title = title,
             Subtitle = local.ToString("dddd dd MMM · HH:mm", CultureInfo.CurrentCulture),
+            DescriptionText = displayDescription,
             CaloriesText = $"{Math.Round(e.TotalCalories)} kcal",
             ProteinText = $"P {Math.Round(e.TotalProteinG)}g",
             CarbsText = $"C {Math.Round(e.TotalCarbsG)}g"

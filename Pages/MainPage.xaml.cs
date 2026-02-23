@@ -8,14 +8,16 @@ public partial class MainPage : ContentPage
     private readonly LoginPage _loginPage;
     private readonly AppShell _appShell;
     private readonly LocalDb _db;
+    private readonly SessionService _session;
     private bool _initialized;
 
-    public MainPage(LoginPage loginPage, AppShell appShell, LocalDb db)
+    public MainPage(LoginPage loginPage, AppShell appShell, LocalDb db, SessionService session)
     {
         InitializeComponent();
         _loginPage = loginPage;
         _appShell = appShell;
         _db = db;
+        _session = session;
     }
 
     protected override async void OnAppearing()
@@ -27,9 +29,9 @@ public partial class MainPage : ContentPage
         // ✅ init async (sans bloquer)
         await _db.InitAsync();
 
-        var idToken = Preferences.Default.Get("auth_id_token", "");
-        if (string.IsNullOrWhiteSpace(idToken))
+        if (!_session.HasValidIdToken())
         {
+            _session.ClearAuth();
             await Navigation.PushAsync(_loginPage);
         }
         else

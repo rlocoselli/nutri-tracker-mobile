@@ -9,12 +9,26 @@ public static class MealMapper
     {
         var dt = DateTime.TryParse(r.datetime_utc, out var parsedUtc) ? parsedUtc : DateTime.UtcNow;
         dt = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+        var cleanedRaw = rawText?.Trim() ?? "";
+        var fallbackFromItems = string.Join(", ",
+            r.meal.items
+                .Select(i => i.name?.Trim())
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct()
+                .Take(5));
+
+        var description = !string.IsNullOrWhiteSpace(cleanedRaw)
+            ? cleanedRaw
+            : !string.IsNullOrWhiteSpace(r.meal.notes)
+                ? r.meal.notes.Trim()
+                : fallbackFromItems;
 
         var entry = new MealEntry
         {
             DateUtc = dt,
             DayKeyUtc = dt.ToString("yyyy-MM-dd"),
-            RawText = rawText ?? "",
+            RawText = cleanedRaw,
+            Description = description,
             PhotoPath = photoPath ?? "",
             TotalCalories = r.meal.totals.calories,
             TotalCarbsG = r.meal.totals.carbs_g,

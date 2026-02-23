@@ -18,10 +18,25 @@ public class LocalDb
         await _db.CreateTableAsync<MealItem>();
         await _db.CreateTableAsync<ExerciseEntry>();
         await _db.CreateTableAsync<UserGoals>();
+        await EnsureMealEntryColumnsAsync();
 
         var goals = await _db.Table<UserGoals>().FirstOrDefaultAsync();
         if (goals == null)
             await _db.InsertAsync(new UserGoals());
+    }
+
+    private async Task EnsureMealEntryColumnsAsync()
+    {
+        var columns = await _db.QueryAsync<TableInfoRow>("PRAGMA table_info('MealEntry')");
+        var hasDescription = columns.Any(c => string.Equals(c.Name, "Description", StringComparison.OrdinalIgnoreCase));
+        if (!hasDescription)
+            await _db.ExecuteAsync("ALTER TABLE MealEntry ADD COLUMN Description TEXT NOT NULL DEFAULT ''");
+    }
+
+    private sealed class TableInfoRow
+    {
+        [Column("name")]
+        public string Name { get; set; } = "";
     }
 
     public Task<UserGoals> GetGoalsAsync() => _db.Table<UserGoals>().FirstAsync();

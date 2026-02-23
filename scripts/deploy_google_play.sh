@@ -1,0 +1,209 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_PATH="${PROJECT_PATH:-$ROOT_DIR/NutritionTracker.csproj}"
+PACKAGE_NAME="${GOOGLE_PLAY_PACKAGE_NAME:-com.audela.nutritiontracker}"
+TRACK="${GOOGLE_PLAY_TRACK:-internal}"
+RELEASE_STATUS="${GOOGLE_PLAY_RELEASE_STATUS:-completed}"
+SERVICE_ACCOUNT_JSON="${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:-}"
+AAB_PATH="${GOOGLE_PLAY_AAB_PATH:-}"
+DRY_RUN="${GOOGLE_PLAY_DRY_RUN:-false}"
+VALIDATE_ONLY="${GOOGLE_PLAY_VALIDATE_ONLY:-false}"
+DEFAULT_LANGUAGE="${GOOGLE_PLAY_DEFAULT_LANGUAGE:-fr-FR}"
+LISTING_TITLE="${GOOGLE_PLAY_LISTING_TITLE:-}"
+SHORT_DESCRIPTION="${GOOGLE_PLAY_SHORT_DESCRIPTION:-}"
+FULL_DESCRIPTION="${GOOGLE_PLAY_FULL_DESCRIPTION:-}"
+PRIVACY_POLICY_URL="${GOOGLE_PLAY_PRIVACY_POLICY_URL:-https://www.audeladedonnees.fr/legal/privacy}"
+FIRST_DEPLOY="${GOOGLE_PLAY_FIRST_DEPLOY:-false}"
+ACK_MANUAL_COMPLIANCE="${GOOGLE_PLAY_ACK_MANUAL_COMPLIANCE:-false}"
+AUTO_GENERATE_PLAY_ASSETS="${GOOGLE_PLAY_AUTO_GENERATE_ASSETS:-true}"
+PLAY_ASSETS_DIR="${GOOGLE_PLAY_ASSETS_DIR:-$ROOT_DIR/play_assets/generated}"
+PLAY_ASSETS_APP_TITLE="${GOOGLE_PLAY_ASSETS_APP_TITLE:-NutritionTracker}"
+PLAY_ASSETS_SUBTITLE="${GOOGLE_PLAY_ASSETS_SUBTITLE:-Suivi nutrition et activité}"
+PLAY_ASSETS_STYLE="${GOOGLE_PLAY_ASSETS_STYLE:-marketing}"
+
+if [[ "$VALIDATE_ONLY" == "true" ]]; then
+  missing_vars=()
+  missing_files=()
+
+  if [[ -z "$SERVICE_ACCOUNT_JSON" ]]; then
+    missing_vars+=("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON")
+  elif [[ ! -f "$SERVICE_ACCOUNT_JSON" ]]; then
+    missing_files+=("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON=$SERVICE_ACCOUNT_JSON")
+  fi
+
+  if [[ -z "$AAB_PATH" ]]; then
+    [[ -z "${ANDROID_SIGNING_KEYSTORE_PATH:-}" ]] && missing_vars+=("ANDROID_SIGNING_KEYSTORE_PATH")
+    [[ -z "${ANDROID_SIGNING_STORE_PASS:-}" ]] && missing_vars+=("ANDROID_SIGNING_STORE_PASS")
+    [[ -z "${ANDROID_SIGNING_KEY_ALIAS:-}" ]] && missing_vars+=("ANDROID_SIGNING_KEY_ALIAS")
+    [[ -z "${ANDROID_SIGNING_KEY_PASS:-}" ]] && missing_vars+=("ANDROID_SIGNING_KEY_PASS")
+
+    if [[ -n "${ANDROID_SIGNING_KEYSTORE_PATH:-}" && ! -f "${ANDROID_SIGNING_KEYSTORE_PATH}" ]]; then
+      missing_files+=("ANDROID_SIGNING_KEYSTORE_PATH=${ANDROID_SIGNING_KEYSTORE_PATH}")
+    fi
+  else
+    if [[ ! -f "$AAB_PATH" ]]; then
+      missing_files+=("GOOGLE_PLAY_AAB_PATH=$AAB_PATH")
+    fi
+  fi
+
+  if [[ "$FIRST_DEPLOY" == "true" ]]; then
+    [[ -z "$LISTING_TITLE" ]] && missing_vars+=("GOOGLE_PLAY_LISTING_TITLE")
+    [[ -z "$SHORT_DESCRIPTION" ]] && missing_vars+=("GOOGLE_PLAY_SHORT_DESCRIPTION")
+    [[ -z "$FULL_DESCRIPTION" ]] && missing_vars+=("GOOGLE_PLAY_FULL_DESCRIPTION")
+    [[ -z "$PRIVACY_POLICY_URL" ]] && missing_vars+=("GOOGLE_PLAY_PRIVACY_POLICY_URL")
+  fi
+
+  echo "[VALIDATE] Google Play deploy preflight"
+  echo "           Package: $PACKAGE_NAME"
+  echo "           Track:   $TRACK"
+  echo "           First:   $FIRST_DEPLOY"
+
+  if (( ${#missing_vars[@]} > 0 )); then
+    echo "[ERROR] Missing required variables:"
+    for v in "${missing_vars[@]}"; do
+      echo "  - $v"
+    done
+  fi
+
+  if (( ${#missing_files[@]} > 0 )); then
+    echo "[ERROR] Missing file paths:"
+    for f in "${missing_files[@]}"; do
+      echo "  - $f"
+    done
+  fi
+
+  if (( ${#missing_vars[@]} > 0 || ${#missing_files[@]} > 0 )); then
+    echo "[VALIDATE] FAILED"
+    exit 2
+  fi
+
+  echo "[VALIDATE] OK - CI env appears ready for deploy"
+  exit 0
+fi
+
+if [[ "$DRY_RUN" != "true" ]]; then
+  if [[ -z "$SERVICE_ACCOUNT_JSON" ]]; then
+    echo "[ERROR] GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is required (path to service-account JSON)."
+    exit 1
+  fi
+
+  if [[ ! -f "$SERVICE_ACCOUNT_JSON" ]]; then
+    echo "[ERROR] Service account file not found: $SERVICE_ACCOUNT_JSON"
+    exit 1
+  fi
+fi
+
+if [[ "$DRY_RUN" != "true" ]]; then
+  if [[ -z "$AAB_PATH" ]]; then
+    : "${ANDROID_SIGNING_KEYSTORE_PATH:?ANDROID_SIGNING_KEYSTORE_PATH is required when GOOGLE_PLAY_AAB_PATH is not provided}"
+    : "${ANDROID_SIGNING_STORE_PASS:?ANDROID_SIGNING_STORE_PASS is required when GOOGLE_PLAY_AAB_PATH is not provided}"
+    : "${ANDROID_SIGNING_KEY_ALIAS:?ANDROID_SIGNING_KEY_ALIAS is required when GOOGLE_PLAY_AAB_PATH is not provided}"
+    : "${ANDROID_SIGNING_KEY_PASS:?ANDROID_SIGNING_KEY_PASS is required when GOOGLE_PLAY_AAB_PATH is not provided}"
+
+    echo "[INFO] Building signed AAB..."
+    dotnet publish "$PROJECT_PATH" \
+      -f net8.0-android \
+      -c Release \
+      /p:AndroidPackageFormat=aab \
+      /p:AndroidKeyStore=true \
+      /p:AndroidSigningKeyStore="$ANDROID_SIGNING_KEYSTORE_PATH" \
+      /p:AndroidSigningStorePass="$ANDROID_SIGNING_STORE_PASS" \
+      /p:AndroidSigningKeyAlias="$ANDROID_SIGNING_KEY_ALIAS" \
+      /p:AndroidSigningKeyPass="$ANDROID_SIGNING_KEY_PASS"
+
+    PUBLISH_DIR="$ROOT_DIR/bin/Release/net8.0-android/publish"
+    AAB_PATH="$(find "$PUBLISH_DIR" -maxdepth 1 -type f -name "*.aab" | head -n 1)"
+
+    if [[ -z "$AAB_PATH" ]]; then
+      echo "[ERROR] No AAB found in $PUBLISH_DIR"
+      exit 1
+    fi
+  fi
+fi
+
+if [[ "$DRY_RUN" != "true" ]]; then
+  if [[ ! -f "$AAB_PATH" ]]; then
+    echo "[ERROR] AAB not found: $AAB_PATH"
+    exit 1
+  fi
+fi
+
+echo "[INFO] Uploading to Google Play..."
+echo "       Package: $PACKAGE_NAME"
+echo "       Track:   $TRACK"
+echo "       Status:  $RELEASE_STATUS"
+echo "       AAB:     $AAB_PATH"
+echo "       Lang:    $DEFAULT_LANGUAGE"
+echo "       First:   $FIRST_DEPLOY"
+echo "       Policy:  $PRIVACY_POLICY_URL"
+echo "       DryRun:  $DRY_RUN"
+echo "       Validate:$VALIDATE_ONLY"
+
+if [[ "$AUTO_GENERATE_PLAY_ASSETS" == "true" && "$DRY_RUN" != "true" ]]; then
+  echo "[INFO] Generating Play listing assets..."
+  python3 "$ROOT_DIR/scripts/generate_play_assets.py" \
+    --out-dir "$PLAY_ASSETS_DIR" \
+    --lang "$DEFAULT_LANGUAGE" \
+    --app-title "$PLAY_ASSETS_APP_TITLE" \
+    --subtitle "$PLAY_ASSETS_SUBTITLE" \
+    --style "$PLAY_ASSETS_STYLE"
+fi
+
+ICON_PATH="$PLAY_ASSETS_DIR/$DEFAULT_LANGUAGE/icon.png"
+FEATURE_GRAPHIC_PATH="$PLAY_ASSETS_DIR/$DEFAULT_LANGUAGE/feature-graphic.png"
+PHONE_SCREENSHOTS_DIR="$PLAY_ASSETS_DIR/$DEFAULT_LANGUAGE/phone-screenshots"
+
+ARGS=(
+  --service-account "$SERVICE_ACCOUNT_JSON"
+  --package-name "$PACKAGE_NAME"
+  --track "$TRACK"
+  --release-status "$RELEASE_STATUS"
+  --aab "$AAB_PATH"
+  --default-language "$DEFAULT_LANGUAGE"
+)
+
+if [[ -n "$LISTING_TITLE" ]]; then
+  ARGS+=(--listing-title "$LISTING_TITLE")
+fi
+if [[ -n "$SHORT_DESCRIPTION" ]]; then
+  ARGS+=(--short-description "$SHORT_DESCRIPTION")
+fi
+if [[ -n "$FULL_DESCRIPTION" ]]; then
+  ARGS+=(--full-description "$FULL_DESCRIPTION")
+fi
+if [[ -n "$PRIVACY_POLICY_URL" ]]; then
+  ARGS+=(--privacy-policy-url "$PRIVACY_POLICY_URL")
+fi
+if [[ "$FIRST_DEPLOY" == "true" ]]; then
+  ARGS+=(--first-deploy)
+fi
+if [[ "$ACK_MANUAL_COMPLIANCE" == "true" ]]; then
+  ARGS+=(--ack-manual-compliance)
+fi
+if [[ -f "$ICON_PATH" ]]; then
+  ARGS+=(--icon "$ICON_PATH")
+fi
+if [[ -f "$FEATURE_GRAPHIC_PATH" ]]; then
+  ARGS+=(--feature-graphic "$FEATURE_GRAPHIC_PATH")
+fi
+if [[ -d "$PHONE_SCREENSHOTS_DIR" ]]; then
+  ARGS+=(--phone-screenshots-dir "$PHONE_SCREENSHOTS_DIR")
+fi
+
+if [[ "$DRY_RUN" == "true" ]]; then
+  echo "[DRY RUN] Deployment command prepared successfully."
+  echo "[DRY RUN] Python upload command:"
+  printf 'python3 %q' "$ROOT_DIR/scripts/google_play_upload.py"
+  for arg in "${ARGS[@]}"; do
+    printf ' %q' "$arg"
+  done
+  printf '\n'
+  echo "[DRY RUN] Skipped: signed AAB build, Google Play API upload, remote validation."
+  exit 0
+fi
+
+python3 "$ROOT_DIR/scripts/google_play_upload.py" "${ARGS[@]}"
+
+echo "[OK] Deployment finished."

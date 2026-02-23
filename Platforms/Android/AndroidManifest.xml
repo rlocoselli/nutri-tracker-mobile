@@ -4,7 +4,7 @@
 	<uses-permission android:name="android.permission.CAMERA" />
 	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 	<application android:label="NutritionTracker"
-	             android:icon="@mipmap/appicon"
-	             android:roundIcon="@mipmap/appicon_round"
+	             android:icon="@mipmap/appicon_generated"
+	             android:roundIcon="@mipmap/appicon_generated_round"
 	             android:usesCleartextTraffic="false" />
 </manifest>
