@@ -117,10 +117,22 @@ if [[ "$DRY_RUN" != "true" ]]; then
       exit 1
     fi
 
-    if ! keytool -list -v -keystore "$ANDROID_SIGNING_KEYSTORE_PATH" -storepass "$ANDROID_SIGNING_STORE_PASS" -alias "$ANDROID_SIGNING_KEY_ALIAS" -keypass "$ANDROID_SIGNING_KEY_PASS" >/dev/null 2>&1; then
+    KEYSTORE_TYPE="$(keytool -list -keystore "$ANDROID_SIGNING_KEYSTORE_PATH" -storepass "$ANDROID_SIGNING_STORE_PASS" 2>/dev/null | sed -n 's/^Keystore type: //p' | head -n1 | tr -d '\r\n')"
+    SIGNING_KEY_PASS_EFFECTIVE="$ANDROID_SIGNING_KEY_PASS"
+    if [[ "${KEYSTORE_TYPE^^}" == "PKCS12" ]]; then
+      echo "[INFO] PKCS12 keystore detected. Using store password as effective key password for signing."
+      SIGNING_KEY_PASS_EFFECTIVE="$ANDROID_SIGNING_STORE_PASS"
+    fi
+
+    if ! keytool -list -v -keystore "$ANDROID_SIGNING_KEYSTORE_PATH" -storepass "$ANDROID_SIGNING_STORE_PASS" -alias "$ANDROID_SIGNING_KEY_ALIAS" -keypass "$SIGNING_KEY_PASS_EFFECTIVE" >/dev/null 2>&1; then
+      if [[ "$SIGNING_KEY_PASS_EFFECTIVE" != "$ANDROID_SIGNING_STORE_PASS" ]] && keytool -list -v -keystore "$ANDROID_SIGNING_KEYSTORE_PATH" -storepass "$ANDROID_SIGNING_STORE_PASS" -alias "$ANDROID_SIGNING_KEY_ALIAS" -keypass "$ANDROID_SIGNING_STORE_PASS" >/dev/null 2>&1; then
+        echo "[WARN] Key password secret seems invalid for this keystore. Falling back to store password for signing."
+        SIGNING_KEY_PASS_EFFECTIVE="$ANDROID_SIGNING_STORE_PASS"
+      else
       echo "[ERROR] Cannot access alias '$ANDROID_SIGNING_KEY_ALIAS' with provided key password."
       echo "        Verify ANDROID_SIGNING_KEY_ALIAS and ANDROID_SIGNING_KEY_PASS secrets."
       exit 1
+      fi
     fi
 
     echo "[INFO] Building signed AAB..."
@@ -132,7 +144,7 @@ if [[ "$DRY_RUN" != "true" ]]; then
       /p:AndroidSigningKeyStore="$ANDROID_SIGNING_KEYSTORE_PATH" \
       /p:AndroidSigningStorePass="$ANDROID_SIGNING_STORE_PASS" \
       /p:AndroidSigningKeyAlias="$ANDROID_SIGNING_KEY_ALIAS" \
-      /p:AndroidSigningKeyPass="$ANDROID_SIGNING_KEY_PASS"
+      /p:AndroidSigningKeyPass="$SIGNING_KEY_PASS_EFFECTIVE"
 
     PUBLISH_DIR="$ROOT_DIR/bin/Release/net8.0-android/publish"
     AAB_PATH="$(find "$PUBLISH_DIR" -maxdepth 1 -type f -name "*.aab" | head -n 1)"
