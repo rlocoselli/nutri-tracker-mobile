@@ -7,6 +7,8 @@ PACKAGE_NAME="${GOOGLE_PLAY_PACKAGE_NAME:-com.audela.nutritiontracker}"
 TRACK="${GOOGLE_PLAY_TRACK:-internal}"
 RELEASE_STATUS="${GOOGLE_PLAY_RELEASE_STATUS:-completed}"
 ROLLOUT_PERCENTAGE="${GOOGLE_PLAY_ROLLOUT_PERCENTAGE:-100}"
+AUTO_BUMP_VERSION="${GOOGLE_PLAY_AUTO_BUMP_VERSION:-true}"
+APPLICATION_VERSION="${GOOGLE_PLAY_APPLICATION_VERSION:-}"
 SERVICE_ACCOUNT_JSON="${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:-}"
 AAB_PATH="${GOOGLE_PLAY_AAB_PATH:-}"
 DRY_RUN="${GOOGLE_PLAY_DRY_RUN:-false}"
@@ -23,6 +25,22 @@ PLAY_ASSETS_DIR="${GOOGLE_PLAY_ASSETS_DIR:-$ROOT_DIR/play_assets/generated}"
 PLAY_ASSETS_APP_TITLE="${GOOGLE_PLAY_ASSETS_APP_TITLE:-NutritionTracker}"
 PLAY_ASSETS_SUBTITLE="${GOOGLE_PLAY_ASSETS_SUBTITLE:-Suivi nutrition et activité}"
 PLAY_ASSETS_STYLE="${GOOGLE_PLAY_ASSETS_STYLE:-marketing}"
+
+if [[ -z "$APPLICATION_VERSION" && "$AUTO_BUMP_VERSION" == "true" ]]; then
+  # Epoch seconds => monotonic numeric Android versionCode in CI.
+  APPLICATION_VERSION="$(date +%s)"
+fi
+
+if [[ -n "$APPLICATION_VERSION" ]]; then
+  if ! [[ "$APPLICATION_VERSION" =~ ^[0-9]+$ ]]; then
+    echo "[ERROR] GOOGLE_PLAY_APPLICATION_VERSION must be a positive integer (versionCode)."
+    exit 1
+  fi
+  if (( APPLICATION_VERSION <= 0 )); then
+    echo "[ERROR] GOOGLE_PLAY_APPLICATION_VERSION must be > 0."
+    exit 1
+  fi
+fi
 
 if [[ "$VALIDATE_ONLY" == "true" ]]; then
   missing_vars=()
@@ -137,15 +155,23 @@ if [[ "$DRY_RUN" != "true" ]]; then
     fi
 
     echo "[INFO] Building signed AAB..."
-    dotnet publish "$PROJECT_PATH" \
-      -f net8.0-android \
-      -c Release \
-      /p:AndroidPackageFormat=aab \
-      /p:AndroidKeyStore=true \
-      /p:AndroidSigningKeyStore="$ANDROID_SIGNING_KEYSTORE_PATH" \
-      /p:AndroidSigningStorePass="$ANDROID_SIGNING_STORE_PASS" \
-      /p:AndroidSigningKeyAlias="$ANDROID_SIGNING_KEY_ALIAS" \
+
+    PUBLISH_ARGS=(
+      -f net8.0-android
+      -c Release
+      /p:AndroidPackageFormat=aab
+      /p:AndroidKeyStore=true
+      /p:AndroidSigningKeyStore="$ANDROID_SIGNING_KEYSTORE_PATH"
+      /p:AndroidSigningStorePass="$ANDROID_SIGNING_STORE_PASS"
+      /p:AndroidSigningKeyAlias="$ANDROID_SIGNING_KEY_ALIAS"
       /p:AndroidSigningKeyPass="$SIGNING_KEY_PASS_EFFECTIVE"
+    )
+
+    if [[ -n "$APPLICATION_VERSION" ]]; then
+      PUBLISH_ARGS+=(/p:ApplicationVersion="$APPLICATION_VERSION")
+    fi
+
+    dotnet publish "$PROJECT_PATH" "${PUBLISH_ARGS[@]}"
 
     PUBLISH_DIR="$ROOT_DIR/bin/Release/net8.0-android/publish"
     AAB_PATH="$(find "$PUBLISH_DIR" -maxdepth 1 -type f -name "*.aab" | head -n 1)"
@@ -195,6 +221,7 @@ echo "       Package: $PACKAGE_NAME"
 echo "       Track:   $TRACK"
 echo "       Status:  $RELEASE_STATUS"
 echo "       Rollout: $ROLLOUT_PERCENTAGE%"
+echo "       VerCode: ${APPLICATION_VERSION:-<from csproj>}"
 echo "       AAB:     $AAB_PATH"
 echo "       Lang:    $DEFAULT_LANGUAGE"
 echo "       First:   $FIRST_DEPLOY"
