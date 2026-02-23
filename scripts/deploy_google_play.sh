@@ -178,6 +178,13 @@ if [[ "$DRY_RUN" != "true" ]]; then
 
     dotnet publish "$PROJECT_PATH" "${PUBLISH_ARGS[@]}"
 
+    ASSETS_FILE="$ROOT_DIR/obj/project.assets.json"
+    if [[ -f "$ASSETS_FILE" ]] && grep -Eq '"SQLitePCLRaw\.(bundle_green|lib\.e_sqlite3\.android|provider\.e_sqlite3)": "2\.1\.2"' "$ASSETS_FILE"; then
+      echo "[ERROR] Blocked: resolved SQLitePCLRaw version 2.1.2 (known 16 KB page-size issue in Play Console)."
+      echo "        Ensure dependencies resolve to SQLitePCLRaw 2.1.11+ before deployment."
+      exit 1
+    fi
+
     PUBLISH_DIR="$ROOT_DIR/bin/Release/$ANDROID_TARGET_FRAMEWORK/publish"
     if [[ ! -d "$PUBLISH_DIR" ]]; then
       PUBLISH_DIR="$(find "$ROOT_DIR/bin/Release" -maxdepth 3 -type d -path "*/publish" | sort | tail -n 1)"

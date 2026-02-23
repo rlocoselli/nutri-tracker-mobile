@@ -29,9 +29,9 @@
     <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
     <PackageReference Include="sqlite-net-pcl" Version="1.9.172" />
-    <PackageReference Include="SQLitePCLRaw.bundle_green" Version="[2.1.2,)" />
-    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3.android" Version="[2.1.2,)" />
-    <PackageReference Include="SQLitePCLRaw.provider.e_sqlite3" Version="[2.1.2,)" />
+    <PackageReference Include="SQLitePCLRaw.bundle_green" Version="2.1.11" />
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3.android" Version="2.1.11" />
+    <PackageReference Include="SQLitePCLRaw.provider.e_sqlite3" Version="2.1.11" />
   </ItemGroup>
 
   <ItemGroup>

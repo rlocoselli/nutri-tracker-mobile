@@ -355,6 +355,17 @@ def main() -> None:
                 f"Original error: {body}"
             )
 
+        if status == 400 and ("No countries or regions have been selected for this track" in body or "at least 1 country or region" in body):
+            raise SystemExit(
+                "[ERROR] Google Play production release requires country/region targeting to be configured in Play Console.\n"
+                "This setting is not writable through the Android Publisher Edits API used by this script.\n"
+                "Fix (one-time):\n"
+                "  1) Play Console > Test and release > Production > Countries/regions\n"
+                "  2) Select all countries/regions (or your target set)\n"
+                "  3) Save, then re-run this workflow\n"
+                f"Original error: {body}"
+            )
+
         raise SystemExit(f"[ERROR] Google Play API request failed ({status}): {body}")
 
 
