@@ -80,8 +80,8 @@ install_android_packages() {
   log "Installing Android SDK packages"
   sdkmanager --install \
     "platform-tools" \
-    "platforms;android-34" \
-    "build-tools;34.0.0" >/dev/null
+    "platforms;android-35" \
+    "build-tools;35.0.0" >/dev/null
 }
 
 install_maui_android() {

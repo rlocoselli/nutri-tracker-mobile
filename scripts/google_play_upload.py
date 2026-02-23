@@ -23,6 +23,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--short-description", default="", help="Store listing short description")
     parser.add_argument("--full-description", default="", help="Store listing full description")
     parser.add_argument("--privacy-policy-url", default="", help="Privacy policy URL (manual setup in Play Console)")
+    parser.add_argument("--additional-languages", default="", help="Comma-separated extra listing languages (e.g. fr-FR,es-ES)")
+    parser.add_argument("--localizations-dir", default="", help="Base dir containing per-language listing/image files")
     parser.add_argument("--first-deploy", action="store_true", help="Force first-deploy validation rules")
     parser.add_argument("--ack-manual-compliance", action="store_true", help="Acknowledge manual tasks (content rating, age, data safety, app access)")
     parser.add_argument("--icon", default="", help="Path to store icon image")
@@ -73,6 +75,7 @@ def ensure_first_deploy_requirements(args: argparse.Namespace, detected_first_de
 
 def update_listing(service, package_name: str, edit_id: str, args: argparse.Namespace) -> None:
     if not any([args.listing_title.strip(), args.short_description.strip(), args.full_description.strip()]):
+        print(f"[WARN] Skipping listing metadata update ({args.default_language}): no title/short/full description provided")
         return
 
     body = {}
@@ -90,6 +93,49 @@ def update_listing(service, package_name: str, edit_id: str, args: argparse.Name
         body=body,
     ).execute()
     print(f"[INFO] Updated listing metadata ({args.default_language})")
+
+
+def update_listing_for_language(
+    service,
+    package_name: str,
+    edit_id: str,
+    language: str,
+    title: str,
+    short_description: str,
+    full_description: str,
+) -> None:
+    body = {}
+    if title.strip():
+        body["title"] = title.strip()
+    if short_description.strip():
+        body["shortDescription"] = short_description.strip()
+    if full_description.strip():
+        body["fullDescription"] = full_description.strip()
+
+    if not body:
+        return
+
+    service.edits().listings().update(
+        packageName=package_name,
+        editId=edit_id,
+        language=language,
+        body=body,
+    ).execute()
+    print(f"[INFO] Updated listing metadata ({language})")
+
+
+def load_localized_listing(base_dir: Path, language: str) -> tuple[str, str, str]:
+    lang_dir = base_dir / language
+    title_path = lang_dir / "listing-title.txt"
+    short_path = lang_dir / "short-description.txt"
+    full_path = lang_dir / "full-description.txt"
+
+    title = title_path.read_text(encoding="utf-8").strip() if title_path.exists() else ""
+    short_description = short_path.read_text(encoding="utf-8").strip() if short_path.exists() else ""
+    full_description = full_path.read_text(encoding="utf-8").strip() if full_path.exists() else ""
+    if not any([title, short_description, full_description]):
+        print(f"[WARN] No localized listing text found for {language} in {lang_dir}")
+    return title, short_description, full_description
 
 
 def upload_images(service, package_name: str, edit_id: str, language: str, image_type: str, image_paths: list[Path]) -> None:
@@ -138,6 +184,29 @@ def update_graphics(service, package_name: str, edit_id: str, args: argparse.Nam
     upload_images(service, args.package_name, edit_id, args.default_language, "phoneScreenshots", screenshot_paths)
 
 
+def update_graphics_for_language(service, package_name: str, edit_id: str, language: str, language_dir: Path) -> None:
+    icon_paths: list[Path] = [language_dir / "icon.png"] if (language_dir / "icon.png").exists() else []
+    feature_paths: list[Path] = [language_dir / "feature-graphic.png"] if (language_dir / "feature-graphic.png").exists() else []
+
+    screenshots_dir = language_dir / "phone-screenshots"
+    screenshot_paths: list[Path] = []
+    if screenshots_dir.exists() and screenshots_dir.is_dir():
+        screenshot_paths = sorted(
+            p for p in screenshots_dir.glob("*") if p.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}
+        )
+
+    upload_images(service, package_name, edit_id, language, "icon", icon_paths)
+    upload_images(service, package_name, edit_id, language, "featureGraphic", feature_paths)
+    upload_images(service, package_name, edit_id, language, "phoneScreenshots", screenshot_paths)
+
+
+def parse_languages(raw: str) -> list[str]:
+    if not raw.strip():
+        return []
+    parts = [item.strip() for item in raw.split(",")]
+    return [item for item in parts if item]
+
+
 def main() -> None:
     args = parse_args()
 
@@ -151,6 +220,9 @@ def main() -> None:
 
     resolved_status = args.release_status
     user_fraction = None
+    additional_languages = [
+        lang for lang in parse_languages(args.additional_languages) if lang != args.default_language
+    ]
     if args.track != "internal" and rollout_percentage < 100:
         resolved_status = "inProgress"
         user_fraction = round(rollout_percentage / 100.0, 4)
@@ -209,6 +281,27 @@ def main() -> None:
 
         update_listing(service, args.package_name, edit_id, args)
         update_graphics(service, args.package_name, edit_id, args)
+
+        if args.localizations_dir.strip() and additional_languages:
+            localizations_dir = Path(args.localizations_dir)
+            for language in additional_languages:
+                title, short_description, full_description = load_localized_listing(localizations_dir, language)
+                update_listing_for_language(
+                    service,
+                    args.package_name,
+                    edit_id,
+                    language,
+                    title,
+                    short_description,
+                    full_description,
+                )
+                update_graphics_for_language(
+                    service,
+                    args.package_name,
+                    edit_id,
+                    language,
+                    localizations_dir / language,
+                )
 
         try:
             service.edits().commit(packageName=args.package_name, editId=edit_id).execute()

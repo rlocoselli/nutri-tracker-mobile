@@ -14,7 +14,7 @@ Usage: scripts/install_maui_android.sh [--smoke-test]
 
 Installs (user-level):
 - .NET SDK (channel 8.0 by default)
-- Android SDK cmdline-tools + platform-tools + Android API 34 + build-tools 34.0.0
+- Android SDK cmdline-tools + platform-tools + Android API 35 + build-tools 35.0.0
 - .NET workloads: maui-android
 - MAUI templates
 
@@ -81,7 +81,7 @@ install_android_packages() {
   yes | sdkmanager --licenses >/dev/null || true
 
   log "Installing Android SDK packages"
-  sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+  sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 }
 
 install_maui() {

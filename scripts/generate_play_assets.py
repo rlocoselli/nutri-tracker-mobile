@@ -124,7 +124,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--out-dir", default="play_assets/generated", help="Output base directory")
     parser.add_argument("--lang", default="en-US", help="Language code for assets")
     parser.add_argument("--app-title", default="NutritionTracker", help="App title")
-    parser.add_argument("--subtitle", default="Nutrition and activity tracking", help="Feature graphic subtitle")
+    parser.add_argument("--subtitle", default="", help="Feature graphic subtitle (optional, language-aware fallback if empty)")
     parser.add_argument("--style", default="marketing", choices=["marketing", "simple"], help="Screenshot style preset")
     return parser.parse_args()
 
@@ -147,12 +147,21 @@ def build_listing_copy(lang: str, app_title: str) -> tuple[str, str, str]:
     return title, short_description, full_description
 
 
+def resolve_subtitle(lang: str, provided_subtitle: str) -> str:
+    if provided_subtitle.strip():
+        return provided_subtitle.strip()
+    if lang.lower().startswith("en"):
+        return "Nutrition and activity tracking"
+    return "Suivi nutrition et activité"
+
+
 def main() -> None:
     args = parse_args()
     base = Path(args.out_dir) / args.lang
+    subtitle = resolve_subtitle(args.lang, args.subtitle)
 
     make_icon(base / "icon.png")
-    make_feature_graphic(base / "feature-graphic.png", args.app_title, args.subtitle)
+    make_feature_graphic(base / "feature-graphic.png", args.app_title, subtitle)
 
     is_en = args.lang.lower().startswith("en")
     if is_en:

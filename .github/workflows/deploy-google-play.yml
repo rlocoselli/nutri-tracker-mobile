@@ -39,6 +39,11 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Install Android SDK 35
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
       - name: Install MAUI Android workload
         run: |
           dotnet --version
@@ -76,6 +81,7 @@ jobs:
           GOOGLE_PLAY_ROLLOUT_PERCENTAGE: ${{ github.event.inputs.rollout_percentage }}
           GOOGLE_PLAY_AUTO_BUMP_VERSION: "true"
           GOOGLE_PLAY_DEFAULT_LANGUAGE: ${{ vars.GOOGLE_PLAY_DEFAULT_LANGUAGE || 'en-US' }}
+          GOOGLE_PLAY_ADDITIONAL_LANGUAGES: ${{ vars.GOOGLE_PLAY_ADDITIONAL_LANGUAGES || 'fr-FR' }}
           GOOGLE_PLAY_LISTING_TITLE: ${{ vars.GOOGLE_PLAY_LISTING_TITLE || 'NutritionTracker' }}
           GOOGLE_PLAY_SHORT_DESCRIPTION: ${{ vars.GOOGLE_PLAY_SHORT_DESCRIPTION || 'Track calories, protein, carbs and daily activity.' }}
           GOOGLE_PLAY_FULL_DESCRIPTION: ${{ vars.GOOGLE_PLAY_FULL_DESCRIPTION || 'NutritionTracker helps you track meals (text/photo), nutrition goals, and daily activity with actionable insights and personalized recommendations.' }}

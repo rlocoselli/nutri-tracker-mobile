@@ -14,6 +14,7 @@ AAB_PATH="${GOOGLE_PLAY_AAB_PATH:-}"
 DRY_RUN="${GOOGLE_PLAY_DRY_RUN:-false}"
 VALIDATE_ONLY="${GOOGLE_PLAY_VALIDATE_ONLY:-false}"
 DEFAULT_LANGUAGE="${GOOGLE_PLAY_DEFAULT_LANGUAGE:-en-US}"
+ADDITIONAL_LANGUAGES_RAW="${GOOGLE_PLAY_ADDITIONAL_LANGUAGES:-fr-FR}"
 LISTING_TITLE="${GOOGLE_PLAY_LISTING_TITLE:-}"
 SHORT_DESCRIPTION="${GOOGLE_PLAY_SHORT_DESCRIPTION:-}"
 FULL_DESCRIPTION="${GOOGLE_PLAY_FULL_DESCRIPTION:-}"
@@ -160,6 +161,8 @@ if [[ "$DRY_RUN" != "true" ]]; then
       -f net8.0-android
       -c Release
       /p:AndroidPackageFormat=aab
+      /p:AndroidTargetSdkVersion=35
+      /p:AndroidCompileSdkVersion=35
       /p:AndroidKeyStore=true
       /p:AndroidSigningKeyStore="$ANDROID_SIGNING_KEYSTORE_PATH"
       /p:AndroidSigningStorePass="$ANDROID_SIGNING_STORE_PASS"
@@ -237,6 +240,19 @@ if [[ "$AUTO_GENERATE_PLAY_ASSETS" == "true" && "$DRY_RUN" != "true" ]]; then
     --app-title "$PLAY_ASSETS_APP_TITLE" \
     --subtitle "$PLAY_ASSETS_SUBTITLE" \
     --style "$PLAY_ASSETS_STYLE"
+
+  IFS=',' read -r -a ADDITIONAL_LANGUAGES_ARRAY <<< "$ADDITIONAL_LANGUAGES_RAW"
+  for lang in "${ADDITIONAL_LANGUAGES_ARRAY[@]}"; do
+    lang="$(printf '%s' "$lang" | xargs)"
+    if [[ -z "$lang" || "$lang" == "$DEFAULT_LANGUAGE" ]]; then
+      continue
+    fi
+    python3 "$ROOT_DIR/scripts/generate_play_assets.py" \
+      --out-dir "$PLAY_ASSETS_DIR" \
+      --lang "$lang" \
+      --app-title "$PLAY_ASSETS_APP_TITLE" \
+      --style "$PLAY_ASSETS_STYLE"
+  done
 fi
 
 LISTING_TITLE_PATH="$PLAY_ASSETS_DIR/$DEFAULT_LANGUAGE/listing-title.txt"
@@ -256,6 +272,8 @@ if [[ -z "$FULL_DESCRIPTION" && -f "$FULL_DESCRIPTION_PATH" ]]; then
   echo "[INFO] Loaded generated full description ($DEFAULT_LANGUAGE)"
 fi
 
+echo "[INFO] Listing payload check ($DEFAULT_LANGUAGE): title=${#LISTING_TITLE} short=${#SHORT_DESCRIPTION} full=${#FULL_DESCRIPTION}"
+
 ICON_PATH="$PLAY_ASSETS_DIR/$DEFAULT_LANGUAGE/icon.png"
 FEATURE_GRAPHIC_PATH="$PLAY_ASSETS_DIR/$DEFAULT_LANGUAGE/feature-graphic.png"
 PHONE_SCREENSHOTS_DIR="$PLAY_ASSETS_DIR/$DEFAULT_LANGUAGE/phone-screenshots"
@@ -268,7 +286,12 @@ ARGS=(
   --rollout-percentage "$ROLLOUT_PERCENTAGE"
   --aab "$AAB_PATH"
   --default-language "$DEFAULT_LANGUAGE"
+  --localizations-dir "$PLAY_ASSETS_DIR"
 )
+
+if [[ -n "$ADDITIONAL_LANGUAGES_RAW" ]]; then
+  ARGS+=(--additional-languages "$ADDITIONAL_LANGUAGES_RAW")
+fi
 
 if [[ -n "$LISTING_TITLE" ]]; then
   ARGS+=(--listing-title "$LISTING_TITLE")
