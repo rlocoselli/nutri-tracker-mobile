@@ -83,7 +83,7 @@ jobs:
           GOOGLE_PLAY_RELEASE_STATUS: ${{ github.event.inputs.release_status }}
           GOOGLE_PLAY_ROLLOUT_PERCENTAGE: ${{ github.event.inputs.rollout_percentage }}
           GOOGLE_PLAY_AUTO_BUMP_VERSION: "true"
-          GOOGLE_PLAY_DEFAULT_LANGUAGE: ${{ vars.GOOGLE_PLAY_DEFAULT_LANGUAGE || 'en-US' }}
+          GOOGLE_PLAY_DEFAULT_LANGUAGE: 'en-US'
           GOOGLE_PLAY_ADDITIONAL_LANGUAGES: ${{ vars.GOOGLE_PLAY_ADDITIONAL_LANGUAGES || 'fr-FR' }}
           GOOGLE_PLAY_LISTING_TITLE: ${{ vars.GOOGLE_PLAY_LISTING_TITLE || 'NutritionTracker' }}
           GOOGLE_PLAY_SHORT_DESCRIPTION: ${{ vars.GOOGLE_PLAY_SHORT_DESCRIPTION || 'Track calories, protein, carbs and daily activity.' }}

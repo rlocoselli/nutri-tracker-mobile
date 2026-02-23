@@ -15,6 +15,7 @@ DRY_RUN="${GOOGLE_PLAY_DRY_RUN:-false}"
 VALIDATE_ONLY="${GOOGLE_PLAY_VALIDATE_ONLY:-false}"
 DEFAULT_LANGUAGE="${GOOGLE_PLAY_DEFAULT_LANGUAGE:-en-US}"
 ADDITIONAL_LANGUAGES_RAW="${GOOGLE_PLAY_ADDITIONAL_LANGUAGES:-fr-FR}"
+EFFECTIVE_ADDITIONAL_LANGUAGES="$ADDITIONAL_LANGUAGES_RAW"
 LISTING_TITLE="${GOOGLE_PLAY_LISTING_TITLE:-}"
 SHORT_DESCRIPTION="${GOOGLE_PLAY_SHORT_DESCRIPTION:-}"
 FULL_DESCRIPTION="${GOOGLE_PLAY_FULL_DESCRIPTION:-}"
@@ -232,6 +233,16 @@ echo "       Policy:  $PRIVACY_POLICY_URL"
 echo "       DryRun:  $DRY_RUN"
 echo "       Validate:$VALIDATE_ONLY"
 
+if [[ "$DEFAULT_LANGUAGE" != "en-US" ]]; then
+  case ",$EFFECTIVE_ADDITIONAL_LANGUAGES," in
+    *,en-US,*) ;;
+    ",,") EFFECTIVE_ADDITIONAL_LANGUAGES="en-US" ;;
+    *) EFFECTIVE_ADDITIONAL_LANGUAGES="$EFFECTIVE_ADDITIONAL_LANGUAGES,en-US" ;;
+  esac
+fi
+
+echo "       Locales: default=$DEFAULT_LANGUAGE additional=${EFFECTIVE_ADDITIONAL_LANGUAGES:-<none>}"
+
 if [[ "$AUTO_GENERATE_PLAY_ASSETS" == "true" && "$DRY_RUN" != "true" ]]; then
   echo "[INFO] Generating Play listing assets..."
   python3 "$ROOT_DIR/scripts/generate_play_assets.py" \
@@ -241,7 +252,7 @@ if [[ "$AUTO_GENERATE_PLAY_ASSETS" == "true" && "$DRY_RUN" != "true" ]]; then
     --subtitle "$PLAY_ASSETS_SUBTITLE" \
     --style "$PLAY_ASSETS_STYLE"
 
-  IFS=',' read -r -a ADDITIONAL_LANGUAGES_ARRAY <<< "$ADDITIONAL_LANGUAGES_RAW"
+  IFS=',' read -r -a ADDITIONAL_LANGUAGES_ARRAY <<< "$EFFECTIVE_ADDITIONAL_LANGUAGES"
   for lang in "${ADDITIONAL_LANGUAGES_ARRAY[@]}"; do
     lang="$(printf '%s' "$lang" | xargs)"
     if [[ -z "$lang" || "$lang" == "$DEFAULT_LANGUAGE" ]]; then
@@ -289,8 +300,8 @@ ARGS=(
   --localizations-dir "$PLAY_ASSETS_DIR"
 )
 
-if [[ -n "$ADDITIONAL_LANGUAGES_RAW" ]]; then
-  ARGS+=(--additional-languages "$ADDITIONAL_LANGUAGES_RAW")
+if [[ -n "$EFFECTIVE_ADDITIONAL_LANGUAGES" ]]; then
+  ARGS+=(--additional-languages "$EFFECTIVE_ADDITIONAL_LANGUAGES")
 fi
 
 if [[ -n "$LISTING_TITLE" ]]; then
