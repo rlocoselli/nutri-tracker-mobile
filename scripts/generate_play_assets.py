@@ -122,11 +122,29 @@ def make_marketing_screenshot(path: Path, index: int, app_title: str, headline: 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate Google Play visual assets")
     parser.add_argument("--out-dir", default="play_assets/generated", help="Output base directory")
-    parser.add_argument("--lang", default="fr-FR", help="Language code for assets")
+    parser.add_argument("--lang", default="en-US", help="Language code for assets")
     parser.add_argument("--app-title", default="NutritionTracker", help="App title")
-    parser.add_argument("--subtitle", default="Suivi nutrition et activité", help="Feature graphic subtitle")
+    parser.add_argument("--subtitle", default="Nutrition and activity tracking", help="Feature graphic subtitle")
     parser.add_argument("--style", default="marketing", choices=["marketing", "simple"], help="Screenshot style preset")
     return parser.parse_args()
+
+
+def build_listing_copy(lang: str, app_title: str) -> tuple[str, str, str]:
+    is_en = lang.lower().startswith("en")
+    title = app_title
+    if is_en:
+        short_description = "Track calories, protein, carbs and daily activity."
+        full_description = (
+            "NutritionTracker helps you track meals (text/photo), nutrition goals, "
+            "and daily activity with actionable insights and personalized recommendations."
+        )
+    else:
+        short_description = "Suivi calories, protéines, glucides et activité."
+        full_description = (
+            "NutritionTracker vous aide à suivre vos repas (texte/photo), "
+            "vos objectifs nutritionnels et votre activité quotidienne."
+        )
+    return title, short_description, full_description
 
 
 def main() -> None:
@@ -164,6 +182,11 @@ def main() -> None:
             make_marketing_screenshot(target, idx, args.app_title, line1, line2, cta)
         else:
             make_phone_screenshot(target, idx, args.app_title, line1, line2)
+
+    listing_title, short_description, full_description = build_listing_copy(args.lang, args.app_title)
+    (base / "listing-title.txt").write_text(listing_title + "\n", encoding="utf-8")
+    (base / "short-description.txt").write_text(short_description + "\n", encoding="utf-8")
+    (base / "full-description.txt").write_text(full_description + "\n", encoding="utf-8")
 
     print(f"GENERATED:{base}")
 

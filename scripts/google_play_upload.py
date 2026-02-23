@@ -18,7 +18,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--rollout-percentage", default="100", help="Staged rollout percentage 1-100. <100 sets inProgress on supported tracks")
     parser.add_argument("--aab", required=True, help="Path to .aab file")
     parser.add_argument("--release-name", default="", help="Optional release name")
-    parser.add_argument("--default-language", default="fr-FR", help="Play listing language code")
+    parser.add_argument("--default-language", default="en-US", help="Play listing language code")
     parser.add_argument("--listing-title", default="", help="Store listing title")
     parser.add_argument("--short-description", default="", help="Store listing short description")
     parser.add_argument("--full-description", default="", help="Store listing full description")
@@ -168,6 +168,13 @@ def main() -> None:
 
         detected_first_deploy = not has_existing_release(service, args.package_name, edit_id)
         ensure_first_deploy_requirements(args, detected_first_deploy)
+        if detected_first_deploy and resolved_status != "draft":
+            print(
+                "[WARN] First deploy detected on a draft app. "
+                "Forcing release status to 'draft' to satisfy Google Play constraints."
+            )
+            resolved_status = "draft"
+            user_fraction = None
 
         bundle = service.edits().bundles().upload(
             packageName=args.package_name,
@@ -203,8 +210,31 @@ def main() -> None:
         update_listing(service, args.package_name, edit_id, args)
         update_graphics(service, args.package_name, edit_id, args)
 
-        service.edits().commit(packageName=args.package_name, editId=edit_id).execute()
-        print("[OK] Edit committed successfully")
+        try:
+            service.edits().commit(packageName=args.package_name, editId=edit_id).execute()
+            print("[OK] Edit committed successfully")
+        except HttpError as commit_err:
+            commit_status = getattr(commit_err.resp, "status", None)
+            commit_body = str(commit_err)
+            draft_app_error = "Only releases with status draft may be created on draft app"
+
+            if commit_status == 400 and draft_app_error in commit_body and resolved_status != "draft":
+                print(
+                    "[WARN] Commit rejected because app is still draft. "
+                    "Retrying with release status 'draft'."
+                )
+                release_body["status"] = "draft"
+                release_body.pop("userFraction", None)
+                service.edits().tracks().update(
+                    packageName=args.package_name,
+                    editId=edit_id,
+                    track=args.track,
+                    body={"releases": [release_body]},
+                ).execute()
+                service.edits().commit(packageName=args.package_name, editId=edit_id).execute()
+                print("[OK] Edit committed successfully (draft-app fallback)")
+            else:
+                raise
 
     except HttpError as err:
         status = getattr(err.resp, "status", None)
