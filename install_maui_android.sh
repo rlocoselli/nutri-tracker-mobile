@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DOTNET_CHANNEL="${DOTNET_CHANNEL:-8.0}"
+DOTNET_CHANNEL="${DOTNET_CHANNEL:-9.0}"
 DOTNET_ROOT="${DOTNET_ROOT:-$HOME/.dotnet}"
 ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$HOME/.android-sdk}"
 ANDROID_HOME="$ANDROID_SDK_ROOT"
@@ -13,7 +13,7 @@ if [[ "${1:-}" == "--help" ]]; then
 Usage: scripts/install_maui_android.sh [--smoke-test]
 
 Installs (user-level):
-- .NET SDK (channel 8.0 by default)
+- .NET SDK (channel 9.0 by default)
 - Android SDK cmdline-tools + platform-tools + Android API 35 + build-tools 35.0.0
 - .NET workloads: maui-android
 - MAUI templates
@@ -120,7 +120,7 @@ run_smoke_test() {
   log "Running MAUI Android smoke test"
   rm -rf /tmp/MauiSmokeTest
   "$DOTNET_ROOT/dotnet" new maui -n MauiSmokeTest -o /tmp/MauiSmokeTest
-  "$DOTNET_ROOT/dotnet" build /tmp/MauiSmokeTest/MauiSmokeTest.csproj -f net8.0-android -p:TargetFrameworks=net8.0-android -v minimal
+  "$DOTNET_ROOT/dotnet" build /tmp/MauiSmokeTest/MauiSmokeTest.csproj -f net9.0-android -p:TargetFrameworks=net9.0-android -v minimal
   log "Smoke test OK: /tmp/MauiSmokeTest/bin/Debug/net8.0-android"
 }
 

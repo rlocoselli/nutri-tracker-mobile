@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DOTNET_CHANNEL="${DOTNET_CHANNEL:-8.0}"
+DOTNET_CHANNEL="${DOTNET_CHANNEL:-9.0}"
 DOTNET_ROOT="${DOTNET_ROOT:-$HOME/.dotnet}"
 ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$HOME/.android-sdk}"
 ANDROID_HOME="$ANDROID_SDK_ROOT"
@@ -130,8 +130,8 @@ smoke_test() {
   rm -rf /tmp/MauiSmokeTest
   "$DOTNET_ROOT/dotnet" new maui -n MauiSmokeTest -o /tmp/MauiSmokeTest >/dev/null
   "$DOTNET_ROOT/dotnet" build /tmp/MauiSmokeTest/MauiSmokeTest.csproj \
-    -f net8.0-android \
-    -p:TargetFrameworks=net8.0-android \
+    -f net9.0-android \
+    -p:TargetFrameworks=net9.0-android \
     -v q
 
   if [[ -f "/tmp/MauiSmokeTest/bin/Debug/net8.0-android/com.companyname.mauismoketest.apk" ]]; then

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0-android</TargetFrameworks>
+    <TargetFrameworks>net9.0-android</TargetFrameworks>
     <OutputType>Exe</OutputType>
     <RootNamespace>NutritionTracker</RootNamespace>
 
@@ -20,14 +20,13 @@
     </PropertyGroup>
 
   <!-- Identité Android -->
-  <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-android'">
+  <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
     <ApplicationId>com.audela.nutritiontracker</ApplicationId>
     <AndroidTargetSdkVersion>35</AndroidTargetSdkVersion>
   </PropertyGroup>
 
-  <!-- MAUI Controls explicite (corrige MA002) -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.Maui.Controls" Version="8.0.100" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
     <PackageReference Include="sqlite-net-pcl" Version="1.9.172" />
   </ItemGroup>
