@@ -178,7 +178,16 @@ if [[ "$DRY_RUN" != "true" ]]; then
 
     dotnet publish "$PROJECT_PATH" "${PUBLISH_ARGS[@]}"
 
-    PUBLISH_DIR="$ROOT_DIR/bin/Release/net8.0-android/publish"
+    PUBLISH_DIR="$ROOT_DIR/bin/Release/$ANDROID_TARGET_FRAMEWORK/publish"
+    if [[ ! -d "$PUBLISH_DIR" ]]; then
+      PUBLISH_DIR="$(find "$ROOT_DIR/bin/Release" -maxdepth 3 -type d -path "*/publish" | sort | tail -n 1)"
+    fi
+
+    if [[ -z "$PUBLISH_DIR" || ! -d "$PUBLISH_DIR" ]]; then
+      echo "[ERROR] Publish directory not found under $ROOT_DIR/bin/Release"
+      exit 1
+    fi
+
     AAB_PATH="$(find "$PUBLISH_DIR" -maxdepth 1 -type f -name "*.aab" | head -n 1)"
 
     if [[ -z "$AAB_PATH" ]]; then
