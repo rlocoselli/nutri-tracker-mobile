@@ -8,6 +8,8 @@ public partial class AddMealViewModel : ObservableObject
 {
     private readonly ApiService _api;
     private readonly LocalDb _db;
+    private readonly PointsService _points;
+    private readonly BackendSyncService _sync;
 
     [ObservableProperty] private string text = "";
     [ObservableProperty] private bool isBusy;
@@ -18,6 +20,9 @@ public partial class AddMealViewModel : ObservableObject
     [ObservableProperty] private bool hasResult;
     [ObservableProperty] private string resultSummary = "";
     [ObservableProperty] private string resultNotes = "";
+    [ObservableProperty] private string resultQuality = "";
+    [ObservableProperty] private string resultBadge = "";
+    [ObservableProperty] private string resultSemaphore = "";
 
     public string TitleText => T("add_meal_title");
     public string SubtitleText => T("add_meal_subtitle");
@@ -30,10 +35,12 @@ public partial class AddMealViewModel : ObservableObject
 
     public bool HasPhoto => !string.IsNullOrWhiteSpace(PhotoPath);
 
-    public AddMealViewModel(ApiService api, LocalDb db)
+    public AddMealViewModel(ApiService api, LocalDb db, PointsService points, BackendSyncService sync)
     {
         _api = api;
         _db = db;
+        _points = points;
+        _sync = sync;
     }
 
     partial void OnPhotoPathChanged(string value) => OnPropertyChanged(nameof(HasPhoto));
@@ -64,6 +71,9 @@ public partial class AddMealViewModel : ObservableObject
         HasResult = false;
         ResultSummary = "";
         ResultNotes = "";
+        ResultQuality = "";
+        ResultBadge = "";
+        ResultSemaphore = "";
     }
 
     [RelayCommand]
@@ -91,11 +101,20 @@ public partial class AddMealViewModel : ObservableObject
             var (entry, items) = MealMapper.MapToDb(resp, Text, PhotoPath);
             await _db.SaveMealAsync(entry, items);
 
+            _ = await _sync.EnsureBackendIdentityAsync(idToken);
+            _ = await _sync.TryPushMealAsync(entry, items);
+
             ResultSummary = $"Calories: {Math.Round(resp.meal.totals.calories)} | Carbs: {Math.Round(resp.meal.totals.carbs_g)}g | Protein: {Math.Round(resp.meal.totals.protein_g)}g";
             ResultNotes = resp.meal.notes;
+            ResultQuality = T("quality") + $": {entry.QualityLabel} ({Math.Round(entry.QualityScore)}/100)";
+            ResultBadge = T("badge") + $": {MealQualityService.GetBadge(entry.QualityScore, appLang)}";
+            ResultSemaphore = T("semaphore") + $": {MealQualityService.GetSemaphore(entry.QualityScore, appLang)}";
             HasResult = true;
 
-            await Application.Current!.MainPage!.DisplayAlert(T("saved_title"), T("saved_message"), "OK");
+            var newBalance = _points.Award(10);
+            var earnedText = string.Format(T("earned_points"), 10, newBalance);
+
+            await Application.Current!.MainPage!.DisplayAlert(T("saved_title"), $"{T("saved_message")}\n{earnedText}", "OK");
         }
         catch (Exception ex)
         {
@@ -110,22 +129,34 @@ public partial class AddMealViewModel : ObservableObject
     private static string T(string key)
     {
         var lang = Preferences.Default.Get("app_lang", "fr");
+        static string L(string lang, string fr, string en, string pt, string es) => lang switch
+        {
+            "en" => en,
+            "pt" => pt,
+            "es" => es,
+            _ => fr,
+        };
+
         return key switch
         {
-            "add_meal_title" => lang == "en" ? "Log a meal" : "Enregistrer un repas",
-            "add_meal_subtitle" => lang == "en" ? "Describe your meal and/or add a photo for AI analysis." : "Décrivez votre repas et/ou ajoutez une photo pour l'analyse IA.",
-            "add_placeholder" => lang == "en" ? "Ex: chicken salad, greek yogurt, apple..." : "Ex : salade de poulet, yaourt grec, pomme...",
-            "pick_photo" => lang == "en" ? "Choose photo" : "Choisir une photo",
-            "capture_photo" => lang == "en" ? "Take photo" : "Prendre une photo",
-            "analyze" => lang == "en" ? "Analyze" : "Analyser",
-            "clear" => lang == "en" ? "Clear" : "Vider",
-            "result" => lang == "en" ? "Result" : "Résultat",
-            "missing_input_title" => lang == "en" ? "Missing input" : "Entrée manquante",
-            "missing_input_message" => lang == "en" ? "Add text or a photo before analysis." : "Ajoutez un texte ou une photo avant l'analyse.",
-            "not_logged_in" => lang == "en" ? "Not logged in. Please login again." : "Vous n'êtes pas connecté. Veuillez vous reconnecter.",
-            "saved_title" => lang == "en" ? "Saved" : "Enregistré",
-            "saved_message" => lang == "en" ? "Meal saved to local database." : "Repas enregistré dans la base locale.",
-            "error_title" => lang == "en" ? "Error" : "Erreur",
+            "add_meal_title" => L(lang, "Enregistrer un repas", "Log a meal", "Registrar refeição", "Registrar comida"),
+            "add_meal_subtitle" => L(lang, "Décrivez votre repas et/ou ajoutez une photo pour l'analyse IA.", "Describe your meal and/or add a photo for AI analysis.", "Descreva sua refeição e/ou adicione uma foto para análise de IA.", "Describe tu comida y/o agrega una foto para el análisis de IA."),
+            "add_placeholder" => L(lang, "Ex : salade de poulet, yaourt grec, pomme...", "Ex: chicken salad, greek yogurt, apple...", "Ex: salada de frango, iogurte grego, maçã...", "Ej: ensalada de pollo, yogur griego, manzana..."),
+            "pick_photo" => L(lang, "Choisir une photo", "Choose photo", "Escolher foto", "Elegir foto"),
+            "capture_photo" => L(lang, "Prendre une photo", "Take photo", "Tirar foto", "Tomar foto"),
+            "analyze" => L(lang, "Analyser", "Analyze", "Analisar", "Analizar"),
+            "clear" => L(lang, "Vider", "Clear", "Limpar", "Limpiar"),
+            "result" => L(lang, "Résultat", "Result", "Resultado", "Resultado"),
+            "quality" => L(lang, "Qualité IA", "AI quality", "Qualidade IA", "Calidad IA"),
+            "badge" => L(lang, "Badge", "Badge", "Insígnia", "Insignia"),
+            "semaphore" => L(lang, "Sémaphore", "Semaphore", "Semáforo", "Semáforo"),
+            "missing_input_title" => L(lang, "Entrée manquante", "Missing input", "Entrada ausente", "Falta información"),
+            "missing_input_message" => L(lang, "Ajoutez un texte ou une photo avant l'analyse.", "Add text or a photo before analysis.", "Adicione texto ou foto antes da análise.", "Añade texto o foto antes del análisis."),
+            "not_logged_in" => L(lang, "Vous n'êtes pas connecté. Veuillez vous reconnecter.", "Not logged in. Please login again.", "Você não está conectado. Faça login novamente.", "No has iniciado sesión. Vuelve a iniciar sesión."),
+            "saved_title" => L(lang, "Enregistré", "Saved", "Salvo", "Guardado"),
+            "saved_message" => L(lang, "Repas enregistré dans la base locale.", "Meal saved to local database.", "Refeição salva no banco local.", "Comida guardada en la base de datos local."),
+            "earned_points" => L(lang, "+{0} pièces gagnées · Solde : {1}", "+{0} coins earned · Balance: {1}", "+{0} moedas ganhas · Saldo: {1}", "+{0} monedas ganadas · Saldo: {1}"),
+            "error_title" => L(lang, "Erreur", "Error", "Erro", "Error"),
             _ => key,
         };
     }

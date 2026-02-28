@@ -172,7 +172,13 @@ public class TrendChart : GraphicsView
             canvas.FontColor = muted;
             canvas.FontSize = 12;
             var lang = Preferences.Default.Get("app_lang", "fr");
-            var label = lang == "en" ? "No data" : "Pas de données";
+            var label = lang switch
+            {
+                "en" => "No data",
+                "pt" => "Sem dados",
+                "es" => "Sin datos",
+                _ => "Pas de données",
+            };
             canvas.DrawString(label, rect, HorizontalAlignment.Center, VerticalAlignment.Center);
         }
 

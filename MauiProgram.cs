@@ -23,6 +23,10 @@ public static class MauiProgram
         builder.Services.AddSingleton<AuthService>();
         builder.Services.AddSingleton<SessionService>();
         builder.Services.AddSingleton<GoogleFitService>();
+        builder.Services.AddSingleton<PointsService>();
+        builder.Services.AddSingleton<SocialService>();
+        builder.Services.AddSingleton<BackendSyncService>();
+        builder.Services.AddSingleton<IMealReminderService, MealReminderService>();
         builder.Services.AddSingleton(sp => new ApiService("https://nutrition-mvp-api.onrender.com", sp.GetRequiredService<SessionService>()));
 
         // ✅ DB: ne pas bloquer ici

@@ -10,6 +10,8 @@ namespace NutritionTracker.ViewModels;
 public partial class DiaryViewModel : ObservableObject
 {
     private readonly LocalDb _db;
+    private readonly PointsService _points;
+    private readonly BackendSyncService _sync;
 
     public string MetricTitle => T("metric");
     public string PeriodTitle => T("period");
@@ -37,6 +39,17 @@ public partial class DiaryViewModel : ObservableObject
     [ObservableProperty] private string manualExerciseMinutes = "";
     [ObservableProperty] private string manualBurnPreviewText = "";
 
+    [ObservableProperty] private bool isEditPopupVisible;
+    [ObservableProperty] private string editMealName = "";
+    [ObservableProperty] private string editCalories = "";
+    [ObservableProperty] private string editProtein = "";
+    [ObservableProperty] private string editCarbs = "";
+    [ObservableProperty] private string editQualityPreviewText = "";
+    [ObservableProperty] private string editBadgePreviewText = "";
+    [ObservableProperty] private string editSemaphorePreviewText = "";
+
+    private DiaryMealItem? _editingMeal;
+
     public string ManualPopupTitle => T("manual_popup_title");
     public string ManualMealLabel => T("meal_label");
     public string CaloriesLabel => T("calories_label");
@@ -52,6 +65,7 @@ public partial class DiaryViewModel : ObservableObject
     public string MinutesPlaceholder => T("minutes_placeholder");
     public string SaveText => T("save");
     public string CancelText => T("cancel");
+    public string EditPopupTitle => T("edit_popup_title");
 
     // --- Chart ---
     public ObservableCollection<string> MetricOptions { get; } = new() { "Calories", "Protein", "Carbs" };
@@ -63,9 +77,11 @@ public partial class DiaryViewModel : ObservableObject
     [ObservableProperty] private IList<double> chartValues = Array.Empty<double>();
     [ObservableProperty] private IList<string> chartLabels = Array.Empty<string>();
 
-    public DiaryViewModel(LocalDb db)
+    public DiaryViewModel(LocalDb db, PointsService points, BackendSyncService sync)
     {
         _db = db;
+        _points = points;
+        _sync = sync;
         UpdateSelectedDayText();
     }
 
@@ -117,6 +133,7 @@ public partial class DiaryViewModel : ObservableObject
         OnPropertyChanged(nameof(MinutesPlaceholder));
         OnPropertyChanged(nameof(SaveText));
         OnPropertyChanged(nameof(CancelText));
+        OnPropertyChanged(nameof(EditPopupTitle));
 
         await LoadDayAsync(SelectedDayLocal);
         await LoadChartAsync();
@@ -174,10 +191,15 @@ public partial class DiaryViewModel : ObservableObject
             TotalProteinG = protein,
             TotalCarbsG = carbs,
             OverallConfidence = 1.0,
+            QualityScore = 50,
+            QualityLabel = "Moyen",
             PhotoPath = ""
         };
 
         await _db.UpsertMealEntryAsync(entry);
+        var token = Preferences.Default.Get("auth_id_token", "");
+        _ = await _sync.EnsureBackendIdentityAsync(token);
+        _ = await _sync.TryPushMealAsync(entry, new List<MealItem>());
 
         if (steps > 0 || minutes > 0 || burned > 0)
         {
@@ -193,71 +215,84 @@ public partial class DiaryViewModel : ObservableObject
         }
 
         IsManualPopupVisible = false;
+        var manualBalance = _points.Award(8);
+        await Application.Current!.MainPage!.DisplayAlert(T("saved_title"), string.Format(T("earned_points"), 8, manualBalance), "OK");
         await LoadDayAsync(SelectedDayLocal);
         await LoadChartAsync();
     }
 
     [RelayCommand]
-    private async Task EditMeal(DiaryMealItem? item)
+    private Task EditMeal(DiaryMealItem? item)
     {
-        if (item == null) return;
+        if (item == null) return Task.CompletedTask;
 
-        var name = await Application.Current!.MainPage!.DisplayPromptAsync(
-            T("edit_name_title"),
-            T("edit_name_msg"),
-            accept: T("save"),
-            cancel: T("cancel"),
-            initialValue: item.RawText,
-            placeholder: T("manual_name_placeholder"));
-        if (name == null) return;
+        _editingMeal = item;
+        EditMealName = item.RawText;
+        EditCalories = item.TotalCalories.ToString("0");
+        EditProtein = item.TotalProteinG.ToString("0");
+        EditCarbs = item.TotalCarbsG.ToString("0");
+        RecomputeEditQualityPreview();
+        IsManualPopupVisible = false;
+        IsEditPopupVisible = true;
+        return Task.CompletedTask;
+    }
 
-        var caloriesText = await Application.Current!.MainPage!.DisplayPromptAsync(
-            T("edit_cal_title"),
-            T("edit_cal_msg"),
-            accept: T("next"),
-            cancel: T("cancel"),
-            keyboard: Keyboard.Numeric,
-            initialValue: item.TotalCalories.ToString("0"));
-        if (caloriesText == null) return;
+    [RelayCommand]
+    private void CloseEditPopup()
+    {
+        IsEditPopupVisible = false;
+        _editingMeal = null;
+    }
 
-        var proteinText = await Application.Current!.MainPage!.DisplayPromptAsync(
-            T("edit_protein_title"),
-            T("edit_protein_msg"),
-            accept: T("next"),
-            cancel: T("cancel"),
-            keyboard: Keyboard.Numeric,
-            initialValue: item.TotalProteinG.ToString("0"));
-        if (proteinText == null) return;
+    [RelayCommand]
+    private async Task SaveEditPopup()
+    {
+        if (_editingMeal == null)
+            return;
 
-        var carbsText = await Application.Current!.MainPage!.DisplayPromptAsync(
-            T("edit_carbs_title"),
-            T("edit_carbs_msg"),
-            accept: T("save"),
-            cancel: T("cancel"),
-            keyboard: Keyboard.Numeric,
-            initialValue: item.TotalCarbsG.ToString("0"));
-        if (carbsText == null) return;
+        if (string.IsNullOrWhiteSpace(EditMealName))
+        {
+            await Application.Current!.MainPage!.DisplayAlert(T("edit_name_title"), T("manual_name_required"), "OK");
+            return;
+        }
 
-        if (!double.TryParse(caloriesText, out var calories)) calories = item.TotalCalories;
-        if (!double.TryParse(proteinText, out var protein)) protein = item.TotalProteinG;
-        if (!double.TryParse(carbsText, out var carbs)) carbs = item.TotalCarbsG;
+        if (!double.TryParse(EditCalories, out var calories)) calories = _editingMeal.TotalCalories;
+        if (!double.TryParse(EditProtein, out var protein)) protein = _editingMeal.TotalProteinG;
+        if (!double.TryParse(EditCarbs, out var carbs)) carbs = _editingMeal.TotalCarbsG;
+
+        var quality = MealQualityService.Classify(
+            _editingMeal.AiNotes,
+            calories,
+            protein,
+            carbs,
+            _editingMeal.OverallConfidence);
 
         var updated = new MealEntry
         {
-            Id = item.Id,
-            DateUtc = item.DateUtc,
-            DayKeyUtc = item.DayKeyUtc,
-            RawText = string.IsNullOrWhiteSpace(name) ? item.RawText : name.Trim(),
-            Description = string.IsNullOrWhiteSpace(name) ? item.Description : name.Trim(),
-            AiNotes = item.AiNotes,
-            PhotoPath = item.PhotoPath,
+            Id = _editingMeal.Id,
+            DateUtc = _editingMeal.DateUtc,
+            DayKeyUtc = _editingMeal.DayKeyUtc,
+            RawText = EditMealName.Trim(),
+            Description = EditMealName.Trim(),
+            AiNotes = _editingMeal.AiNotes,
+            PhotoPath = _editingMeal.PhotoPath,
             TotalCalories = calories,
             TotalProteinG = protein,
             TotalCarbsG = carbs,
-            OverallConfidence = item.OverallConfidence
+            OverallConfidence = _editingMeal.OverallConfidence,
+            QualityScore = quality.score,
+            QualityLabel = quality.label
         };
 
         await _db.UpsertMealEntryAsync(updated);
+        var token = Preferences.Default.Get("auth_id_token", "");
+        _ = await _sync.EnsureBackendIdentityAsync(token);
+        var existingItems = await _db.GetMealItemsForEntryAsync(updated.Id);
+        _ = await _sync.TryPushMealAsync(updated, existingItems);
+        IsEditPopupVisible = false;
+        _editingMeal = null;
+        var editBalance = _points.Award(4);
+        await Application.Current!.MainPage!.DisplayAlert(T("saved_title"), string.Format(T("earned_points"), 4, editBalance), "OK");
         await LoadDayAsync(SelectedDayLocal);
         await LoadChartAsync();
     }
@@ -420,60 +455,77 @@ public partial class DiaryViewModel : ObservableObject
     private static string T(string key)
     {
         var lang = Preferences.Default.Get("app_lang", "fr");
+        static string L(string lang, string fr, string en, string pt, string es) => lang switch
+        {
+            "en" => en,
+            "pt" => pt,
+            "es" => es,
+            _ => fr,
+        };
+
         return key switch
         {
-            "metric" => lang == "en" ? "Metric" : "Métrique",
-            "period" => lang == "en" ? "Period" : "Période",
-            "your_meals" => lang == "en" ? "Your meals" : "Vos repas",
-            "selected_day_details" => lang == "en" ? "Details of selected day" : "Détails du jour sélectionné",
-            "add_manual_line" => lang == "en" ? "Add manual line" : "Ajouter une ligne manuelle",
-            "manual_name_title" => lang == "en" ? "Manual meal" : "Repas manuel",
-            "manual_name_msg" => lang == "en" ? "Meal name" : "Nom du repas",
-            "manual_name_placeholder" => lang == "en" ? "ex: Homemade sandwich" : "ex : Sandwich maison",
-            "meal_label" => lang == "en" ? "Meal" : "Repas",
-            "calories_label" => lang == "en" ? "Calories" : "Calories",
-            "protein_label" => lang == "en" ? "Protein" : "Protéines",
-            "carbs_label" => lang == "en" ? "Carbs" : "Glucides",
-            "steps_label" => lang == "en" ? "Google Fit steps (test)" : "Pas Google Fit (test)",
-            "minutes_label" => lang == "en" ? "Exercise minutes" : "Minutes d'exercice",
-            "manual_popup_title" => lang == "en" ? "Manual entry" : "Entrée manuelle",
-            "manual_name_required" => lang == "en" ? "Please enter a meal name." : "Veuillez saisir un nom de repas.",
-            "cal_placeholder" => lang == "en" ? "Calories" : "Calories",
-            "protein_placeholder" => lang == "en" ? "Protein (g)" : "Protéines (g)",
-            "carbs_placeholder" => lang == "en" ? "Carbs (g)" : "Glucides (g)",
-            "steps_placeholder" => lang == "en" ? "Google Fit steps (test)" : "Pas Google Fit (test)",
-            "minutes_placeholder" => lang == "en" ? "Exercise minutes" : "Minutes d'exercice",
-            "manual_cal_title" => lang == "en" ? "Calories" : "Calories",
-            "manual_cal_msg" => lang == "en" ? "Enter calories" : "Saisissez les calories",
-            "manual_protein_title" => lang == "en" ? "Protein (g)" : "Protéines (g)",
-            "manual_protein_msg" => lang == "en" ? "Enter protein grams" : "Saisissez les protéines",
-            "manual_carbs_title" => lang == "en" ? "Carbs (g)" : "Glucides (g)",
-            "manual_carbs_msg" => lang == "en" ? "Enter carb grams" : "Saisissez les glucides",
-            "edit_name_title" => lang == "en" ? "Edit meal" : "Modifier le repas",
-            "edit_name_msg" => lang == "en" ? "Update meal name" : "Mettre à jour le nom",
-            "edit_cal_title" => lang == "en" ? "Edit calories" : "Modifier calories",
-            "edit_cal_msg" => lang == "en" ? "Update calories" : "Mettre à jour les calories",
-            "edit_protein_title" => lang == "en" ? "Edit protein" : "Modifier protéines",
-            "edit_protein_msg" => lang == "en" ? "Update protein grams" : "Mettre à jour les protéines",
-            "edit_carbs_title" => lang == "en" ? "Edit carbs" : "Modifier glucides",
-            "edit_carbs_msg" => lang == "en" ? "Update carb grams" : "Mettre à jour les glucides",
-            "delete_title" => lang == "en" ? "Delete meal" : "Supprimer le repas",
-            "delete_msg" => lang == "en" ? "Delete this line?" : "Supprimer cette ligne ?",
-            "delete" => lang == "en" ? "Delete" : "Supprimer",
-            "edit" => lang == "en" ? "Edit" : "Modifier",
-            "cancel" => lang == "en" ? "Cancel" : "Annuler",
-            "save" => lang == "en" ? "Save" : "Enregistrer",
-            "next" => lang == "en" ? "Next" : "Suivant",
-            "total" => lang == "en" ? "Total" : "Total",
-            "burn" => lang == "en" ? "Burn" : "Débit",
-            "net" => lang == "en" ? "Net" : "Net",
-            "exercise_note" => lang == "en" ? "Manual test from Google Fit steps" : "Test manuel basé sur les pas Google Fit",
+            "metric" => L(lang, "Métrique", "Metric", "Métrica", "Métrica"),
+            "period" => L(lang, "Période", "Period", "Período", "Período"),
+            "your_meals" => L(lang, "Vos repas", "Your meals", "Suas refeições", "Tus comidas"),
+            "selected_day_details" => L(lang, "Détails du jour sélectionné", "Details of selected day", "Detalhes do dia selecionado", "Detalles del día seleccionado"),
+            "add_manual_line" => L(lang, "Ajouter une ligne manuelle", "Add manual line", "Adicionar registro manual", "Añadir registro manual"),
+            "manual_name_title" => L(lang, "Repas manuel", "Manual meal", "Refeição manual", "Comida manual"),
+            "manual_name_msg" => L(lang, "Nom du repas", "Meal name", "Nome da refeição", "Nombre de la comida"),
+            "manual_name_placeholder" => L(lang, "ex : Sandwich maison", "ex: Homemade sandwich", "ex: Sanduíche caseiro", "ej: Sándwich casero"),
+            "meal_label" => L(lang, "Repas", "Meal", "Refeição", "Comida"),
+            "calories_label" => "Calories",
+            "protein_label" => L(lang, "Protéines", "Protein", "Proteínas", "Proteínas"),
+            "carbs_label" => L(lang, "Glucides", "Carbs", "Carboidratos", "Carbohidratos"),
+            "steps_label" => L(lang, "Pas Google Fit (test)", "Google Fit steps (test)", "Passos Google Fit (teste)", "Pasos Google Fit (prueba)"),
+            "minutes_label" => L(lang, "Minutes d'exercice", "Exercise minutes", "Minutos de exercício", "Minutos de ejercicio"),
+            "manual_popup_title" => L(lang, "Entrée manuelle", "Manual entry", "Entrada manual", "Entrada manual"),
+            "edit_popup_title" => L(lang, "Modifier l'entrée repas", "Edit meal entry", "Editar registro de refeição", "Editar registro de comida"),
+            "quality" => L(lang, "Qualité IA", "AI quality", "Qualidade IA", "Calidad IA"),
+            "badge" => L(lang, "Badge", "Badge", "Insígnia", "Insignia"),
+            "semaphore" => L(lang, "Sémaphore", "Semaphore", "Semáforo", "Semáforo"),
+            "manual_name_required" => L(lang, "Veuillez saisir un nom de repas.", "Please enter a meal name.", "Digite um nome para a refeição.", "Introduce un nombre para la comida."),
+            "cal_placeholder" => "Calories",
+            "protein_placeholder" => L(lang, "Protéines (g)", "Protein (g)", "Proteínas (g)", "Proteínas (g)"),
+            "carbs_placeholder" => L(lang, "Glucides (g)", "Carbs (g)", "Carboidratos (g)", "Carbohidratos (g)"),
+            "steps_placeholder" => L(lang, "Pas Google Fit (test)", "Google Fit steps (test)", "Passos Google Fit (teste)", "Pasos Google Fit (prueba)"),
+            "minutes_placeholder" => L(lang, "Minutes d'exercice", "Exercise minutes", "Minutos de exercício", "Minutos de ejercicio"),
+            "manual_cal_title" => "Calories",
+            "manual_cal_msg" => L(lang, "Saisissez les calories", "Enter calories", "Informe as calorias", "Introduce las calorías"),
+            "manual_protein_title" => L(lang, "Protéines (g)", "Protein (g)", "Proteínas (g)", "Proteínas (g)"),
+            "manual_protein_msg" => L(lang, "Saisissez les protéines", "Enter protein grams", "Informe as proteínas", "Introduce las proteínas"),
+            "manual_carbs_title" => L(lang, "Glucides (g)", "Carbs (g)", "Carboidratos (g)", "Carbohidratos (g)"),
+            "manual_carbs_msg" => L(lang, "Saisissez les glucides", "Enter carb grams", "Informe os carboidratos", "Introduce los carbohidratos"),
+            "edit_name_title" => L(lang, "Modifier le repas", "Edit meal", "Editar refeição", "Editar comida"),
+            "edit_name_msg" => L(lang, "Mettre à jour le nom", "Update meal name", "Atualizar nome da refeição", "Actualizar nombre de la comida"),
+            "edit_cal_title" => L(lang, "Modifier calories", "Edit calories", "Editar calorias", "Editar calorías"),
+            "edit_cal_msg" => L(lang, "Mettre à jour les calories", "Update calories", "Atualizar calorias", "Actualizar calorías"),
+            "edit_protein_title" => L(lang, "Modifier protéines", "Edit protein", "Editar proteínas", "Editar proteínas"),
+            "edit_protein_msg" => L(lang, "Mettre à jour les protéines", "Update protein grams", "Atualizar proteínas", "Actualizar proteínas"),
+            "edit_carbs_title" => L(lang, "Modifier glucides", "Edit carbs", "Editar carboidratos", "Editar carbohidratos"),
+            "edit_carbs_msg" => L(lang, "Mettre à jour les glucides", "Update carb grams", "Atualizar carboidratos", "Actualizar carbohidratos"),
+            "delete_title" => L(lang, "Supprimer le repas", "Delete meal", "Excluir refeição", "Eliminar comida"),
+            "delete_msg" => L(lang, "Supprimer cette ligne ?", "Delete this line?", "Excluir este registro?", "¿Eliminar este registro?"),
+            "delete" => L(lang, "Supprimer", "Delete", "Excluir", "Eliminar"),
+            "edit" => L(lang, "Modifier", "Edit", "Editar", "Editar"),
+            "cancel" => L(lang, "Annuler", "Cancel", "Cancelar", "Cancelar"),
+            "save" => L(lang, "Enregistrer", "Save", "Salvar", "Guardar"),
+            "saved_title" => L(lang, "Enregistré", "Saved", "Salvo", "Guardado"),
+            "earned_points" => L(lang, "+{0} pièces gagnées · Solde : {1}", "+{0} coins earned · Balance: {1}", "+{0} moedas ganhas · Saldo: {1}", "+{0} monedas ganadas · Saldo: {1}"),
+            "next" => L(lang, "Suivant", "Next", "Próximo", "Siguiente"),
+            "total" => L(lang, "Total", "Total", "Total", "Total"),
+            "burn" => L(lang, "Débit", "Burn", "Queima", "Gasto"),
+            "net" => L(lang, "Net", "Net", "Líquido", "Neto"),
+            "exercise_note" => L(lang, "Test manuel basé sur les pas Google Fit", "Manual test from Google Fit steps", "Teste manual com passos do Google Fit", "Prueba manual con pasos de Google Fit"),
             _ => key,
         };
     }
 
     partial void OnManualGoogleFitStepsChanged(string value) => RecomputeBurnPreview();
     partial void OnManualExerciseMinutesChanged(string value) => RecomputeBurnPreview();
+    partial void OnEditCaloriesChanged(string value) => RecomputeEditQualityPreview();
+    partial void OnEditProteinChanged(string value) => RecomputeEditQualityPreview();
+    partial void OnEditCarbsChanged(string value) => RecomputeEditQualityPreview();
 
     private void RecomputeBurnPreview()
     {
@@ -488,6 +540,33 @@ public partial class DiaryViewModel : ObservableObject
         var stepBurn = Math.Max(0, steps) * 0.04;
         var exerciseBurn = Math.Max(0, minutes) * 5.0;
         return stepBurn + exerciseBurn;
+    }
+
+    private void RecomputeEditQualityPreview()
+    {
+        if (_editingMeal == null)
+        {
+            EditQualityPreviewText = "";
+            EditBadgePreviewText = "";
+            EditSemaphorePreviewText = "";
+            return;
+        }
+
+        if (!double.TryParse(EditCalories, out var calories)) calories = _editingMeal.TotalCalories;
+        if (!double.TryParse(EditProtein, out var protein)) protein = _editingMeal.TotalProteinG;
+        if (!double.TryParse(EditCarbs, out var carbs)) carbs = _editingMeal.TotalCarbsG;
+
+        var quality = MealQualityService.Classify(
+            _editingMeal.AiNotes,
+            calories,
+            protein,
+            carbs,
+            _editingMeal.OverallConfidence);
+
+        var lang = Preferences.Default.Get("app_lang", "fr");
+        EditQualityPreviewText = $"{T("quality")}: {quality.label} ({Math.Round(quality.score)}/100)";
+        EditBadgePreviewText = $"{T("badge")}: {MealQualityService.GetBadge(quality.score, lang)}";
+        EditSemaphorePreviewText = $"{T("semaphore")}: {MealQualityService.GetSemaphore(quality.score, lang)}";
     }
 }
 
@@ -504,6 +583,8 @@ public class DiaryMealItem
     public double TotalProteinG { get; set; }
     public double TotalCarbsG { get; set; }
     public double OverallConfidence { get; set; }
+    public double QualityScore { get; set; }
+    public string QualityLabel { get; set; } = "";
 
     public string Title { get; set; } = "";
     public string Subtitle { get; set; } = "";
@@ -511,15 +592,27 @@ public class DiaryMealItem
     public bool HasDescription => !string.IsNullOrWhiteSpace(DescriptionText);
     public string AnalysisText { get; set; } = "";
     public bool HasAnalysis => !string.IsNullOrWhiteSpace(AnalysisText);
+    public string QualityBadgeText { get; set; } = "";
+    public bool HasQualityBadge => !string.IsNullOrWhiteSpace(QualityBadgeText);
+    public string QualitySemaphoreText { get; set; } = "";
+    public bool HasQualitySemaphore => !string.IsNullOrWhiteSpace(QualitySemaphoreText);
     public string CaloriesText { get; set; } = "";
     public string ProteinText { get; set; } = "";
     public string CarbsText { get; set; } = "";
 
     public static DiaryMealItem FromEntry(MealEntry e, List<MealItem>? items)
     {
+        var lang = Preferences.Default.Get("app_lang", "fr");
         var local = e.DateUtc.ToLocalTime();
         var displayDescription = string.IsNullOrWhiteSpace(e.Description) ? e.RawText : e.Description;
-        var title = string.IsNullOrWhiteSpace(e.RawText) ? (string.IsNullOrWhiteSpace(displayDescription) ? "Refeição" : displayDescription) : e.RawText;
+        var fallbackTitle = lang switch
+        {
+            "en" => "Meal",
+            "pt" => "Refeição",
+            "es" => "Comida",
+            _ => "Repas",
+        };
+        var title = string.IsNullOrWhiteSpace(e.RawText) ? (string.IsNullOrWhiteSpace(displayDescription) ? fallbackTitle : displayDescription) : e.RawText;
         title = title.Length > 28 ? title.Substring(0, 28) + "…" : title;
         var itemList = items == null
             ? ""
@@ -528,7 +621,9 @@ public class DiaryMealItem
                 .Where(n => !string.IsNullOrWhiteSpace(n))
                 .Distinct()
                 .Take(5));
-        var analysisText = BuildAnalysisText(e.AiNotes, itemList);
+        var analysisText = BuildAnalysisText(e.AiNotes, itemList, e.QualityLabel, e.QualityScore);
+        var badgeText = MealQualityService.GetBadge(e.QualityScore, lang);
+        var semaphoreText = MealQualityService.GetSemaphore(e.QualityScore, lang);
 
         return new DiaryMealItem
         {
@@ -543,21 +638,34 @@ public class DiaryMealItem
             TotalProteinG = e.TotalProteinG,
             TotalCarbsG = e.TotalCarbsG,
             OverallConfidence = e.OverallConfidence,
+            QualityScore = e.QualityScore,
+            QualityLabel = e.QualityLabel,
             Title = title,
             Subtitle = local.ToString("dddd dd MMM · HH:mm", CultureInfo.CurrentCulture),
             DescriptionText = displayDescription,
             AnalysisText = analysisText,
+            QualityBadgeText = badgeText,
+            QualitySemaphoreText = semaphoreText,
             CaloriesText = $"{Math.Round(e.TotalCalories)} kcal",
             ProteinText = $"P {Math.Round(e.TotalProteinG)}g",
             CarbsText = $"C {Math.Round(e.TotalCarbsG)}g"
         };
     }
 
-    private static string BuildAnalysisText(string aiNotes, string items)
+    private static string BuildAnalysisText(string aiNotes, string items, string qualityLabel = "", double qualityScore = 0)
     {
         var notes = aiNotes?.Trim() ?? "";
         var itemsText = items?.Trim() ?? "";
+        var qualityText = string.IsNullOrWhiteSpace(qualityLabel) ? "" : $"Qualité: {qualityLabel} ({Math.Round(qualityScore)}/100)";
 
+        if (!string.IsNullOrWhiteSpace(qualityText) && !string.IsNullOrWhiteSpace(notes) && !string.IsNullOrWhiteSpace(itemsText))
+            return $"IA: {qualityText} · {notes} · {itemsText}";
+        if (!string.IsNullOrWhiteSpace(qualityText) && !string.IsNullOrWhiteSpace(notes))
+            return $"IA: {qualityText} · {notes}";
+        if (!string.IsNullOrWhiteSpace(qualityText) && !string.IsNullOrWhiteSpace(itemsText))
+            return $"IA: {qualityText} · {itemsText}";
+        if (!string.IsNullOrWhiteSpace(qualityText))
+            return $"IA: {qualityText}";
         if (!string.IsNullOrWhiteSpace(notes) && !string.IsNullOrWhiteSpace(itemsText))
             return $"IA: {notes} · {itemsText}";
         if (!string.IsNullOrWhiteSpace(notes))

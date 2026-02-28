@@ -8,6 +8,8 @@ namespace NutritionTracker.ViewModels;
 public partial class GoalsViewModel : ObservableObject
 {
     private readonly LocalDb _db;
+    private readonly PointsService _points;
+    private readonly BackendSyncService _sync;
 
     [ObservableProperty] private string caloriesTarget = "2000";
     [ObservableProperty] private string proteinGTarget = "120";
@@ -17,9 +19,11 @@ public partial class GoalsViewModel : ObservableObject
     [ObservableProperty] private double proteinProgress;
     [ObservableProperty] private double carbsProgress;
 
-    public GoalsViewModel(LocalDb db)
+    public GoalsViewModel(LocalDb db, PointsService points, BackendSyncService sync)
     {
         _db = db;
+        _points = points;
+        _sync = sync;
     }
 
     public async Task LoadAsync()
@@ -51,7 +55,13 @@ public partial class GoalsViewModel : ObservableObject
         };
 
         await _db.SaveGoalsAsync(g);
-        await Application.Current!.MainPage!.DisplayAlert("Enregistré", "Objectifs mis à jour.", "OK");
+        var token = Preferences.Default.Get("auth_id_token", "");
+        _ = await _sync.EnsureBackendIdentityAsync(token);
+        _ = await _sync.TryPushGoalsAsync(g);
+        var balance = _points.Award(5);
+        var title = LocalizationService.T("saved_title_common");
+        var message = string.Format(LocalizationService.T("goals_saved_message"), balance);
+        await Application.Current!.MainPage!.DisplayAlert(title, message, "OK");
         if (Shell.Current?.Navigation != null)
             await Shell.Current.Navigation.PopAsync();
     }

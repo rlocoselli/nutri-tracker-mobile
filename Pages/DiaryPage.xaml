@@ -45,7 +45,7 @@
             <CollectionView.ItemTemplate>
                 <DataTemplate>
                     <Border Style="{StaticResource Card}" Margin="0,0,0,12">
-                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
+                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
                             <Label Text="{Binding Title}" FontAttributes="Bold" FontSize="15" />
                             <Label Grid.Column="1" Text="{Binding CaloriesText}" FontAttributes="Bold" />
                             <Label Grid.Row="1" Text="{Binding Subtitle}" TextColor="{StaticResource Muted}" FontSize="12" />
@@ -68,7 +68,18 @@
                                 MaxLines="3"
                                 FontSize="12"
                                 TextColor="{StaticResource Primary}" />
-                            <HorizontalStackLayout Grid.Row="4" Grid.ColumnSpan="2" Spacing="8" HorizontalOptions="End">
+                            <Label Grid.Row="4"
+                                   Grid.ColumnSpan="2"
+                                   Text="{Binding QualityBadgeText}"
+                                   IsVisible="{Binding HasQualityBadge}"
+                                   FontAttributes="Bold"
+                                   FontSize="12" />
+                            <Label Grid.Row="5"
+                                   Grid.ColumnSpan="2"
+                                   Text="{Binding QualitySemaphoreText}"
+                                   IsVisible="{Binding HasQualitySemaphore}"
+                                   Style="{StaticResource BodyMuted}" />
+                            <HorizontalStackLayout Grid.Row="6" Grid.ColumnSpan="2" Spacing="8" HorizontalOptions="End">
                                 <Button Style="{StaticResource SecondaryButton}"
                                     Text="{Binding Source={x:Reference DiaryRoot}, Path=BindingContext.EditText}"
                                         Command="{Binding Source={x:Reference DiaryRoot}, Path=BindingContext.EditMealCommand}"
@@ -129,6 +140,51 @@
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
                         <Button Text="{Binding SaveText}" Command="{Binding SaveManualPopupCommand}" />
                         <Button Grid.Column="1" Text="{Binding CancelText}" Style="{StaticResource SecondaryButton}" Command="{Binding CloseManualPopupCommand}" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+        </Grid>
+
+        <Grid IsVisible="{Binding IsEditPopupVisible}"
+              BackgroundColor="#80000000"
+              InputTransparent="False"
+              Grid.RowSpan="4">
+            <Border Style="{StaticResource Card}"
+                    MaximumWidthRequest="460"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center"
+                    Margin="12">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="{Binding EditPopupTitle}" Style="{StaticResource H1}" />
+
+                    <Label Text="{Binding ManualMealLabel}" FontAttributes="Bold" FontSize="12" />
+                    <Entry Text="{Binding EditMealName}" Placeholder="{Binding ManualMealPlaceholder}" />
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="{Binding CaloriesLabel}" FontAttributes="Bold" FontSize="12" />
+                            <Entry Text="{Binding EditCalories}" Keyboard="Numeric" Placeholder="{Binding CaloriesPlaceholder}" />
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="1" Spacing="4">
+                            <Label Text="{Binding ProteinLabel}" FontAttributes="Bold" FontSize="12" />
+                            <Entry Text="{Binding EditProtein}" Keyboard="Numeric" Placeholder="{Binding ProteinPlaceholder}" />
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <Label Text="{Binding CarbsLabel}" FontAttributes="Bold" FontSize="12" />
+                    <Entry Text="{Binding EditCarbs}" Keyboard="Numeric" Placeholder="{Binding CarbsPlaceholder}" />
+
+                    <Border Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="{Binding EditQualityPreviewText}" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
+                            <Label Text="{Binding EditBadgePreviewText}" FontAttributes="Bold" />
+                            <Label Text="{Binding EditSemaphorePreviewText}" Style="{StaticResource BodyMuted}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Button Text="{Binding SaveText}" Command="{Binding SaveEditPopupCommand}" />
+                        <Button Grid.Column="1" Text="{Binding CancelText}" Style="{StaticResource SecondaryButton}" Command="{Binding CloseEditPopupCommand}" />
                     </Grid>
                 </VerticalStackLayout>
             </Border>

@@ -23,6 +23,13 @@ public static class MealMapper
                 ? r.meal.notes.Trim()
                 : fallbackFromItems;
 
+        var quality = MealQualityService.Classify(
+            r.meal.notes,
+            r.meal.totals.calories,
+            r.meal.totals.protein_g,
+            r.meal.totals.carbs_g,
+            r.meal.overall_confidence);
+
         var entry = new MealEntry
         {
             DateUtc = dt,
@@ -35,6 +42,8 @@ public static class MealMapper
             TotalCarbsG = r.meal.totals.carbs_g,
             TotalProteinG = r.meal.totals.protein_g,
             OverallConfidence = r.meal.overall_confidence,
+            QualityScore = quality.score,
+            QualityLabel = quality.label,
         };
 
         var items = r.meal.items.Select(i => new MealItem

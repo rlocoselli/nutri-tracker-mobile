@@ -35,6 +35,14 @@ public class LocalDb
         var hasAiNotes = columns.Any(c => string.Equals(c.Name, "AiNotes", StringComparison.OrdinalIgnoreCase));
         if (!hasAiNotes)
             await _db.ExecuteAsync("ALTER TABLE MealEntry ADD COLUMN AiNotes TEXT NOT NULL DEFAULT ''");
+
+        var hasQualityScore = columns.Any(c => string.Equals(c.Name, "QualityScore", StringComparison.OrdinalIgnoreCase));
+        if (!hasQualityScore)
+            await _db.ExecuteAsync("ALTER TABLE MealEntry ADD COLUMN QualityScore REAL NOT NULL DEFAULT 0");
+
+        var hasQualityLabel = columns.Any(c => string.Equals(c.Name, "QualityLabel", StringComparison.OrdinalIgnoreCase));
+        if (!hasQualityLabel)
+            await _db.ExecuteAsync("ALTER TABLE MealEntry ADD COLUMN QualityLabel TEXT NOT NULL DEFAULT ''");
     }
 
     private sealed class TableInfoRow

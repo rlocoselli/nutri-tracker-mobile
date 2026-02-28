@@ -35,6 +35,9 @@
         <VerticalStackLayout Spacing="6">
           <Label Text="{Binding ResultTitle}" FontAttributes="Bold" />
           <Label Text="{Binding ResultSummary}" />
+          <Label Text="{Binding ResultQuality}" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
+          <Label Text="{Binding ResultBadge}" FontAttributes="Bold" />
+          <Label Text="{Binding ResultSemaphore}" Style="{StaticResource BodyMuted}" />
           <Label Text="{Binding ResultNotes}" FontSize="12" Opacity="0.7" />
         </VerticalStackLayout>
       </Border>

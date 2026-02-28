@@ -49,6 +49,20 @@
                 </Grid>
             </Border>
 
+            <Border Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="{Binding StreakTitleText}" FontAttributes="Bold" />
+                    <Label Text="{Binding StreakText}" FontSize="24" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
+                    <Label Text="{Binding RecordingStreakTitleText}" FontAttributes="Bold" />
+                    <Label Text="{Binding RecordingStreakText}" FontSize="20" FontAttributes="Bold" />
+                    <Label Text="{Binding CoinsTitleText}" FontAttributes="Bold" />
+                    <Label Text="{Binding CoinsText}" FontSize="20" FontAttributes="Bold" />
+                    <Label Text="{Binding StreakSubtitleText}" Style="{StaticResource BodyMuted}" />
+                    <Label Text="{Binding BalanceStatusText}" FontAttributes="Bold" />
+                    <Label Text="{Binding StreakHintText}" FontSize="12" TextColor="{StaticResource Muted}" />
+                </VerticalStackLayout>
+            </Border>
+
             <!-- Primary CTA -->
             <Button Text="{Binding RecordMealText}" Command="{Binding AddMealCommand}" />
 

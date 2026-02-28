@@ -23,4 +23,7 @@ public class MealEntry
     public double TotalProteinG { get; set; }
 
     public double OverallConfidence { get; set; }
+
+    public double QualityScore { get; set; }
+    public string QualityLabel { get; set; } = "";
 }
