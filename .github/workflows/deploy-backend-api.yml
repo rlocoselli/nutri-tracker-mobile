@@ -89,7 +89,7 @@ jobs:
             echo "⏳ Waiting for container state"
             RUNNING_OK="0"
             for i in $(seq 1 60); do
-              CID="$(docker compose ps -q api)"
+              CID="$(docker compose ps -q api 2>/dev/null || true)"
               if [ -z "$CID" ]; then
                 CONTAINER_STATE="missing"
                 RESTART_COUNT="0"
@@ -101,7 +101,7 @@ jobs:
                   CONTAINER_STATE="missing"
                 fi
 
-                if [[ "$RESTART_COUNT_RAW" =~ ^[0-9]+$ ]]; then
+                if printf '%s' "$RESTART_COUNT_RAW" | grep -Eq '^[0-9]+$'; then
                   RESTART_COUNT="$RESTART_COUNT_RAW"
                 else
                   RESTART_COUNT="0"
@@ -110,7 +110,7 @@ jobs:
 
               echo "container state: ${CONTAINER_STATE}, restarts: ${RESTART_COUNT}"
 
-              if (( RESTART_COUNT >= 3 )); then
+              if [ "$RESTART_COUNT" -ge 3 ]; then
                 echo "❌ Container unstable (too many restarts). Showing logs."
                 docker compose ps || true
                 docker compose logs --tail=200 api || true
