@@ -87,19 +87,30 @@ jobs:
             fi
 
             echo "⏳ Waiting for container state"
+            RUNNING_OK="0"
             for i in $(seq 1 60); do
               CID="$(docker compose ps -q api)"
               if [ -z "$CID" ]; then
                 CONTAINER_STATE="missing"
                 RESTART_COUNT="0"
               else
-                CONTAINER_STATE="$(docker inspect --format='{{.State.Status}}' "$CID" 2>/dev/null || echo "missing")"
-                RESTART_COUNT="$(docker inspect --format='{{.RestartCount}}' "$CID" 2>/dev/null || echo "0")"
+                CONTAINER_STATE="$(docker inspect --format='{{.State.Status}}' "$CID" 2>/dev/null || true)"
+                RESTART_COUNT_RAW="$(docker inspect --format='{{.RestartCount}}' "$CID" 2>/dev/null || true)"
+
+                if [ -z "$CONTAINER_STATE" ]; then
+                  CONTAINER_STATE="missing"
+                fi
+
+                if [[ "$RESTART_COUNT_RAW" =~ ^[0-9]+$ ]]; then
+                  RESTART_COUNT="$RESTART_COUNT_RAW"
+                else
+                  RESTART_COUNT="0"
+                fi
               fi
 
               echo "container state: ${CONTAINER_STATE}, restarts: ${RESTART_COUNT}"
 
-              if [ "${RESTART_COUNT}" -ge 3 ]; then
+              if (( RESTART_COUNT >= 3 )); then
                 echo "❌ Container unstable (too many restarts). Showing logs."
                 docker compose ps || true
                 docker compose logs --tail=200 api || true
@@ -107,11 +118,19 @@ jobs:
               fi
 
               if [ "${CONTAINER_STATE}" = "running" ]; then
+                RUNNING_OK="1"
                 break
               fi
 
               sleep 5
             done
+
+            if [ "$RUNNING_OK" != "1" ]; then
+              echo "❌ API container did not reach running state in time"
+              docker compose ps || true
+              docker compose logs --tail=200 api || true
+              exit 1
+            fi
 
             echo "⏳ Waiting for app on http://127.0.0.1:${API_PORT_VALUE}/health"
             for i in $(seq 1 60); do
