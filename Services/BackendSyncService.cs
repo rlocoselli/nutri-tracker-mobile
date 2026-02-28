@@ -8,7 +8,7 @@ public class BackendSyncService
 {
     private readonly HttpClient _http = new();
 
-    public string BackendBaseUrl => Preferences.Default.Get("backend_api_url", "https://api.nutritiontracker.fr").Trim().TrimEnd('/');
+    public string BackendBaseUrl => Preferences.Default.Get("backend_api_url", "https://api.nutritiontracker.fr/api").Trim().TrimEnd('/');
 
     private string ApiBaseUrl
     {

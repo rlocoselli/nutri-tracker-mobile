@@ -27,7 +27,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<SocialService>();
         builder.Services.AddSingleton<BackendSyncService>();
         builder.Services.AddSingleton<IMealReminderService, MealReminderService>();
-        builder.Services.AddSingleton(sp => new ApiService("https://nutrition-mvp-api.onrender.com", sp.GetRequiredService<SessionService>()));
+        builder.Services.AddSingleton(sp => new ApiService("https://www.nutritiontracker.fr/api", sp.GetRequiredService<SessionService>()));
 
         // ✅ DB: ne pas bloquer ici
         builder.Services.AddSingleton<LocalDb>(sp =>

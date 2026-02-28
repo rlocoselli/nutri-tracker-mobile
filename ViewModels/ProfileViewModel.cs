@@ -123,7 +123,7 @@ public partial class ProfileViewModel : ObservableObject
         DinnerReminderTime = Preferences.Default.Get("meal_reminder_dinner", "20:00");
         ReminderStatusText = "";
         SocialStatusText = "";
-        BackendApiUrl = Preferences.Default.Get("backend_api_url", "https://api.nutritiontracker.fr");
+        BackendApiUrl = Preferences.Default.Get("backend_api_url", "https://api.nutritiontracker.fr/api");
         BackendSyncStatusText = "";
         LoadFriends();
 
