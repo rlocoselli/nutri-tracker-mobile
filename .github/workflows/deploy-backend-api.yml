@@ -86,59 +86,36 @@ jobs:
               exit 1
             fi
 
-            echo "⏳ Waiting for container state"
-            RUNNING_OK="0"
-            for i in $(seq 1 60); do
-              CID="$(docker compose ps -q api 2>/dev/null || true)"
-              if [ -z "$CID" ]; then
-                CONTAINER_STATE="missing"
-                RESTART_COUNT="0"
-              else
-                CONTAINER_STATE="$(docker inspect --format='{{.State.Status}}' "$CID" 2>/dev/null || true)"
-                RESTART_COUNT_RAW="$(docker inspect --format='{{.RestartCount}}' "$CID" 2>/dev/null || true)"
-
-                if [ -z "$CONTAINER_STATE" ]; then
-                  CONTAINER_STATE="missing"
-                fi
-
-                if printf '%s' "$RESTART_COUNT_RAW" | grep -Eq '^[0-9]+$'; then
-                  RESTART_COUNT="$RESTART_COUNT_RAW"
-                else
-                  RESTART_COUNT="0"
-                fi
-              fi
-
-              echo "container state: ${CONTAINER_STATE}, restarts: ${RESTART_COUNT}"
-
-              if [ "$RESTART_COUNT" -ge 3 ]; then
-                echo "❌ Container unstable (too many restarts). Showing logs."
-                docker compose ps || true
-                docker compose logs --tail=200 api || true
-                exit 1
-              fi
-
-              if [ "${CONTAINER_STATE}" = "running" ]; then
-                RUNNING_OK="1"
-                break
-              fi
-
-              sleep 5
-            done
-
-            if [ "$RUNNING_OK" != "1" ]; then
-              echo "❌ API container did not reach running state in time"
+            echo "⏳ Checking API container presence"
+            CID="$(docker compose ps -q api 2>/dev/null || true)"
+            if [ -z "$CID" ]; then
+              echo "❌ API container not found after docker compose up"
               docker compose ps || true
               docker compose logs --tail=200 api || true
               exit 1
             fi
 
             echo "⏳ Waiting for app on http://127.0.0.1:${API_PORT_VALUE}/health"
-            for i in $(seq 1 60); do
+            ATTEMPT=1
+            while [ "$ATTEMPT" -le 60 ]; do
+              API_STATE="$(docker inspect --format='{{.State.Status}}' "$CID" 2>/dev/null || true)"
+              API_RESTARTS="$(docker inspect --format='{{.RestartCount}}' "$CID" 2>/dev/null || true)"
+              echo "health attempt ${ATTEMPT}/60 - state: ${API_STATE:-unknown}, restarts: ${API_RESTARTS:-0}"
+
               if curl -fsS "http://127.0.0.1:${API_PORT_VALUE}/health" >/dev/null; then
                 echo "✅ App is reachable on port ${API_PORT_VALUE}"
                 exit 0
               fi
+
+              if [ "${API_STATE}" = "exited" ] || [ "${API_STATE}" = "dead" ]; then
+                echo "❌ API container is not running (state=${API_STATE})"
+                docker compose ps || true
+                docker compose logs --tail=200 api || true
+                exit 1
+              fi
+
               sleep 5
+              ATTEMPT=$((ATTEMPT + 1))
             done
 
             echo "❌ App did not become ready on port ${API_PORT_VALUE}"
