@@ -60,7 +60,7 @@
                                         <Image Source="{Binding PhotoSource}" Aspect="AspectFill" IsVisible="{Binding HasPhoto}" />
                                         <Border Background="#33000000" StrokeThickness="0" IsVisible="{Binding HasPhoto}" />
                                     </Grid>
-                                    <VerticalStackLayout Grid.Row="1" Spacing="2" Padding="8" BackgroundColor="{StaticResource Card}">
+                                    <VerticalStackLayout Grid.Row="1" Spacing="2" Padding="8" Background="{StaticResource CardBrush}">
                                         <Label Text="{Binding Author}" FontAttributes="Bold" FontSize="12" LineBreakMode="TailTruncation" />
                                         <Label Text="{Binding PostedAtText}" FontSize="10" TextColor="{StaticResource Muted}" />
                                         <Label Text="{Binding Caption}" FontSize="11" LineBreakMode="TailTruncation" MaxLines="2" />

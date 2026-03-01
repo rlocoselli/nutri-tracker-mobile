@@ -126,6 +126,7 @@ def friends_feed(
                 meal_id=str(meal.id),
                 user_id=str(user.id),
                 display_name=user.display_name or user.email or "User",
+                author_email=user.email or "",
                 picture_url=user.picture_url or "",
                 date_utc=meal.date_utc,
                 raw_text=meal.raw_text or "",

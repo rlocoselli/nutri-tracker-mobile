@@ -531,11 +531,13 @@ public partial class DiaryViewModel : ObservableObject
             return;
 
         var feed = await _sync.GetFriendsFeedAsync(days: 3, limit: 40);
+        var meUserId = Preferences.Default.Get("backend_user_id", "").Trim();
+        var myProfileName = Preferences.Default.Get("profile_name", "").Trim();
         foreach (var s in feed)
         {
             StoryPosts.Add(new StoryPostItem
             {
-                Author = string.IsNullOrWhiteSpace(s.display_name) ? T("story_default_author") : s.display_name,
+            Author = ResolveStoryAuthor(s, meUserId, myProfileName),
                 PostedAtText = s.date_utc.ToLocalTime().ToString("dd/MM HH:mm"),
                 Caption = string.IsNullOrWhiteSpace(s.raw_text) ? T("story_meal") : s.raw_text,
                 NutritionText = $"{Math.Round(s.total_calories)} kcal · P {Math.Round(s.total_protein_g)}g · C {Math.Round(s.total_carbs_g)}g",
@@ -545,6 +547,29 @@ public partial class DiaryViewModel : ObservableObject
         }
 
         OnPropertyChanged(nameof(HasStories));
+    }
+
+    private string ResolveStoryAuthor(BackendStory story, string meUserId, string myProfileName)
+    {
+        if (!string.IsNullOrWhiteSpace(meUserId) && string.Equals(story.user_id?.Trim(), meUserId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrWhiteSpace(myProfileName))
+                return myProfileName;
+        }
+
+        var name = (story.display_name ?? "").Trim();
+        if (!string.IsNullOrWhiteSpace(name) && !string.Equals(name, "new user", StringComparison.OrdinalIgnoreCase))
+            return name;
+
+        var email = (story.author_email ?? "").Trim();
+        if (!string.IsNullOrWhiteSpace(email) && email.Contains('@'))
+        {
+            var localPart = email.Split('@')[0].Trim();
+            if (!string.IsNullOrWhiteSpace(localPart))
+                return localPart;
+        }
+
+        return T("story_default_author");
     }
 
     private async Task SetWaterLitersAsync(double liters)

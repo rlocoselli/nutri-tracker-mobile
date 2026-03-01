@@ -104,6 +104,7 @@ class FriendStoryOut(BaseModel):
     meal_id: str
     user_id: str
     display_name: str
+    author_email: str
     picture_url: str
     date_utc: datetime
     raw_text: str

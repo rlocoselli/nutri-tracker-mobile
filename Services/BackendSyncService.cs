@@ -341,6 +341,7 @@ public class BackendStory
     public string meal_id { get; set; } = "";
     public string user_id { get; set; } = "";
     public string display_name { get; set; } = "";
+    public string author_email { get; set; } = "";
     public string picture_url { get; set; } = "";
     public DateTime date_utc { get; set; }
     public string raw_text { get; set; } = "";
