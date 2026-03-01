@@ -99,6 +99,19 @@ CREATE INDEX IF NOT EXISTS idx_exercise_entries_user_day ON exercise_entries(use
 CREATE INDEX IF NOT EXISTS idx_exercise_entries_user_date ON exercise_entries(user_id, date_utc);
 
 -- =========================
+-- Water intake (liters/day)
+-- =========================
+CREATE TABLE IF NOT EXISTS water_intake_daily (
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    day_key_utc DATE NOT NULL,
+    liters NUMERIC(6,2) NOT NULL DEFAULT 0,
+    updated_at_utc TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, day_key_utc)
+);
+
+CREATE INDEX IF NOT EXISTS idx_water_intake_daily_user_day ON water_intake_daily(user_id, day_key_utc);
+
+-- =========================
 -- Points / currency
 -- (SQLite current: Preferences key app_points_balance)
 -- =========================

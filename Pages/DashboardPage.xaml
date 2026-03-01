@@ -77,7 +77,7 @@
                 <VerticalStackLayout Spacing="6">
                     <Label Text="{Binding DailySummaryText}" FontAttributes="Bold" />
                     <Label Text="{Binding DailySummaryHintText}" Style="{StaticResource BodyMuted}" />
-                    <Label Text="{Binding FitSyncStatusText}" FontSize="12" TextColor="{StaticResource Muted}" />
+                    <Label Text="{Binding FitSyncStatusText}" IsVisible="{Binding ShowGoogleFitUi}" FontSize="12" TextColor="{StaticResource Muted}" />
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,8,0,0">
                         <VerticalStackLayout>
                             <Label Text="{Binding StepsLabelText}" FontAttributes="Bold" FontSize="12" />

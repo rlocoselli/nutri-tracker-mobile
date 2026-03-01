@@ -1,4 +1,4 @@
-from datetime import datetime, time
+from datetime import datetime, time, date
 from pydantic import BaseModel, Field, EmailStr
 
 
@@ -58,3 +58,13 @@ class GoogleAuthIn(BaseModel):
 
 class MessageOut(BaseModel):
     message: str
+
+
+class WaterIntakeIn(BaseModel):
+    day_key_utc: date
+    liters: float = 0
+
+
+class WaterIntakeOut(BaseModel):
+    day_key_utc: date
+    liters: float

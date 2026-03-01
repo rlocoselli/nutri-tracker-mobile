@@ -7,7 +7,7 @@ namespace NutritionTracker.Services;
 
 public class GoogleFitService
 {
-    public static bool Enabled => Preferences.Default.Get("fit_integration_enabled", false);
+    public static bool Enabled => FeatureFlags.EnableGoogleFit && Preferences.Default.Get("fit_integration_enabled", false);
 
     private readonly HttpClient _http = new();
 

@@ -7,13 +7,15 @@ namespace NutritionTracker.ViewModels;
 public partial class LoginViewModel : ObservableObject
 {
     private readonly AuthService _auth;
+    private readonly BackendSyncService _sync;
     private readonly IServiceProvider _sp;
 
     [ObservableProperty] private bool isBusy;
 
-    public LoginViewModel(AuthService auth, IServiceProvider sp)
+    public LoginViewModel(AuthService auth, BackendSyncService sync, IServiceProvider sp)
     {
         _auth = auth;
+        _sync = sync;
         _sp = sp;
     }
 
@@ -32,6 +34,8 @@ public partial class LoginViewModel : ObservableObject
             Preferences.Default.Set("profile_name", result.Name);
             Preferences.Default.Set("profile_email", result.Email);
             Preferences.Default.Set("profile_picture", result.PictureUrl);
+
+            _ = await _sync.EnsureBackendIdentityAsync(result.IdToken);
 
             // Switch to the main shell
             Application.Current!.MainPage = _sp.GetRequiredService<AppShell>();

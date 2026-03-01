@@ -79,6 +79,15 @@ class ExerciseEntry(Base):
     notes: Mapped[str] = mapped_column(Text, default="")
 
 
+class WaterIntakeDaily(Base):
+    __tablename__ = "water_intake_daily"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    day_key_utc: Mapped[date] = mapped_column(Date, primary_key=True)
+    liters: Mapped[float] = mapped_column(Numeric(6, 2), default=0)
+    updated_at_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+
 class PointsWallet(Base):
     __tablename__ = "points_wallet"
 

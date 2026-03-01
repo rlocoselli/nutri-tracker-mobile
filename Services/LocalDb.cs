@@ -17,6 +17,7 @@ public class LocalDb
         await _db.CreateTableAsync<MealEntry>();
         await _db.CreateTableAsync<MealItem>();
         await _db.CreateTableAsync<ExerciseEntry>();
+        await _db.CreateTableAsync<WaterIntakeEntry>();
         await _db.CreateTableAsync<UserGoals>();
         await EnsureMealEntryColumnsAsync();
 
@@ -154,5 +155,29 @@ public class LocalDb
             entries.Sum(x => x.GoogleFitSteps),
             entries.Sum(x => x.ExerciseMinutes)
         );
+    }
+
+    public async Task<double> GetWaterLitersForDayLocalAsync(DateTime dayLocal)
+    {
+        var dateUtc = DateTime.SpecifyKind(dayLocal.Date, DateTimeKind.Local).ToUniversalTime();
+        var dayKeyUtc = dateUtc.ToString("yyyy-MM-dd");
+        var row = await _db.Table<WaterIntakeEntry>().FirstOrDefaultAsync(x => x.DayKeyUtc == dayKeyUtc);
+        return row?.Liters ?? 0;
+    }
+
+    public Task<int> UpsertWaterLitersForDayLocalAsync(DateTime dayLocal, double liters)
+    {
+        var normalized = Math.Round(Math.Max(0, liters) * 2, MidpointRounding.AwayFromZero) / 2.0;
+        var dateUtc = DateTime.SpecifyKind(dayLocal.Date, DateTimeKind.Local).ToUniversalTime();
+        var dayKeyUtc = dateUtc.ToString("yyyy-MM-dd");
+
+        var row = new WaterIntakeEntry
+        {
+            DayKeyUtc = dayKeyUtc,
+            DateUtc = dateUtc,
+            Liters = normalized
+        };
+
+        return _db.InsertOrReplaceAsync(row);
     }
 }

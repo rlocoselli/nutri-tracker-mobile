@@ -8,7 +8,7 @@ public class BackendSyncService
 {
     private readonly HttpClient _http = new();
 
-    public string BackendBaseUrl => Preferences.Default.Get("backend_api_url", "https://api.nutritiontracker.fr/api").Trim().TrimEnd('/');
+    public string BackendBaseUrl => "https://api.nutritiontracker.fr/api";
 
     private string ApiBaseUrl
     {
@@ -118,6 +118,26 @@ public class BackendSyncService
             lunch_time_local = lunch.ToString(@"hh\:mm\:ss"),
             dinner_time_local = dinner.ToString(@"hh\:mm\:ss"),
             timezone_name = TimeZoneInfo.Local.Id,
+        });
+
+        var resp = await _http.SendAsync(req);
+        return resp.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> TryPushWaterIntakeAsync(DateTime dayLocal, double liters)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
+            return false;
+
+        using var req = new HttpRequestMessage(HttpMethod.Put, $"{ApiBaseUrl}/water-intake");
+        req.Headers.Add("X-User-Id", userId);
+
+        var dayUtc = DateTime.SpecifyKind(dayLocal.Date, DateTimeKind.Local).ToUniversalTime();
+        req.Content = JsonContent.Create(new
+        {
+            day_key_utc = dayUtc.ToString("yyyy-MM-dd"),
+            liters = Math.Round(Math.Max(0, liters) * 2.0, MidpointRounding.AwayFromZero) / 2.0
         });
 
         var resp = await _http.SendAsync(req);

@@ -19,6 +19,8 @@ public class MealReminderReceiver : BroadcastReceiver
         var id = intent?.GetIntExtra("notif_id", 3001) ?? 3001;
         var title = intent?.GetStringExtra("notif_title") ?? "Rappel repas";
         var message = intent?.GetStringExtra("notif_message") ?? "Pense à enregistrer ton repas.";
+        var hour = intent?.GetIntExtra("hour", 8) ?? 8;
+        var minute = intent?.GetIntExtra("minute", 0) ?? 0;
 
         var openIntent = new Intent(context, typeof(MainActivity));
         openIntent.SetFlags(ActivityFlags.SingleTop | ActivityFlags.ClearTop);
@@ -39,6 +41,45 @@ public class MealReminderReceiver : BroadcastReceiver
             .Build();
 
         NotificationManagerCompat.From(context).Notify(id, notification);
+        ScheduleNextDay(context, id, hour, minute, title, message);
+    }
+
+    private static void ScheduleNextDay(Context context, int id, int hour, int minute, string title, string message)
+    {
+        var alarmManager = (AlarmManager?)context.GetSystemService(Context.AlarmService);
+        if (alarmManager == null) return;
+
+        var intent = new Intent(context, Java.Lang.Class.FromType(typeof(MealReminderReceiver)));
+        intent.PutExtra("notif_id", id);
+        intent.PutExtra("notif_title", title);
+        intent.PutExtra("notif_message", message);
+        intent.PutExtra("hour", hour);
+        intent.PutExtra("minute", minute);
+
+        var flags = PendingIntentFlags.UpdateCurrent;
+        if (OperatingSystem.IsAndroidVersionAtLeast(23))
+            flags |= PendingIntentFlags.Immutable;
+
+        var pendingIntent = PendingIntent.GetBroadcast(context, id, intent, flags);
+        if (pendingIntent == null) return;
+
+        var now = DateTime.Now;
+        var trigger = new DateTime(now.Year, now.Month, now.Day, Math.Clamp(hour, 0, 23), Math.Clamp(minute, 0, 59), 0).AddDays(1);
+        var triggerAtMillis = new DateTimeOffset(trigger).ToUnixTimeMilliseconds();
+
+        if (OperatingSystem.IsAndroidVersionAtLeast(23))
+        {
+            alarmManager.SetExactAndAllowWhileIdle(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
+            return;
+        }
+
+        if (OperatingSystem.IsAndroidVersionAtLeast(19))
+        {
+            alarmManager.SetExact(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
+            return;
+        }
+
+        alarmManager.Set(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
     }
 
     private static void CreateNotificationChannel(Context context)

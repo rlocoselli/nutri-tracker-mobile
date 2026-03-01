@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from .db import Base, engine
-from .routes import auth, meals, goals, points, reminders, friends
+from .routes import auth, meals, goals, points, reminders, friends, water
 
 
 app = FastAPI(
@@ -34,3 +34,4 @@ app.include_router(goals.router, prefix="/api")
 app.include_router(points.router, prefix="/api")
 app.include_router(reminders.router, prefix="/api")
 app.include_router(friends.router, prefix="/api")
+app.include_router(water.router, prefix="/api")

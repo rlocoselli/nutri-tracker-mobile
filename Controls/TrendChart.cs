@@ -61,10 +61,10 @@ public class TrendChart : GraphicsView
             var text = TryGetColor("Text") ?? Colors.Black;
             var card = TryGetColor("Card") ?? Colors.White;
 
-            var leftPad = 10f;
-            var rightPad = 10f;
-            var topPad = 10f;
-            var bottomPad = 22f;
+            var leftPad = 12f;
+            var rightPad = 12f;
+            var topPad = 12f;
+            var bottomPad = 26f;
 
             var w = dirtyRect.Width;
             var h = dirtyRect.Height;
@@ -79,11 +79,11 @@ public class TrendChart : GraphicsView
             if (Math.Abs(max - min) < 0.0001) max = min + 1; // avoid flat division
 
             // Background card
-            canvas.FillColor = card.WithAlpha(0.35f);
+            canvas.FillColor = card.WithAlpha(0.42f);
             canvas.FillRoundedRectangle(plot, 8f);
 
             // Horizontal grid lines
-            canvas.StrokeColor = muted.WithAlpha(0.35f);
+            canvas.StrokeColor = muted.WithAlpha(0.26f);
             canvas.StrokeSize = 1;
             var gridSteps = 4;
             for (var i = 0; i <= gridSteps; i++)
@@ -93,13 +93,13 @@ public class TrendChart : GraphicsView
             }
 
             // Axis baseline
-            canvas.StrokeColor = muted;
+            canvas.StrokeColor = muted.WithAlpha(0.7f);
             canvas.StrokeSize = 1;
             canvas.DrawLine(plot.Left, plot.Bottom, plot.Right, plot.Bottom);
 
             // Line
             canvas.StrokeColor = accent;
-            canvas.StrokeSize = 2;
+            canvas.StrokeSize = 2.4f;
             canvas.Antialias = true;
 
             var count = values.Count;
@@ -108,25 +108,17 @@ public class TrendChart : GraphicsView
 
             if (count >= 2)
             {
-                var p0 = new PointF(X(0), Y(values[0]));
+                var linePoints = new List<PointF>(count);
+                for (var i = 0; i < count; i++)
+                    linePoints.Add(new PointF(X(i), Y(values[i])));
+
+                var smooth = BuildSmoothPath(linePoints);
+                canvas.DrawPath(smooth);
 
                 // Area fill under line
-                var path = new PathF();
-                path.MoveTo(p0.X, plot.Bottom);
-                path.LineTo(p0.X, p0.Y);
-
-                for (var i = 1; i < count; i++)
-                {
-                    var p1 = new PointF(X(i), Y(values[i]));
-                    canvas.DrawLine(p0, p1);
-                    path.LineTo(p1.X, p1.Y);
-                    p0 = p1;
-                }
-
-                path.LineTo(X(count - 1), plot.Bottom);
-                path.Close();
-                canvas.FillColor = accent.WithAlpha(0.15f);
-                canvas.FillPath(path);
+                var area = BuildSmoothAreaPath(linePoints, plot.Bottom);
+                canvas.FillColor = accent.WithAlpha(0.16f);
+                canvas.FillPath(area);
             }
 
             // Points
@@ -135,14 +127,14 @@ public class TrendChart : GraphicsView
             {
                 var px = X(i);
                 var py = Y(values[i]);
-                canvas.FillCircle(px, py, 2.8f);
+                canvas.FillCircle(px, py, 3.1f);
             }
 
             // Highlight latest point and value
             var lastX = X(count - 1);
             var lastY = Y(values[count - 1]);
             canvas.FillColor = accent;
-            canvas.FillCircle(lastX, lastY, 4.2f);
+            canvas.FillCircle(lastX, lastY, 5.2f);
             canvas.FontColor = text;
             canvas.FontSize = 11;
             canvas.DrawString($"{Math.Round(values[count - 1])}", lastX + 6, Math.Max(plot.Top, lastY - 14), HorizontalAlignment.Left);
@@ -164,6 +156,62 @@ public class TrendChart : GraphicsView
                     DrawLabel(canvas, plot, labels[count - 1], count - 1, X);
                 }
             }
+        }
+
+        private static PathF BuildSmoothPath(IReadOnlyList<PointF> points)
+        {
+            var path = new PathF();
+            if (points.Count == 0)
+                return path;
+
+            path.MoveTo(points[0].X, points[0].Y);
+            if (points.Count == 1)
+                return path;
+
+            for (var i = 1; i < points.Count; i++)
+            {
+                var previous = points[i - 1];
+                var current = points[i];
+                var midX = (previous.X + current.X) / 2f;
+                var midY = (previous.Y + current.Y) / 2f;
+                path.QuadTo(previous.X, previous.Y, midX, midY);
+            }
+
+            var last = points[^1];
+            path.LineTo(last.X, last.Y);
+            return path;
+        }
+
+        private static PathF BuildSmoothAreaPath(IReadOnlyList<PointF> points, float baselineY)
+        {
+            var path = new PathF();
+            if (points.Count == 0)
+                return path;
+
+            path.MoveTo(points[0].X, baselineY);
+            path.LineTo(points[0].X, points[0].Y);
+
+            if (points.Count == 1)
+            {
+                path.LineTo(points[0].X, baselineY);
+                path.Close();
+                return path;
+            }
+
+            for (var i = 1; i < points.Count; i++)
+            {
+                var previous = points[i - 1];
+                var current = points[i];
+                var midX = (previous.X + current.X) / 2f;
+                var midY = (previous.Y + current.Y) / 2f;
+                path.QuadTo(previous.X, previous.Y, midX, midY);
+            }
+
+            var last = points[^1];
+            path.LineTo(last.X, last.Y);
+            path.LineTo(last.X, baselineY);
+            path.Close();
+            return path;
         }
 
         private static void DrawEmpty(ICanvas canvas, RectF rect)

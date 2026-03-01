@@ -87,7 +87,6 @@ public class AuthService
 
     public async Task<GoogleAuthResult> LoginAsync()
     {
-        Preferences.Default.Set("fit_scope_granted", false);
         return await LoginWithScopeAsync(BaseScope);
     }
 

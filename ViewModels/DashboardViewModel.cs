@@ -44,6 +44,7 @@ public partial class DashboardViewModel : ObservableObject
     public string StreakSubtitleText => LocalizationService.T("reward_streak_subtitle");
     public string RecordingStreakTitleText => LocalizationService.T("recording_streak_title");
     public string CoinsTitleText => LocalizationService.T("coins_balance");
+    public bool ShowGoogleFitUi => FeatureFlags.EnableGoogleFit;
 
     public DashboardViewModel(LocalDb db, GoogleFitService googleFit, IServiceProvider sp, PointsService points)
     {
@@ -70,11 +71,12 @@ public partial class DashboardViewModel : ObservableObject
         OnPropertyChanged(nameof(StreakSubtitleText));
         OnPropertyChanged(nameof(RecordingStreakTitleText));
         OnPropertyChanged(nameof(CoinsTitleText));
+        OnPropertyChanged(nameof(ShowGoogleFitUi));
 
         var accessToken = Preferences.Default.Get("auth_access_token", "");
         if (!GoogleFitService.Enabled)
         {
-            FitSyncStatusText = LocalizationService.T("sync_disabled");
+            FitSyncStatusText = "";
         }
         else if (!string.IsNullOrWhiteSpace(accessToken))
         {

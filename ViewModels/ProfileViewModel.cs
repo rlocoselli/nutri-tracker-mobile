@@ -33,10 +33,9 @@ public partial class ProfileViewModel : ObservableObject
     [ObservableProperty] private string reminderStatusText = "";
     [ObservableProperty] private string inviteEmail = "";
     [ObservableProperty] private string socialStatusText = "";
-    [ObservableProperty] private string backendApiUrl = "";
-    [ObservableProperty] private string backendSyncStatusText = "";
 
     public ObservableCollection<FriendInviteItem> Friends { get; } = new();
+    public ObservableCollection<FriendRankItem> FriendRanks { get; } = new();
 
     public string LanguageLabel => LocalizationService.T("language");
     public string ProfileTitle => LocalizationService.T("profile_title");
@@ -55,11 +54,11 @@ public partial class ProfileViewModel : ObservableObject
     public string FriendsTitle => LocalizationService.T("friends_title");
     public string InvitePlaceholder => LocalizationService.T("invite_email_placeholder");
     public string InviteButtonText => LocalizationService.T("invite_friend");
+    public string AddBuddyButtonText => LocalizationService.T("add_buddy");
     public string AcceptText => LocalizationService.T("accept");
     public string RemoveText => LocalizationService.T("remove");
-    public string BackendApiTitle => LocalizationService.T("backend_api_title");
-    public string BackendApiPlaceholder => LocalizationService.T("backend_api_placeholder");
-    public string SaveBackendApiText => LocalizationService.T("save_backend_api");
+    public string FriendsLeagueTitle => LocalizationService.T("friends_league_title");
+    public bool ShowGoogleFitUi => FeatureFlags.EnableGoogleFit;
 
     public ProfileViewModel(IServiceProvider sp, Services.LocalDb db, Services.GoogleFitService googleFit, IMealReminderService mealReminderService, PointsService points, SocialService social, BackendSyncService sync)
     {
@@ -111,11 +110,11 @@ public partial class ProfileViewModel : ObservableObject
         OnPropertyChanged(nameof(FriendsTitle));
         OnPropertyChanged(nameof(InvitePlaceholder));
         OnPropertyChanged(nameof(InviteButtonText));
+        OnPropertyChanged(nameof(AddBuddyButtonText));
         OnPropertyChanged(nameof(AcceptText));
         OnPropertyChanged(nameof(RemoveText));
-        OnPropertyChanged(nameof(BackendApiTitle));
-        OnPropertyChanged(nameof(BackendApiPlaceholder));
-        OnPropertyChanged(nameof(SaveBackendApiText));
+        OnPropertyChanged(nameof(FriendsLeagueTitle));
+        OnPropertyChanged(nameof(ShowGoogleFitUi));
 
         RemindersEnabled = Preferences.Default.Get("meal_reminders_enabled", false);
         BreakfastReminderTime = Preferences.Default.Get("meal_reminder_breakfast", "08:00");
@@ -123,14 +122,12 @@ public partial class ProfileViewModel : ObservableObject
         DinnerReminderTime = Preferences.Default.Get("meal_reminder_dinner", "20:00");
         ReminderStatusText = "";
         SocialStatusText = "";
-        BackendApiUrl = Preferences.Default.Get("backend_api_url", "https://api.nutritiontracker.fr/api");
-        BackendSyncStatusText = "";
         LoadFriends();
 
         var accessToken = Preferences.Default.Get("auth_access_token", "");
         if (!GoogleFitService.Enabled)
         {
-            FitSyncStatusText = LocalizationService.T("sync_disabled");
+            FitSyncStatusText = "";
         }
         else if (!string.IsNullOrWhiteSpace(accessToken))
         {
@@ -185,17 +182,6 @@ public partial class ProfileViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task SaveBackendApi()
-    {
-        Preferences.Default.Set("backend_api_url", (BackendApiUrl ?? "").Trim());
-        var token = Preferences.Default.Get("auth_id_token", "");
-        var ok = await _sync.EnsureBackendIdentityAsync(token);
-        BackendSyncStatusText = ok
-            ? LocalizationService.T("backend_api_saved_ok")
-            : LocalizationService.T("backend_api_saved_local_only");
-    }
-
-    [RelayCommand]
     private void InviteFriend()
     {
         if (string.IsNullOrWhiteSpace(InviteEmail) || !InviteEmail.Contains('@'))
@@ -214,6 +200,29 @@ public partial class ProfileViewModel : ObservableObject
         var email = InviteEmail.Trim();
         InviteEmail = "";
         SocialStatusText = LocalizationService.T("invite_sent");
+        _ = _sync.TryInviteFriendAsync(email);
+        LoadFriends();
+    }
+
+    [RelayCommand]
+    private void AddBuddy()
+    {
+        if (string.IsNullOrWhiteSpace(InviteEmail) || !InviteEmail.Contains('@'))
+        {
+            SocialStatusText = LocalizationService.T("invite_invalid_email");
+            return;
+        }
+
+        var email = InviteEmail.Trim();
+        var added = _social.AddFriend(email);
+        if (!added)
+        {
+            SocialStatusText = LocalizationService.T("invite_already_exists");
+            return;
+        }
+
+        InviteEmail = "";
+        SocialStatusText = LocalizationService.T("buddy_added");
         _ = _sync.TryInviteFriendAsync(email);
         LoadFriends();
     }
@@ -312,6 +321,29 @@ public partial class ProfileViewModel : ObservableObject
                 IsPending = isPending,
             });
         }
+
+        FriendRanks.Clear();
+        var rows = _social.GetLeaderboard(Email, Name, _points.GetBalance());
+        var rank = 1;
+        foreach (var row in rows)
+        {
+            var medal = rank switch
+            {
+                1 => "🥇",
+                2 => "🥈",
+                3 => "🥉",
+                _ => $"#{rank}"
+            };
+
+            var meTag = row.IsMe ? $" ({LocalizationService.T("you")})" : "";
+            FriendRanks.Add(new FriendRankItem
+            {
+                RankBadge = medal,
+                Name = $"{row.DisplayName}{meTag}",
+                Detail = $"XP: {row.WeeklyXp} · 🔥 {row.StreakDays}"
+            });
+            rank++;
+        }
     }
 }
 
@@ -321,4 +353,11 @@ public class FriendInviteItem
     public string StatusText { get; set; } = "";
     public string BadgeText { get; set; } = "";
     public bool IsPending { get; set; }
+}
+
+public class FriendRankItem
+{
+    public string RankBadge { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string Detail { get; set; } = "";
 }

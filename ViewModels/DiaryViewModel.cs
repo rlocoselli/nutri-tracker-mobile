@@ -320,6 +320,7 @@ public partial class DiaryViewModel : ObservableObject
     {
         SelectedDayLocal = SelectedDayLocal.AddDays(-1);
         await LoadDayAsync(SelectedDayLocal);
+        await LoadChartAsync();
     }
 
     [RelayCommand]
@@ -327,6 +328,7 @@ public partial class DiaryViewModel : ObservableObject
     {
         SelectedDayLocal = SelectedDayLocal.AddDays(1);
         await LoadDayAsync(SelectedDayLocal);
+        await LoadChartAsync();
     }
 
     private async Task LoadDayAsync(DateTime dayLocal)
@@ -356,20 +358,34 @@ public partial class DiaryViewModel : ObservableObject
 
     private async Task LoadChartAsync()
     {
-        // Window sizes (feel free to tweak)
-        var nowLocal = DateTime.Now;
+        // Anchor chart window to selected day so navigation updates the graph.
+        var anchorLocal = SelectedDayLocal.Date;
 
         DateTime fromLocal;
-        if (SelectedPeriod == "Day") fromLocal = nowLocal.Date.AddDays(-29);
-        else if (SelectedPeriod == "Week") fromLocal = nowLocal.Date.AddDays(-7 * 11); // ~12 weeks
-        else fromLocal = new DateTime(nowLocal.Year, nowLocal.Month, 1).AddMonths(-11);   // 12 months
+        DateTime toLocalExclusive;
+
+        if (SelectedPeriod == "Day")
+        {
+            fromLocal = anchorLocal.AddDays(-29);
+            toLocalExclusive = anchorLocal.AddDays(1);
+        }
+        else if (SelectedPeriod == "Week")
+        {
+            fromLocal = anchorLocal.AddDays(-7 * 11); // ~12 weeks
+            toLocalExclusive = anchorLocal.AddDays(1);
+        }
+        else
+        {
+            fromLocal = new DateTime(anchorLocal.Year, anchorLocal.Month, 1).AddMonths(-11); // 12 months
+            toLocalExclusive = new DateTime(anchorLocal.Year, anchorLocal.Month, 1).AddMonths(1);
+        }
 
         var fromUtc = DateTime.SpecifyKind(fromLocal, DateTimeKind.Local).ToUniversalTime();
-        var toUtc = DateTime.SpecifyKind(nowLocal.Date.AddDays(1), DateTimeKind.Local).ToUniversalTime();
+        var toUtc = DateTime.SpecifyKind(toLocalExclusive, DateTimeKind.Local).ToUniversalTime();
 
         var entries = await _db.GetMealsBetweenUtcAsync(fromUtc, toUtc);
         // Build a continuous series (fills missing days/weeks/months with zeros)
-        var points = BuildSeries(entries, fromLocal.Date, nowLocal.Date.AddDays(1));
+        var points = BuildSeries(entries, fromLocal.Date, toLocalExclusive);
 
         ChartValues = points.Select(p => p.Value).ToList();
         ChartLabels = points.Select(p => p.Label).ToList();
