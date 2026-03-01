@@ -9,22 +9,29 @@ namespace NutritionTracker.ViewModels;
 public partial class StoriesViewModel : ObservableObject
 {
     private readonly BackendSyncService _sync;
+    private readonly List<StoryFeedItem> _allItems = new();
 
     [ObservableProperty] private bool isBusy;
+    [ObservableProperty] private string searchQuery = "";
+    [ObservableProperty] private string activeAuthorUserId = "";
     public ObservableCollection<StoryFeedItem> Items { get; } = new();
+    public ObservableCollection<StoryBubbleItem> StoryBubbles { get; } = new();
 
     public bool HasItems => Items.Count > 0;
+    public bool HasBubbles => StoryBubbles.Count > 0;
     public bool IsEmpty => !IsBusy && Items.Count == 0;
+    public bool HasActiveAuthorFilter => !string.IsNullOrWhiteSpace(ActiveAuthorUserId);
 
     public string PageTitle => T("stories_tab_title");
     public string HeaderTitle => T("stories_header_title");
     public string HeaderSubtitle => T("stories_header_subtitle");
     public string RefreshText => T("refresh");
+    public string SearchPlaceholder => T("stories_search_placeholder");
+    public string ClearFilterText => T("stories_clear_filter");
     public string EmptyText => T("stories_empty");
     public string LikeText => T("story_like");
     public string UnlikeText => T("story_unlike");
     public string CommentText => T("story_comment");
-    public string MessageText => T("story_message");
     public string CommentPlaceholder => T("story_comment_placeholder");
     public string SendText => T("send");
     public string ViewMessagesText => T("story_view_messages");
@@ -41,15 +48,18 @@ public partial class StoriesViewModel : ObservableObject
         OnPropertyChanged(nameof(HeaderTitle));
         OnPropertyChanged(nameof(HeaderSubtitle));
         OnPropertyChanged(nameof(RefreshText));
+        OnPropertyChanged(nameof(SearchPlaceholder));
+        OnPropertyChanged(nameof(ClearFilterText));
         OnPropertyChanged(nameof(EmptyText));
         OnPropertyChanged(nameof(LikeText));
         OnPropertyChanged(nameof(UnlikeText));
         OnPropertyChanged(nameof(CommentText));
-        OnPropertyChanged(nameof(MessageText));
         OnPropertyChanged(nameof(CommentPlaceholder));
         OnPropertyChanged(nameof(SendText));
         OnPropertyChanged(nameof(ViewMessagesText));
         OnPropertyChanged(nameof(ViewAllCommentsText));
+        OnPropertyChanged(nameof(HasBubbles));
+        OnPropertyChanged(nameof(HasActiveAuthorFilter));
         await RefreshAsync();
     }
 
@@ -68,6 +78,8 @@ public partial class StoriesViewModel : ObservableObject
         try
         {
             Items.Clear();
+            StoryBubbles.Clear();
+            _allItems.Clear();
 
             var token = Preferences.Default.Get("auth_id_token", "");
             var identityOk = await _sync.EnsureBackendIdentityAsync(token);
@@ -118,14 +130,17 @@ public partial class StoriesViewModel : ObservableObject
                 }
 
                 item.HasMoreComments = row.comment_count > item.Comments.Count;
-                Items.Add(item);
+                _allItems.Add(item);
             }
+
+            ApplyFilters();
         }
         finally
         {
             IsBusy = false;
             OnPropertyChanged(nameof(HasItems));
             OnPropertyChanged(nameof(IsEmpty));
+            OnPropertyChanged(nameof(HasBubbles));
         }
     }
 
@@ -186,30 +201,89 @@ public partial class StoriesViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task SendMessage(StoryFeedItem? item)
+    private void SelectBubble(StoryBubbleItem? bubble)
     {
-        if (item == null || string.IsNullOrWhiteSpace(item.AuthorUserId) || IsBusy)
+        if (bubble == null)
             return;
 
-        var meUserId = Preferences.Default.Get("backend_user_id", "").Trim();
-        if (string.Equals(meUserId, item.AuthorUserId, StringComparison.OrdinalIgnoreCase))
-            return;
+        ActiveAuthorUserId = string.Equals(ActiveAuthorUserId, bubble.AuthorUserId, StringComparison.OrdinalIgnoreCase)
+            ? ""
+            : bubble.AuthorUserId;
 
-        var message = await Application.Current!.MainPage!.DisplayPromptAsync(
-            T("story_message"),
-            string.Format(T("story_message_to"), item.Author),
-            T("send"),
-            T("cancel"),
-            T("story_message_placeholder"));
+        ApplyFilters();
+    }
 
-        if (string.IsNullOrWhiteSpace(message))
-            return;
+    [RelayCommand]
+    private void ClearFilter()
+    {
+        SearchQuery = "";
+        ActiveAuthorUserId = "";
+        ApplyFilters();
+    }
 
-        var ok = await _sync.SendPrivateMessageAsync(item.AuthorUserId, message.Trim());
-        await Application.Current!.MainPage!.DisplayAlert(
-            T("story_message"),
-            ok ? T("story_message_sent") : T("friend_message_failed"),
-            "OK");
+    partial void OnSearchQueryChanged(string value)
+    {
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        var query = (SearchQuery ?? "").Trim().ToLowerInvariant();
+        var authorFilter = (ActiveAuthorUserId ?? "").Trim();
+
+        var filtered = _allItems
+            .Where(item =>
+            {
+                var matchAuthor = string.IsNullOrWhiteSpace(authorFilter) ||
+                                  string.Equals((item.AuthorUserId ?? "").Trim(), authorFilter, StringComparison.OrdinalIgnoreCase);
+
+                if (!matchAuthor)
+                    return false;
+
+                if (string.IsNullOrWhiteSpace(query))
+                    return true;
+
+                return (item.Author ?? "").ToLowerInvariant().Contains(query)
+                       || (item.Caption ?? "").ToLowerInvariant().Contains(query)
+                       || (item.NutritionText ?? "").ToLowerInvariant().Contains(query);
+            })
+            .ToList();
+
+        Items.Clear();
+        foreach (var item in filtered)
+            Items.Add(item);
+
+        BuildStoryBubbles();
+
+        OnPropertyChanged(nameof(HasItems));
+        OnPropertyChanged(nameof(IsEmpty));
+        OnPropertyChanged(nameof(HasBubbles));
+        OnPropertyChanged(nameof(HasActiveAuthorFilter));
+    }
+
+    private void BuildStoryBubbles()
+    {
+        StoryBubbles.Clear();
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in _allItems)
+        {
+            var key = !string.IsNullOrWhiteSpace(item.AuthorUserId)
+                ? item.AuthorUserId.Trim()
+                : item.Author.Trim();
+
+            if (string.IsNullOrWhiteSpace(key) || seen.Contains(key))
+                continue;
+
+            seen.Add(key);
+            StoryBubbles.Add(new StoryBubbleItem
+            {
+                AuthorUserId = key,
+                Author = item.Author,
+                AvatarSource = item.AvatarSource,
+                IsActive = string.Equals((ActiveAuthorUserId ?? "").Trim(), key, StringComparison.OrdinalIgnoreCase),
+            });
+        }
     }
 
     private string ResolveAuthor(BackendStory story, string meUserId, string myProfileName)
@@ -279,6 +353,8 @@ public partial class StoriesViewModel : ObservableObject
             "stories_tab_title" => L(lang, "Stories", "Stories", "Stories", "Stories"),
             "stories_header_title" => L(lang, "Stories nutrition", "Nutrition stories", "Stories de nutrição", "Stories de nutrición"),
             "stories_header_subtitle" => L(lang, "Photos de vos repas et de vos amis, du plus récent au plus ancien.", "Your meal photos and friends' photos, newest first.", "Fotos das suas refeições e dos amigos, do mais recente ao mais antigo.", "Fotos de tus comidas y de tus amigos, de más reciente a más antigua."),
+            "stories_search_placeholder" => L(lang, "Rechercher des amis, repas, calories...", "Search friends, meals, calories...", "Buscar amigos, refeições, calorias...", "Buscar amigos, comidas, calorías..."),
+            "stories_clear_filter" => L(lang, "Effacer", "Clear", "Limpar", "Limpiar"),
             "stories_empty" => L(lang, "Aucune story photo pour le moment.", "No photo stories yet.", "Nenhuma story com foto ainda.", "Aún no hay stories con foto."),
             "refresh" => L(lang, "Rafraîchir", "Refresh", "Atualizar", "Actualizar"),
             "story_default_author" => L(lang, "Utilisateur", "User", "Usuário", "Usuario"),
@@ -290,11 +366,6 @@ public partial class StoriesViewModel : ObservableObject
             "story_view_messages" => L(lang, "Voir messages", "View messages", "Ver mensagens", "Ver mensajes"),
             "story_view_all_comments" => L(lang, "Voir tous les commentaires", "View all comments", "Ver todos comentários", "Ver todos los comentarios"),
             "story_no_messages" => L(lang, "Aucun message pour cette photo.", "No messages for this photo.", "Nenhuma mensagem para esta foto.", "No hay mensajes para esta foto."),
-            "story_message" => L(lang, "Message privé", "Private message", "Mensagem privada", "Mensaje privado"),
-            "story_message_to" => L(lang, "Envoyer un message à {0}", "Send a message to {0}", "Enviar mensagem para {0}", "Enviar mensaje a {0}"),
-            "story_message_placeholder" => L(lang, "Votre message", "Your message", "Sua mensagem", "Tu mensaje"),
-            "story_message_sent" => L(lang, "Message envoyé", "Message sent", "Mensagem enviada", "Mensaje enviado"),
-            "friend_message_failed" => L(lang, "Échec de l'envoi du message", "Message failed to send", "Falha ao enviar mensagem", "Error al enviar el mensaje"),
             "saved_title" => L(lang, "Enregistré", "Saved", "Salvo", "Guardado"),
             "send" => L(lang, "Envoyer", "Send", "Enviar", "Enviar"),
             "cancel" => L(lang, "Annuler", "Cancel", "Cancelar", "Cancelar"),
@@ -328,6 +399,14 @@ public class StoryCommentLine
 {
     public string AuthorName { get; set; } = "";
     public string Text { get; set; } = "";
+}
+
+public class StoryBubbleItem
+{
+    public string AuthorUserId { get; set; } = "";
+    public string Author { get; set; } = "";
+    public ImageSource AvatarSource { get; set; } = ImageSource.FromFile("ic_profile.svg");
+    public bool IsActive { get; set; }
 }
 
 internal static class StoriesPhotoSourceHelper
