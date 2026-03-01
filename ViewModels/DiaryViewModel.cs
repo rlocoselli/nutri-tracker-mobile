@@ -77,6 +77,14 @@ public partial class DiaryViewModel : ObservableObject
     [ObservableProperty] private IList<double> chartValues = Array.Empty<double>();
     [ObservableProperty] private IList<string> chartLabels = Array.Empty<string>();
 
+    [ObservableProperty] private double waterLiters;
+    [ObservableProperty] private string waterLitersText = "0 L";
+    public ObservableCollection<string> WaterBottleImages { get; } = new();
+    public string HydrationTitle => T("hydration_title");
+    public string AddHalfLiterText => T("add_half_liter");
+    public string AddOneLiterText => T("add_one_liter");
+    public string RemoveHalfLiterText => T("remove_half_liter");
+
     public DiaryViewModel(LocalDb db, PointsService points, BackendSyncService sync)
     {
         _db = db;
@@ -134,9 +142,31 @@ public partial class DiaryViewModel : ObservableObject
         OnPropertyChanged(nameof(SaveText));
         OnPropertyChanged(nameof(CancelText));
         OnPropertyChanged(nameof(EditPopupTitle));
+        OnPropertyChanged(nameof(HydrationTitle));
+        OnPropertyChanged(nameof(AddHalfLiterText));
+        OnPropertyChanged(nameof(AddOneLiterText));
+        OnPropertyChanged(nameof(RemoveHalfLiterText));
 
         await LoadDayAsync(SelectedDayLocal);
         await LoadChartAsync();
+    }
+
+    [RelayCommand]
+    private async Task AddHalfLiter()
+    {
+        await SetWaterLitersAsync(WaterLiters + 0.5);
+    }
+
+    [RelayCommand]
+    private async Task AddOneLiter()
+    {
+        await SetWaterLitersAsync(WaterLiters + 1.0);
+    }
+
+    [RelayCommand]
+    private async Task RemoveHalfLiter()
+    {
+        await SetWaterLitersAsync(Math.Max(0, WaterLiters - 0.5));
     }
 
     [RelayCommand]
@@ -354,6 +384,40 @@ public partial class DiaryViewModel : ObservableObject
 
         var netCalories = cal - exercise.burnedCalories;
         DayTotalsText = $"{T("total")}: {Math.Round(cal)} kcal · C {Math.Round(carbs)}g · P {Math.Round(prot)}g · {T("burn")}: {Math.Round(exercise.burnedCalories)} · {T("net")}: {Math.Round(netCalories)}";
+
+        var liters = await _db.GetWaterLitersForDayLocalAsync(dayLocal);
+        UpdateWaterUi(liters);
+    }
+
+    private async Task SetWaterLitersAsync(double liters)
+    {
+        await _db.UpsertWaterLitersForDayLocalAsync(SelectedDayLocal, liters);
+        var rounded = Math.Round(Math.Max(0, liters) * 2, MidpointRounding.AwayFromZero) / 2.0;
+        UpdateWaterUi(rounded);
+        _ = await _sync.TryPushWaterIntakeAsync(SelectedDayLocal, rounded);
+    }
+
+    private void UpdateWaterUi(double liters)
+    {
+        WaterLiters = liters;
+        var display = liters % 1 == 0
+            ? $"{liters:0} L"
+            : $"{liters:0.0} L";
+        WaterLitersText = display;
+
+        WaterBottleImages.Clear();
+        const int maxSlots = 6;
+
+        for (var i = 0; i < maxSlots; i++)
+        {
+            var remaining = liters - i;
+            if (remaining >= 0.99)
+                WaterBottleImages.Add("water_bottle_full.svg");
+            else if (remaining >= 0.49)
+                WaterBottleImages.Add("water_bottle_half.svg");
+            else
+                WaterBottleImages.Add("water_bottle_empty.svg");
+        }
     }
 
     private async Task LoadChartAsync()
@@ -495,6 +559,10 @@ public partial class DiaryViewModel : ObservableObject
             "carbs_label" => L(lang, "Glucides", "Carbs", "Carboidratos", "Carbohidratos"),
             "steps_label" => L(lang, "Pas Google Fit (test)", "Google Fit steps (test)", "Passos Google Fit (teste)", "Pasos Google Fit (prueba)"),
             "minutes_label" => L(lang, "Minutes d'exercice", "Exercise minutes", "Minutos de exercício", "Minutos de ejercicio"),
+            "hydration_title" => L(lang, "Hydratation (bouteilles de 1L)", "Hydration (1L bottles)", "Hidratação (garrafas de 1L)", "Hidratación (botellas de 1L)"),
+            "add_half_liter" => L(lang, "+0,5 L", "+0.5 L", "+0,5 L", "+0,5 L"),
+            "add_one_liter" => L(lang, "+1 L", "+1 L", "+1 L", "+1 L"),
+            "remove_half_liter" => L(lang, "-0,5 L", "-0.5 L", "-0,5 L", "-0,5 L"),
             "manual_popup_title" => L(lang, "Entrée manuelle", "Manual entry", "Entrada manual", "Entrada manual"),
             "edit_popup_title" => L(lang, "Modifier l'entrée repas", "Edit meal entry", "Editar registro de refeição", "Editar registro de comida"),
             "quality" => L(lang, "Qualité IA", "AI quality", "Qualidade IA", "Calidad IA"),

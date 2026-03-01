@@ -8,7 +8,7 @@
     Title="Journal"
     BackgroundColor="{StaticResource Background}">
 
-    <Grid Padding="20" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="14">
+    <Grid Padding="20" RowDefinitions="Auto,Auto,Auto,Auto,*" RowSpacing="14">
 
         <!-- Day navigation -->
         <Grid ColumnDefinitions="Auto,*,Auto" VerticalOptions="Center">
@@ -35,13 +35,35 @@
             </VerticalStackLayout>
         </Border>
 
-        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="4">
+        <Border Grid.Row="2" Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
+            <VerticalStackLayout Spacing="10">
+                <Label Text="{Binding HydrationTitle}" FontAttributes="Bold" />
+                <Label Text="{Binding WaterLitersText}" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
+                <CollectionView ItemsSource="{Binding WaterBottleImages}" SelectionMode="None" HeightRequest="98">
+                    <CollectionView.ItemsLayout>
+                        <LinearItemsLayout Orientation="Horizontal" ItemSpacing="8" />
+                    </CollectionView.ItemsLayout>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Image Source="{Binding .}" HeightRequest="90" WidthRequest="34" />
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+                <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="8">
+                    <Button Text="{Binding AddHalfLiterText}" Style="{StaticResource SecondaryButton}" Command="{Binding AddHalfLiterCommand}" />
+                    <Button Grid.Column="1" Text="{Binding AddOneLiterText}" Style="{StaticResource SecondaryButton}" Command="{Binding AddOneLiterCommand}" />
+                    <Button Grid.Column="2" Text="{Binding RemoveHalfLiterText}" Style="{StaticResource SecondaryButton}" Command="{Binding RemoveHalfLiterCommand}" />
+                </Grid>
+            </VerticalStackLayout>
+        </Border>
+
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="4">
             <Label Text="{Binding MealsTitle}" Style="{StaticResource H1}" />
             <Button Grid.Column="1" Text="{Binding AddManualText}" Style="{StaticResource SecondaryButton}" Command="{Binding AddManualCommand}" />
             <Label Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding MealsSubtitle}" Style="{StaticResource BodyMuted}" />
         </Grid>
 
-        <CollectionView Grid.Row="3" ItemsSource="{Binding Meals}" SelectionMode="None">
+        <CollectionView Grid.Row="4" ItemsSource="{Binding Meals}" SelectionMode="None">
             <CollectionView.ItemTemplate>
                 <DataTemplate>
                     <Border Style="{StaticResource Card}" Margin="0,0,0,12">
@@ -98,7 +120,7 @@
         <Grid IsVisible="{Binding IsManualPopupVisible}"
               BackgroundColor="#80000000"
               InputTransparent="False"
-              Grid.RowSpan="4">
+              Grid.RowSpan="5">
             <Border Style="{StaticResource Card}"
                     MaximumWidthRequest="460"
                     HorizontalOptions="Center"
@@ -148,7 +170,7 @@
         <Grid IsVisible="{Binding IsEditPopupVisible}"
               BackgroundColor="#80000000"
               InputTransparent="False"
-              Grid.RowSpan="4">
+              Grid.RowSpan="5">
             <Border Style="{StaticResource Card}"
                     MaximumWidthRequest="460"
                     HorizontalOptions="Center"
