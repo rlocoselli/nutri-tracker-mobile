@@ -10,6 +10,7 @@ public static class LocalizationService
         ["tab_diary"] = "Journal",
         ["tab_add"] = "Ajouter",
         ["tab_goals"] = "Objectifs",
+        ["tab_stories"] = "Stories",
         ["tab_profile"] = "Profil",
 
         ["dashboard_title"] = "Tableau",
@@ -101,6 +102,7 @@ public static class LocalizationService
         ["tab_diary"] = "Diary",
         ["tab_add"] = "Add",
         ["tab_goals"] = "Goals",
+        ["tab_stories"] = "Stories",
         ["tab_profile"] = "Profile",
 
         ["dashboard_title"] = "Dashboard",
@@ -194,6 +196,7 @@ public static class LocalizationService
         ["tab_diary"] = "Diário",
         ["tab_add"] = "Adicionar",
         ["tab_goals"] = "Metas",
+        ["tab_stories"] = "Stories",
         ["tab_profile"] = "Perfil",
         ["dashboard_title"] = "Painel",
         ["hello"] = "Olá,",
@@ -279,6 +282,7 @@ public static class LocalizationService
         ["tab_diary"] = "Diario",
         ["tab_add"] = "Añadir",
         ["tab_goals"] = "Objetivos",
+        ["tab_stories"] = "Stories",
         ["tab_profile"] = "Perfil",
         ["dashboard_title"] = "Panel",
         ["hello"] = "Hola,",

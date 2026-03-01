@@ -43,6 +43,7 @@ public static class MauiProgram
         builder.Services.AddTransient<AddMealViewModel>();
         builder.Services.AddTransient<GoalsViewModel>();
         builder.Services.AddTransient<RecommendationsViewModel>();
+        builder.Services.AddTransient<StoriesViewModel>();
         builder.Services.AddTransient<ProfileViewModel>();
 
         // Pages
@@ -52,6 +53,7 @@ public static class MauiProgram
         builder.Services.AddTransient<AddMealPage>();
         builder.Services.AddTransient<GoalsPage>();
         builder.Services.AddTransient<RecommendationsPage>();
+        builder.Services.AddTransient<StoriesPage>();
         builder.Services.AddTransient<ProfilePage>();
 
         // Shell + Main (loading)
