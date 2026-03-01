@@ -4,8 +4,11 @@ using NutritionTracker.Services;
 
 public partial class AppShell : Shell
 {
-    public AppShell()
+    private readonly SocialNotificationService _socialNotifications;
+
+    public AppShell(SocialNotificationService socialNotifications)
     {
+        _socialNotifications = socialNotifications;
         InitializeComponent();
         DashboardTab.Title = LocalizationService.T("tab_dashboard");
         DiaryTab.Title = LocalizationService.T("tab_diary");
@@ -14,5 +17,17 @@ public partial class AppShell : Shell
         StoriesTab.Title = LocalizationService.T("tab_stories");
         FriendsTab.Title = LocalizationService.T("tab_friends");
         ProfileTab.Title = LocalizationService.T("tab_profile");
+
+        StartSocialNotifications();
+    }
+
+    private void StartSocialNotifications()
+    {
+        _ = _socialNotifications.PollAndNotifyAsync();
+        Dispatcher.StartTimer(TimeSpan.FromSeconds(45), () =>
+        {
+            _ = _socialNotifications.PollAndNotifyAsync();
+            return true;
+        });
     }
 }

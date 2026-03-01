@@ -25,6 +25,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<GoogleFitService>();
         builder.Services.AddSingleton<PointsService>();
         builder.Services.AddSingleton<SocialService>();
+        builder.Services.AddSingleton<SocialNotificationService>();
         builder.Services.AddSingleton<BackendSyncService>();
         builder.Services.AddSingleton<IMealReminderService, MealReminderService>();
         builder.Services.AddSingleton(sp => new ApiService("https://www.nutritiontracker.fr/api", sp.GetRequiredService<SessionService>()));
