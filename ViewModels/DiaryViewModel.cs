@@ -24,6 +24,7 @@ public partial class DiaryViewModel : ObservableObject
     // --- Day navigation ---
     [ObservableProperty] private DateTime selectedDayLocal = DateTime.Now.Date;
     [ObservableProperty] private string selectedDayText = "";
+    public ObservableCollection<DiaryDayTab> DayTabs { get; } = new();
 
     // Meals for the selected day
     public ObservableCollection<DiaryMealItem> Meals { get; } = new();
@@ -68,8 +69,10 @@ public partial class DiaryViewModel : ObservableObject
     public string EditPopupTitle => T("edit_popup_title");
 
     // --- Chart ---
-    public ObservableCollection<string> MetricOptions { get; } = new() { "Calories", "Protein", "Carbs" };
+    public ObservableCollection<string> MetricOptions { get; } = new() { "Calories", "Proteins", "Activities" };
     public ObservableCollection<string> PeriodOptions { get; } = new() { "Day", "Week", "Month" };
+    public ObservableCollection<DiaryToggleItem> MetricTabs { get; } = new();
+    public ObservableCollection<DiaryToggleItem> PeriodTabs { get; } = new();
 
     [ObservableProperty] private string selectedMetric = "Calories";
     [ObservableProperty] private string selectedPeriod = "Day";
@@ -91,21 +94,27 @@ public partial class DiaryViewModel : ObservableObject
         _points = points;
         _sync = sync;
         UpdateSelectedDayText();
+        RebuildDayTabs();
+        RebuildMetricTabs();
+        RebuildPeriodTabs();
     }
 
     partial void OnSelectedDayLocalChanged(DateTime value)
     {
         UpdateSelectedDayText();
+        RebuildDayTabs();
     }
 
     partial void OnSelectedMetricChanged(string value)
     {
+        RebuildMetricTabs();
         // Rebuild chart for the new metric
         _ = LoadChartAsync();
     }
 
     partial void OnSelectedPeriodChanged(string value)
     {
+        RebuildPeriodTabs();
         // Rebuild chart for the new period
         _ = LoadChartAsync();
     }
@@ -114,6 +123,37 @@ public partial class DiaryViewModel : ObservableObject
     {
         // Example: "terça 04 fev"
         SelectedDayText = SelectedDayLocal.ToString("dddd dd MMM", CultureInfo.CurrentCulture);
+    }
+
+    [RelayCommand]
+    private async Task SelectDay(DiaryDayTab? tab)
+    {
+        if (tab == null)
+            return;
+
+        SelectedDayLocal = tab.DayLocal.Date;
+        await LoadDayAsync(SelectedDayLocal);
+        await LoadChartAsync();
+    }
+
+    [RelayCommand]
+    private Task SelectMetricTab(DiaryToggleItem? tab)
+    {
+        if (tab == null)
+            return Task.CompletedTask;
+
+        SelectedMetric = tab.Key;
+        return Task.CompletedTask;
+    }
+
+    [RelayCommand]
+    private Task SelectPeriodTab(DiaryToggleItem? tab)
+    {
+        if (tab == null)
+            return Task.CompletedTask;
+
+        SelectedPeriod = tab.Key;
+        return Task.CompletedTask;
     }
 
     public async Task LoadAsync()
@@ -146,6 +186,9 @@ public partial class DiaryViewModel : ObservableObject
         OnPropertyChanged(nameof(AddHalfLiterText));
         OnPropertyChanged(nameof(AddOneLiterText));
         OnPropertyChanged(nameof(RemoveHalfLiterText));
+        RebuildMetricTabs();
+        RebuildPeriodTabs();
+        RebuildDayTabs();
 
         await LoadDayAsync(SelectedDayLocal);
         await LoadChartAsync();
@@ -176,7 +219,6 @@ public partial class DiaryViewModel : ObservableObject
         ManualCalories = "450";
         ManualProtein = "25";
         ManualCarbs = "40";
-        ManualGoogleFitSteps = "6000";
         ManualExerciseMinutes = "30";
         RecomputeBurnPreview();
         IsManualPopupVisible = true;
@@ -200,10 +242,9 @@ public partial class DiaryViewModel : ObservableObject
         if (!double.TryParse(ManualCalories, out var calories)) calories = 0;
         if (!double.TryParse(ManualProtein, out var protein)) protein = 0;
         if (!double.TryParse(ManualCarbs, out var carbs)) carbs = 0;
-        if (!int.TryParse(ManualGoogleFitSteps, out var steps)) steps = 0;
         if (!double.TryParse(ManualExerciseMinutes, out var minutes)) minutes = 0;
 
-        var burned = EstimateBurnedCalories(steps, minutes);
+        var burned = EstimateBurnedCalories(minutes);
 
         var baseLocal = SelectedDayLocal.Date == DateTime.Now.Date
             ? DateTime.Now
@@ -226,18 +267,28 @@ public partial class DiaryViewModel : ObservableObject
             PhotoPath = ""
         };
 
-        await _db.UpsertMealEntryAsync(entry);
         var token = Preferences.Default.Get("auth_id_token", "");
-        _ = await _sync.EnsureBackendIdentityAsync(token);
-        _ = await _sync.TryPushMealAsync(entry, new List<MealItem>());
+        var identityOk = await _sync.EnsureBackendIdentityAsync(token);
+        if (!identityOk)
+        {
+            await Application.Current!.MainPage!.DisplayAlert(T("error_title"), T("backend_identity_error"), "OK");
+            return;
+        }
 
-        if (steps > 0 || minutes > 0 || burned > 0)
+        var createdId = await _sync.CreateMealAsync(entry, new List<MealItem>());
+        if (string.IsNullOrWhiteSpace(createdId))
+        {
+            await Application.Current!.MainPage!.DisplayAlert(T("error_title"), T("backend_save_error"), "OK");
+            return;
+        }
+
+        if (minutes > 0 || burned > 0)
         {
             await _db.SaveExerciseAsync(new ExerciseEntry
             {
                 DateUtc = dateUtc,
                 DayKeyUtc = dateUtc.ToString("yyyy-MM-dd"),
-                GoogleFitSteps = steps,
+                GoogleFitSteps = 0,
                 ExerciseMinutes = minutes,
                 BurnedCalories = burned,
                 Notes = T("exercise_note")
@@ -314,11 +365,21 @@ public partial class DiaryViewModel : ObservableObject
             QualityLabel = quality.label
         };
 
-        await _db.UpsertMealEntryAsync(updated);
         var token = Preferences.Default.Get("auth_id_token", "");
-        _ = await _sync.EnsureBackendIdentityAsync(token);
-        var existingItems = await _db.GetMealItemsForEntryAsync(updated.Id);
-        _ = await _sync.TryPushMealAsync(updated, existingItems);
+        var identityOk = await _sync.EnsureBackendIdentityAsync(token);
+        if (!identityOk)
+        {
+            await Application.Current!.MainPage!.DisplayAlert(T("error_title"), T("backend_identity_error"), "OK");
+            return;
+        }
+
+        var updatedOk = await _sync.UpdateMealAsync(updated.Id, updated, new List<MealItem>());
+        if (!updatedOk)
+        {
+            await Application.Current!.MainPage!.DisplayAlert(T("error_title"), T("backend_save_error"), "OK");
+            return;
+        }
+
         IsEditPopupVisible = false;
         _editingMeal = null;
         var editBalance = _points.Award(4);
@@ -340,7 +401,21 @@ public partial class DiaryViewModel : ObservableObject
 
         if (!confirm) return;
 
-        await _db.DeleteMealAsync(item.Id);
+        var token = Preferences.Default.Get("auth_id_token", "");
+        var identityOk = await _sync.EnsureBackendIdentityAsync(token);
+        if (!identityOk)
+        {
+            await Application.Current!.MainPage!.DisplayAlert(T("error_title"), T("backend_identity_error"), "OK");
+            return;
+        }
+
+        var deleted = await _sync.DeleteMealAsync(item.Id);
+        if (!deleted)
+        {
+            await Application.Current!.MainPage!.DisplayAlert(T("error_title"), T("backend_delete_error"), "OK");
+            return;
+        }
+
         await LoadDayAsync(SelectedDayLocal);
         await LoadChartAsync();
     }
@@ -370,11 +445,24 @@ public partial class DiaryViewModel : ObservableObject
         var fromUtc = startLocal.ToUniversalTime();
         var toUtc = startLocal.AddDays(1).ToUniversalTime();
 
-        var entries = await _db.GetMealsBetweenUtcAsync(fromUtc, toUtc);
+        var token = Preferences.Default.Get("auth_id_token", "");
+        var identityOk = await _sync.EnsureBackendIdentityAsync(token);
+        var backendMealsRaw = identityOk
+            ? await _sync.GetMealsBetweenUtcAsync(fromUtc.AddDays(-1), toUtc.AddDays(1))
+            : new List<BackendMeal>();
+
+        var backendMeals = backendMealsRaw
+            .Select(m => new { Raw = m, Entry = ToMealEntry(m) })
+            .Where(x => x.Entry.DateUtc.ToLocalTime().Date == dayLocal.Date)
+            .Select(x => x.Raw)
+            .ToList();
+
+        var entries = backendMeals.Select(ToMealEntry).ToList();
         var exercise = await _db.GetExerciseTotalsBetweenUtcAsync(fromUtc, toUtc);
-        foreach (var e in entries.OrderByDescending(e => e.DateUtc))
+        foreach (var backendMeal in backendMeals.OrderByDescending(x => x.date_utc))
         {
-            var items = await _db.GetMealItemsForEntryAsync(e.Id);
+            var e = ToMealEntry(backendMeal);
+            var items = ToMealItems(backendMeal);
             Meals.Add(DiaryMealItem.FromEntry(e, items));
         }
 
@@ -447,29 +535,44 @@ public partial class DiaryViewModel : ObservableObject
         var fromUtc = DateTime.SpecifyKind(fromLocal, DateTimeKind.Local).ToUniversalTime();
         var toUtc = DateTime.SpecifyKind(toLocalExclusive, DateTimeKind.Local).ToUniversalTime();
 
-        var entries = await _db.GetMealsBetweenUtcAsync(fromUtc, toUtc);
+        var token = Preferences.Default.Get("auth_id_token", "");
+        var identityOk = await _sync.EnsureBackendIdentityAsync(token);
+        var backendMeals = identityOk
+            ? await _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc)
+            : new List<BackendMeal>();
+
+        var entries = backendMeals.Select(ToMealEntry).ToList();
+        var exercises = await _db.GetExercisesBetweenUtcAsync(fromUtc, toUtc);
         // Build a continuous series (fills missing days/weeks/months with zeros)
-        var points = BuildSeries(entries, fromLocal.Date, toLocalExclusive);
+        var points = BuildSeries(entries, exercises, fromLocal.Date, toLocalExclusive);
 
         ChartValues = points.Select(p => p.Value).ToList();
         ChartLabels = points.Select(p => p.Label).ToList();
     }
 
-    private List<(string Label, double Value)> BuildSeries(List<MealEntry> entries, DateTime fromLocalInclusive, DateTime toLocalExclusive)
+    private List<(string Label, double Value)> BuildSeries(List<MealEntry> entries, List<ExerciseEntry> exercises, DateTime fromLocalInclusive, DateTime toLocalExclusive)
     {
+        var isActivitiesMetric = SelectedMetric == "Activities";
+
         double Selector(MealEntry e) => SelectedMetric switch
         {
             "Proteína" => e.TotalProteinG,
             "Protein" => e.TotalProteinG,
-            "Carbs" => e.TotalCarbsG,
+            "Proteins" => e.TotalProteinG,
             _ => e.TotalCalories,
         };
 
+        double ExerciseSelector(ExerciseEntry e) => e.BurnedCalories;
+
         if (SelectedPeriod == "Day")
         {
-            var byDay = entries
-                .GroupBy(e => e.DateUtc.ToLocalTime().Date)
-                .ToDictionary(g => g.Key, g => g.Sum(Selector));
+            var byDay = isActivitiesMetric
+                ? exercises
+                    .GroupBy(e => e.DateUtc.ToLocalTime().Date)
+                    .ToDictionary(g => g.Key, g => g.Sum(ExerciseSelector))
+                : entries
+                    .GroupBy(e => e.DateUtc.ToLocalTime().Date)
+                    .ToDictionary(g => g.Key, g => g.Sum(Selector));
 
             var points = new List<(string Label, double Value)>();
             for (var d = fromLocalInclusive.Date; d < toLocalExclusive.Date; d = d.AddDays(1))
@@ -482,9 +585,13 @@ public partial class DiaryViewModel : ObservableObject
 
         if (SelectedPeriod == "Week")
         {
-            var byWeek = entries
-                .GroupBy(e => IsoWeekKey(e.DateUtc.ToLocalTime().Date))
-                .ToDictionary(g => g.Key, g => g.Sum(Selector));
+            var byWeek = isActivitiesMetric
+                ? exercises
+                    .GroupBy(e => IsoWeekKey(e.DateUtc.ToLocalTime().Date))
+                    .ToDictionary(g => g.Key, g => g.Sum(ExerciseSelector))
+                : entries
+                    .GroupBy(e => IsoWeekKey(e.DateUtc.ToLocalTime().Date))
+                    .ToDictionary(g => g.Key, g => g.Sum(Selector));
 
             // Iterate weeks by advancing 7 days from the start date.
             var points = new List<(string Label, double Value)>();
@@ -500,9 +607,13 @@ public partial class DiaryViewModel : ObservableObject
         }
 
         // "Mês"
-        var byMonth = entries
-            .GroupBy(e => (y: e.DateUtc.ToLocalTime().Year, m: e.DateUtc.ToLocalTime().Month))
-            .ToDictionary(g => g.Key, g => g.Sum(Selector));
+        var byMonth = isActivitiesMetric
+            ? exercises
+                .GroupBy(e => (y: e.DateUtc.ToLocalTime().Year, m: e.DateUtc.ToLocalTime().Month))
+                .ToDictionary(g => g.Key, g => g.Sum(ExerciseSelector))
+            : entries
+                .GroupBy(e => (y: e.DateUtc.ToLocalTime().Year, m: e.DateUtc.ToLocalTime().Month))
+                .ToDictionary(g => g.Key, g => g.Sum(Selector));
 
         var startMonth = new DateTime(fromLocalInclusive.Year, fromLocalInclusive.Month, 1);
         var endMonth = new DateTime(toLocalExclusive.AddDays(-1).Year, toLocalExclusive.AddDays(-1).Month, 1);
@@ -563,6 +674,15 @@ public partial class DiaryViewModel : ObservableObject
             "add_half_liter" => L(lang, "+0,5 L", "+0.5 L", "+0,5 L", "+0,5 L"),
             "add_one_liter" => L(lang, "+1 L", "+1 L", "+1 L", "+1 L"),
             "remove_half_liter" => L(lang, "-0,5 L", "-0.5 L", "-0,5 L", "-0,5 L"),
+            "metric_calories" => L(lang, "Calories", "Calories", "Calorias", "Calorías"),
+            "metric_proteins" => L(lang, "Protéines", "Proteins", "Proteínas", "Proteínas"),
+            "metric_activities" => L(lang, "Activités", "Activities", "Atividades", "Actividades"),
+            "period_day" => L(lang, "Jour", "Day", "Dia", "Día"),
+            "period_week" => L(lang, "Semaine", "Week", "Semana", "Semana"),
+            "period_month" => L(lang, "Mois", "Month", "Mês", "Mes"),
+            "backend_identity_error" => L(lang, "Impossible de synchroniser l'identité backend.", "Unable to sync backend identity.", "Não foi possível sincronizar identidade no backend.", "No se pudo sincronizar la identidad del backend."),
+            "backend_save_error" => L(lang, "Impossible d'enregistrer le repas dans PostgreSQL.", "Unable to save meal to PostgreSQL.", "Não foi possível salvar a refeição no PostgreSQL.", "No se pudo guardar la comida en PostgreSQL."),
+            "backend_delete_error" => L(lang, "Impossible de supprimer le repas dans PostgreSQL.", "Unable to delete meal from PostgreSQL.", "Não foi possível excluir a refeição no PostgreSQL.", "No se pudo eliminar la comida en PostgreSQL."),
             "manual_popup_title" => L(lang, "Entrée manuelle", "Manual entry", "Entrada manual", "Entrada manual"),
             "edit_popup_title" => L(lang, "Modifier l'entrée repas", "Edit meal entry", "Editar registro de refeição", "Editar registro de comida"),
             "quality" => L(lang, "Qualité IA", "AI quality", "Qualidade IA", "Calidad IA"),
@@ -605,7 +725,81 @@ public partial class DiaryViewModel : ObservableObject
         };
     }
 
-    partial void OnManualGoogleFitStepsChanged(string value) => RecomputeBurnPreview();
+    private void RebuildMetricTabs()
+    {
+        MetricTabs.Clear();
+        MetricTabs.Add(new DiaryToggleItem { Key = "Calories", Label = T("metric_calories"), IsSelected = SelectedMetric == "Calories" });
+        MetricTabs.Add(new DiaryToggleItem { Key = "Proteins", Label = T("metric_proteins"), IsSelected = SelectedMetric == "Proteins" });
+        MetricTabs.Add(new DiaryToggleItem { Key = "Activities", Label = T("metric_activities"), IsSelected = SelectedMetric == "Activities" });
+    }
+
+    private void RebuildPeriodTabs()
+    {
+        PeriodTabs.Clear();
+        PeriodTabs.Add(new DiaryToggleItem { Key = "Day", Label = T("period_day"), IsSelected = SelectedPeriod == "Day" });
+        PeriodTabs.Add(new DiaryToggleItem { Key = "Week", Label = T("period_week"), IsSelected = SelectedPeriod == "Week" });
+        PeriodTabs.Add(new DiaryToggleItem { Key = "Month", Label = T("period_month"), IsSelected = SelectedPeriod == "Month" });
+    }
+
+    private void RebuildDayTabs()
+    {
+        DayTabs.Clear();
+        var start = SelectedDayLocal.Date.AddDays(-3);
+        for (var i = 0; i < 7; i++)
+        {
+            var day = start.AddDays(i);
+            DayTabs.Add(new DiaryDayTab
+            {
+                DayLocal = day,
+                Label = day.ToString("ddd dd", CultureInfo.CurrentCulture),
+                IsSelected = day.Date == SelectedDayLocal.Date,
+            });
+        }
+    }
+
+    private static MealEntry ToMealEntry(BackendMeal meal)
+    {
+        var dateUtc = meal.date_utc.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(meal.date_utc, DateTimeKind.Utc)
+            : meal.date_utc.ToUniversalTime();
+
+        return new MealEntry
+        {
+            Id = meal.id,
+            DateUtc = dateUtc,
+            DayKeyUtc = string.IsNullOrWhiteSpace(meal.day_key_utc) ? dateUtc.ToString("yyyy-MM-dd") : meal.day_key_utc,
+            RawText = meal.raw_text,
+            Description = meal.description,
+            AiNotes = meal.ai_notes,
+            PhotoPath = meal.photo_url,
+            TotalCalories = meal.total_calories,
+            TotalCarbsG = meal.total_carbs_g,
+            TotalProteinG = meal.total_protein_g,
+            OverallConfidence = meal.overall_confidence,
+            QualityScore = meal.quality_score,
+            QualityLabel = meal.quality_label,
+        };
+    }
+
+    private static List<MealItem> ToMealItems(BackendMeal meal)
+    {
+        return (meal.items ?? new List<BackendMealItem>())
+            .Select(i => new MealItem
+            {
+                Id = string.IsNullOrWhiteSpace(i.id) ? Guid.NewGuid().ToString() : i.id,
+                MealEntryId = string.IsNullOrWhiteSpace(i.meal_entry_id) ? meal.id : i.meal_entry_id,
+                Name = i.name,
+                Quantity = i.quantity,
+                Unit = i.unit,
+                EstimatedGrams = i.estimated_grams,
+                Calories = i.calories,
+                CarbsG = i.carbs_g,
+                ProteinG = i.protein_g,
+                Confidence = i.confidence,
+            })
+            .ToList();
+    }
+
     partial void OnManualExerciseMinutesChanged(string value) => RecomputeBurnPreview();
     partial void OnEditCaloriesChanged(string value) => RecomputeEditQualityPreview();
     partial void OnEditProteinChanged(string value) => RecomputeEditQualityPreview();
@@ -613,17 +807,15 @@ public partial class DiaryViewModel : ObservableObject
 
     private void RecomputeBurnPreview()
     {
-        if (!int.TryParse(ManualGoogleFitSteps, out var steps)) steps = 0;
         if (!double.TryParse(ManualExerciseMinutes, out var minutes)) minutes = 0;
-        var burned = EstimateBurnedCalories(steps, minutes);
+        var burned = EstimateBurnedCalories(minutes);
         ManualBurnPreviewText = $"{T("burn")}: {Math.Round(burned)} kcal";
     }
 
-    private static double EstimateBurnedCalories(int steps, double minutes)
+    private static double EstimateBurnedCalories(double minutes)
     {
-        var stepBurn = Math.Max(0, steps) * 0.04;
         var exerciseBurn = Math.Max(0, minutes) * 5.0;
-        return stepBurn + exerciseBurn;
+        return exerciseBurn;
     }
 
     private void RecomputeEditQualityPreview()
@@ -652,6 +844,20 @@ public partial class DiaryViewModel : ObservableObject
         EditBadgePreviewText = $"{T("badge")}: {MealQualityService.GetBadge(quality.score, lang)}";
         EditSemaphorePreviewText = $"{T("semaphore")}: {MealQualityService.GetSemaphore(quality.score, lang)}";
     }
+}
+
+public class DiaryDayTab
+{
+    public DateTime DayLocal { get; set; }
+    public string Label { get; set; } = "";
+    public bool IsSelected { get; set; }
+}
+
+public class DiaryToggleItem
+{
+    public string Key { get; set; } = "";
+    public string Label { get; set; } = "";
+    public bool IsSelected { get; set; }
 }
 
 public class DiaryMealItem

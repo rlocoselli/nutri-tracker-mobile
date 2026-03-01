@@ -84,6 +84,69 @@ public class BackendSyncService
         return resp.IsSuccessStatusCode;
     }
 
+    public async Task<string?> CreateMealAsync(MealEntry meal, List<MealItem> items)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
+            return null;
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, $"{ApiBaseUrl}/meals");
+        req.Headers.Add("X-User-Id", userId);
+        req.Content = JsonContent.Create(BuildMealPayload(meal, items));
+
+        var resp = await _http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode)
+            return null;
+
+        var parsed = await resp.Content.ReadFromJsonAsync<CreateMealResponse>();
+        return parsed?.id;
+    }
+
+    public async Task<bool> UpdateMealAsync(string mealId, MealEntry meal, List<MealItem> items)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(mealId))
+            return false;
+
+        using var req = new HttpRequestMessage(HttpMethod.Patch, $"{ApiBaseUrl}/meals/{mealId}");
+        req.Headers.Add("X-User-Id", userId);
+        req.Content = JsonContent.Create(BuildMealPayload(meal, items));
+
+        var resp = await _http.SendAsync(req);
+        return resp.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> DeleteMealAsync(string mealId)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(mealId))
+            return false;
+
+        using var req = new HttpRequestMessage(HttpMethod.Delete, $"{ApiBaseUrl}/meals/{mealId}");
+        req.Headers.Add("X-User-Id", userId);
+        var resp = await _http.SendAsync(req);
+        return resp.IsSuccessStatusCode;
+    }
+
+    public async Task<List<BackendMeal>> GetMealsBetweenUtcAsync(DateTime fromUtc, DateTime toUtc)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
+            return new List<BackendMeal>();
+
+        var fromDate = fromUtc.Date.ToString("yyyy-MM-dd");
+        var toDate = toUtc.AddSeconds(-1).Date.ToString("yyyy-MM-dd");
+
+        using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/meals?from={fromDate}&to={toDate}");
+        req.Headers.Add("X-User-Id", userId);
+        var resp = await _http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode)
+            return new List<BackendMeal>();
+
+        var parsed = await resp.Content.ReadFromJsonAsync<List<BackendMeal>>();
+        return parsed ?? new List<BackendMeal>();
+    }
+
     public async Task<bool> TryPushGoalsAsync(UserGoals goals)
     {
         var userId = Preferences.Default.Get("backend_user_id", "");
@@ -186,4 +249,70 @@ public class BackendSyncService
     {
         public string user_id { get; set; } = "";
     }
+
+    private sealed class CreateMealResponse
+    {
+        public string id { get; set; } = "";
+    }
+
+    private static object BuildMealPayload(MealEntry meal, List<MealItem> items)
+    {
+        return new
+        {
+            date_utc = meal.DateUtc,
+            raw_text = meal.RawText,
+            description = meal.Description,
+            ai_notes = meal.AiNotes,
+            photo_url = meal.PhotoPath,
+            total_calories = meal.TotalCalories,
+            total_carbs_g = meal.TotalCarbsG,
+            total_protein_g = meal.TotalProteinG,
+            overall_confidence = meal.OverallConfidence,
+            quality_score = meal.QualityScore,
+            quality_label = meal.QualityLabel,
+            items = items.Select(x => new
+            {
+                name = x.Name,
+                quantity = x.Quantity,
+                unit = x.Unit,
+                estimated_grams = x.EstimatedGrams,
+                calories = x.Calories,
+                carbs_g = x.CarbsG,
+                protein_g = x.ProteinG,
+                confidence = x.Confidence
+            }).ToList()
+        };
+    }
+}
+
+public class BackendMeal
+{
+    public string id { get; set; } = "";
+    public DateTime date_utc { get; set; }
+    public string day_key_utc { get; set; } = "";
+    public string raw_text { get; set; } = "";
+    public string description { get; set; } = "";
+    public string ai_notes { get; set; } = "";
+    public string photo_url { get; set; } = "";
+    public double total_calories { get; set; }
+    public double total_carbs_g { get; set; }
+    public double total_protein_g { get; set; }
+    public double overall_confidence { get; set; }
+    public double quality_score { get; set; }
+    public string quality_label { get; set; } = "";
+    public List<BackendMealItem> items { get; set; } = new();
+}
+
+public class BackendMealItem
+{
+    public string id { get; set; } = "";
+    public string meal_entry_id { get; set; } = "";
+    public string name { get; set; } = "";
+    public double quantity { get; set; }
+    public string unit { get; set; } = "";
+    public double estimated_grams { get; set; }
+    public double calories { get; set; }
+    public double carbs_g { get; set; }
+    public double protein_g { get; set; }
+    public double confidence { get; set; }
 }

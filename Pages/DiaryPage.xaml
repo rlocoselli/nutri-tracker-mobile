@@ -8,7 +8,7 @@
     Title="Journal"
     BackgroundColor="{StaticResource Background}">
 
-    <Grid Padding="20" RowDefinitions="Auto,Auto,Auto,Auto,*" RowSpacing="14">
+    <Grid Padding="20" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" RowSpacing="14">
 
         <!-- Day navigation -->
         <Grid ColumnDefinitions="Auto,*,Auto" VerticalOptions="Center">
@@ -22,20 +22,81 @@
                     Command="{Binding NextDayCommand}" />
         </Grid>
 
+        <CollectionView Grid.Row="1" ItemsSource="{Binding DayTabs}" SelectionMode="None" HeightRequest="48">
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout Orientation="Horizontal" ItemSpacing="8" />
+            </CollectionView.ItemsLayout>
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border Style="{StaticResource Card}" Padding="10,6">
+                        <Border.Triggers>
+                            <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
+                                <Setter Property="Background" Value="{StaticResource Card2Brush}" />
+                            </DataTrigger>
+                        </Border.Triggers>
+                        <Label Text="{Binding Label}" FontSize="12" FontAttributes="Bold" />
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding Source={x:Reference DiaryRoot}, Path=BindingContext.SelectDayCommand}" CommandParameter="{Binding .}" />
+                        </Border.GestureRecognizers>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
         <!-- Chart -->
-        <Border Grid.Row="1" Style="{StaticResource Card}">
+        <Border Grid.Row="2" Style="{StaticResource Card}">
             <VerticalStackLayout Spacing="12">
-                <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
-                    <Picker Title="{Binding MetricTitle}" ItemsSource="{Binding MetricOptions}" SelectedItem="{Binding SelectedMetric}" />
-                    <Picker Grid.Column="1" Title="{Binding PeriodTitle}" ItemsSource="{Binding PeriodOptions}" SelectedItem="{Binding SelectedPeriod}" />
-                </Grid>
-                <controls:TrendChart HeightRequest="170"
+                <Label Text="{Binding MetricTitle}" FontAttributes="Bold" FontSize="12" />
+                <CollectionView ItemsSource="{Binding MetricTabs}" SelectionMode="None" HeightRequest="46">
+                    <CollectionView.ItemsLayout>
+                        <LinearItemsLayout Orientation="Horizontal" ItemSpacing="8" />
+                    </CollectionView.ItemsLayout>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource Card}" Padding="10,6">
+                                <Border.Triggers>
+                                    <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource Card2Brush}" />
+                                    </DataTrigger>
+                                </Border.Triggers>
+                                <Label Text="{Binding Label}" FontSize="12" FontAttributes="Bold" />
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding Source={x:Reference DiaryRoot}, Path=BindingContext.SelectMetricTabCommand}" CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <Label Text="{Binding PeriodTitle}" FontAttributes="Bold" FontSize="12" />
+                <CollectionView ItemsSource="{Binding PeriodTabs}" SelectionMode="None" HeightRequest="46">
+                    <CollectionView.ItemsLayout>
+                        <LinearItemsLayout Orientation="Horizontal" ItemSpacing="8" />
+                    </CollectionView.ItemsLayout>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource Card}" Padding="10,6">
+                                <Border.Triggers>
+                                    <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource Card2Brush}" />
+                                    </DataTrigger>
+                                </Border.Triggers>
+                                <Label Text="{Binding Label}" FontSize="12" FontAttributes="Bold" />
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding Source={x:Reference DiaryRoot}, Path=BindingContext.SelectPeriodTabCommand}" CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <controls:TrendChart HeightRequest="210"
                                      Values="{Binding ChartValues}"
                                      Labels="{Binding ChartLabels}" />
             </VerticalStackLayout>
         </Border>
 
-        <Border Grid.Row="2" Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
+        <Border Grid.Row="3" Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
             <VerticalStackLayout Spacing="10">
                 <Label Text="{Binding HydrationTitle}" FontAttributes="Bold" />
                 <Label Text="{Binding WaterLitersText}" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
@@ -57,13 +118,13 @@
             </VerticalStackLayout>
         </Border>
 
-        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="4">
+        <Grid Grid.Row="4" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="4">
             <Label Text="{Binding MealsTitle}" Style="{StaticResource H1}" />
             <Button Grid.Column="1" Text="{Binding AddManualText}" Style="{StaticResource SecondaryButton}" Command="{Binding AddManualCommand}" />
             <Label Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding MealsSubtitle}" Style="{StaticResource BodyMuted}" />
         </Grid>
 
-        <CollectionView Grid.Row="4" ItemsSource="{Binding Meals}" SelectionMode="None">
+        <CollectionView Grid.Row="5" ItemsSource="{Binding Meals}" SelectionMode="None">
             <CollectionView.ItemTemplate>
                 <DataTemplate>
                     <Border Style="{StaticResource Card}" Margin="0,0,0,12">
@@ -146,16 +207,8 @@
                     <Label Text="{Binding CarbsLabel}" FontAttributes="Bold" FontSize="12" />
                     <Entry Text="{Binding ManualCarbs}" Keyboard="Numeric" Placeholder="{Binding CarbsPlaceholder}" />
 
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
-                        <VerticalStackLayout Spacing="4">
-                            <Label Text="{Binding StepsLabel}" FontAttributes="Bold" FontSize="12" />
-                            <Entry Text="{Binding ManualGoogleFitSteps}" Keyboard="Numeric" Placeholder="{Binding StepsPlaceholder}" />
-                        </VerticalStackLayout>
-                        <VerticalStackLayout Grid.Column="1" Spacing="4">
-                            <Label Text="{Binding MinutesLabel}" FontAttributes="Bold" FontSize="12" />
-                            <Entry Text="{Binding ManualExerciseMinutes}" Keyboard="Numeric" Placeholder="{Binding MinutesPlaceholder}" />
-                        </VerticalStackLayout>
-                    </Grid>
+                    <Label Text="{Binding MinutesLabel}" FontAttributes="Bold" FontSize="12" />
+                    <Entry Text="{Binding ManualExerciseMinutes}" Keyboard="Numeric" Placeholder="{Binding MinutesPlaceholder}" />
 
                     <Label Text="{Binding ManualBurnPreviewText}" Style="{StaticResource BodyMuted}" />
 

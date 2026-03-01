@@ -28,6 +28,36 @@ class MealCreateIn(BaseModel):
     items: list[MealItemIn] = Field(default_factory=list)
 
 
+class MealItemOut(BaseModel):
+    id: str
+    meal_entry_id: str
+    name: str
+    quantity: float
+    unit: str
+    estimated_grams: float
+    calories: float
+    carbs_g: float
+    protein_g: float
+    confidence: float
+
+
+class MealOut(BaseModel):
+    id: str
+    date_utc: datetime
+    day_key_utc: str
+    raw_text: str
+    description: str
+    ai_notes: str
+    photo_url: str
+    total_calories: float
+    total_carbs_g: float
+    total_protein_g: float
+    overall_confidence: float
+    quality_score: float
+    quality_label: str
+    items: list[MealItemOut] = Field(default_factory=list)
+
+
 class GoalsIn(BaseModel):
     calories_target: float
     carbs_g_target: float

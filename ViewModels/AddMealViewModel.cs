@@ -99,10 +99,14 @@ public partial class AddMealViewModel : ObservableObject
 
             var resp = await _api.AnalyzeMealAsync(idToken, lang, Text, PhotoBytes, PhotoMime);
             var (entry, items) = MealMapper.MapToDb(resp, Text, PhotoPath);
-            await _db.SaveMealAsync(entry, items);
 
-            _ = await _sync.EnsureBackendIdentityAsync(idToken);
-            _ = await _sync.TryPushMealAsync(entry, items);
+            var identityOk = await _sync.EnsureBackendIdentityAsync(idToken);
+            if (!identityOk)
+                throw new Exception(T("backend_identity_error"));
+
+            var backendId = await _sync.CreateMealAsync(entry, items);
+            if (string.IsNullOrWhiteSpace(backendId))
+                throw new Exception(T("backend_save_error"));
 
             ResultSummary = $"Calories: {Math.Round(resp.meal.totals.calories)} | Carbs: {Math.Round(resp.meal.totals.carbs_g)}g | Protein: {Math.Round(resp.meal.totals.protein_g)}g";
             ResultNotes = resp.meal.notes;
@@ -154,7 +158,9 @@ public partial class AddMealViewModel : ObservableObject
             "missing_input_message" => L(lang, "Ajoutez un texte ou une photo avant l'analyse.", "Add text or a photo before analysis.", "Adicione texto ou foto antes da análise.", "Añade texto o foto antes del análisis."),
             "not_logged_in" => L(lang, "Vous n'êtes pas connecté. Veuillez vous reconnecter.", "Not logged in. Please login again.", "Você não está conectado. Faça login novamente.", "No has iniciado sesión. Vuelve a iniciar sesión."),
             "saved_title" => L(lang, "Enregistré", "Saved", "Salvo", "Guardado"),
-            "saved_message" => L(lang, "Repas enregistré dans la base locale.", "Meal saved to local database.", "Refeição salva no banco local.", "Comida guardada en la base de datos local."),
+            "saved_message" => L(lang, "Repas enregistré dans PostgreSQL.", "Meal saved to PostgreSQL.", "Refeição salva no PostgreSQL.", "Comida guardada en PostgreSQL."),
+            "backend_identity_error" => L(lang, "Impossible de synchroniser l'identité backend.", "Unable to sync backend identity.", "Não foi possível sincronizar identidade no backend.", "No se pudo sincronizar la identidad del backend."),
+            "backend_save_error" => L(lang, "Impossible d'enregistrer le repas dans PostgreSQL.", "Unable to save meal to PostgreSQL.", "Não foi possível salvar a refeição no PostgreSQL.", "No se pudo guardar la comida en PostgreSQL."),
             "earned_points" => L(lang, "+{0} pièces gagnées · Solde : {1}", "+{0} coins earned · Balance: {1}", "+{0} moedas ganhas · Saldo: {1}", "+{0} monedas ganadas · Saldo: {1}"),
             "error_title" => L(lang, "Erreur", "Error", "Erro", "Error"),
             _ => key,

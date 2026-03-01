@@ -268,15 +268,22 @@ public partial class ProfileViewModel : ObservableObject
             return;
         }
 
-        Preferences.Default.Set("meal_reminders_enabled", RemindersEnabled);
-        Preferences.Default.Set("meal_reminder_breakfast", BreakfastReminderTime.Trim());
-        Preferences.Default.Set("meal_reminder_lunch", LunchReminderTime.Trim());
-        Preferences.Default.Set("meal_reminder_dinner", DinnerReminderTime.Trim());
+        try
+        {
+            Preferences.Default.Set("meal_reminders_enabled", RemindersEnabled);
+            Preferences.Default.Set("meal_reminder_breakfast", BreakfastReminderTime.Trim());
+            Preferences.Default.Set("meal_reminder_lunch", LunchReminderTime.Trim());
+            Preferences.Default.Set("meal_reminder_dinner", DinnerReminderTime.Trim());
 
-        await _mealReminderService.ScheduleDailyMealRemindersAsync(RemindersEnabled, breakfast, lunch, dinner);
-        _ = await _sync.TryPushRemindersAsync(RemindersEnabled, breakfast, lunch, dinner);
-        var balance = _points.Award(3);
-        ReminderStatusText = $"{LocalizationService.T("reminders_saved")} · +3 · {LocalizationService.T("coins_balance")}: {balance}";
+            await _mealReminderService.ScheduleDailyMealRemindersAsync(RemindersEnabled, breakfast, lunch, dinner);
+            _ = await _sync.TryPushRemindersAsync(RemindersEnabled, breakfast, lunch, dinner);
+            var balance = _points.Award(3);
+            ReminderStatusText = $"{LocalizationService.T("reminders_saved")} · +3 · {LocalizationService.T("coins_balance")}: {balance}";
+        }
+        catch (Exception ex)
+        {
+            ReminderStatusText = $"{LocalizationService.T("sync_error")}: {ex.Message}";
+        }
     }
 
     [RelayCommand]

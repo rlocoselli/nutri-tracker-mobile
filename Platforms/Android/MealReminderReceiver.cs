@@ -69,13 +69,7 @@ public class MealReminderReceiver : BroadcastReceiver
 
         if (OperatingSystem.IsAndroidVersionAtLeast(23))
         {
-            alarmManager.SetExactAndAllowWhileIdle(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
-            return;
-        }
-
-        if (OperatingSystem.IsAndroidVersionAtLeast(19))
-        {
-            alarmManager.SetExact(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
+            alarmManager.SetAndAllowWhileIdle(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
             return;
         }
 

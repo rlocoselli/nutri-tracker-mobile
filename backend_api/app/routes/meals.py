@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from ..db import get_db
 from ..models import MealEntry, MealItem
-from ..schemas import MealCreateIn
+from ..schemas import MealCreateIn, MealOut, MealItemOut
 from ..security import get_current_user_id
 
 router = APIRouter(prefix="/meals", tags=["meals"])
@@ -48,7 +48,7 @@ def create_meal(payload: MealCreateIn, user_id: uuid.UUID = Depends(get_current_
     return {"id": str(meal.id)}
 
 
-@router.get("")
+@router.get("", response_model=list[MealOut])
 def list_meals(
     from_date: date = Query(alias="from"),
     to_date: date = Query(alias="to"),
@@ -63,7 +63,47 @@ def list_meals(
         .order_by(MealEntry.date_utc.desc())
         .all()
     )
-    return rows
+
+    if not rows:
+        return []
+
+    meal_ids = [row.id for row in rows]
+    item_rows = db.query(MealItem).filter(MealItem.meal_entry_id.in_(meal_ids)).all()
+    items_by_meal: dict[uuid.UUID, list[MealItemOut]] = {}
+    for item in item_rows:
+        items_by_meal.setdefault(item.meal_entry_id, []).append(MealItemOut(
+            id=str(item.id),
+            meal_entry_id=str(item.meal_entry_id),
+            name=item.name,
+            quantity=float(item.quantity),
+            unit=item.unit,
+            estimated_grams=float(item.estimated_grams),
+            calories=float(item.calories),
+            carbs_g=float(item.carbs_g),
+            protein_g=float(item.protein_g),
+            confidence=float(item.confidence),
+        ))
+
+    out: list[MealOut] = []
+    for row in rows:
+        out.append(MealOut(
+            id=str(row.id),
+            date_utc=row.date_utc,
+            day_key_utc=row.day_key_utc.isoformat(),
+            raw_text=row.raw_text,
+            description=row.description,
+            ai_notes=row.ai_notes,
+            photo_url=row.photo_url,
+            total_calories=float(row.total_calories),
+            total_carbs_g=float(row.total_carbs_g),
+            total_protein_g=float(row.total_protein_g),
+            overall_confidence=float(row.overall_confidence),
+            quality_score=float(row.quality_score),
+            quality_label=row.quality_label,
+            items=items_by_meal.get(row.id, []),
+        ))
+
+    return out
 
 
 @router.patch("/{meal_id}")
@@ -72,6 +112,8 @@ def patch_meal(meal_id: uuid.UUID, payload: MealCreateIn, user_id: uuid.UUID = D
     if not row:
         raise HTTPException(status_code=404, detail="Meal not found")
 
+    row.date_utc = payload.date_utc
+    row.day_key_utc = payload.date_utc.date()
     row.raw_text = payload.raw_text
     row.description = payload.description
     row.ai_notes = payload.ai_notes

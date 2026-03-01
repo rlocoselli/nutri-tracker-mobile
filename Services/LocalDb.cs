@@ -98,6 +98,14 @@ public class LocalDb
         return _db.Table<ExerciseEntry>().Where(x => x.DateUtc >= from).OrderBy(x => x.DateUtc).ToListAsync();
     }
 
+    public Task<List<ExerciseEntry>> GetExercisesBetweenUtcAsync(DateTime fromUtc, DateTime toUtc)
+    {
+        return _db.Table<ExerciseEntry>()
+            .Where(x => x.DateUtc >= fromUtc && x.DateUtc < toUtc)
+            .OrderBy(x => x.DateUtc)
+            .ToListAsync();
+    }
+
     public Task<List<MealEntry>> GetMealsBetweenUtcAsync(DateTime fromUtc, DateTime toUtc)
     {
         return _db.Table<MealEntry>()

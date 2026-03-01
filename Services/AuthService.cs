@@ -100,11 +100,10 @@ public class AuthService
             $"&redirect_uri={Uri.EscapeDataString(RedirectUri.ToString())}" +
             "&response_type=code" +
             $"&scope={Uri.EscapeDataString(scope)}" +
-            "&include_granted_scopes=true" +
             $"&code_challenge={Uri.EscapeDataString(challenge)}" +
             "&code_challenge_method=S256" +
             "&access_type=offline" +
-            "&prompt=consent%20select_account";
+            "&prompt=select_account";
 
         var result = await WebAuthenticator.Default.AuthenticateAsync(new Uri(authUrl), RedirectUri);
 

@@ -16,28 +16,35 @@ public class MealReminderService : IMealReminderService
     public async Task ScheduleDailyMealRemindersAsync(bool enabled, TimeSpan breakfastTime, TimeSpan lunchTime, TimeSpan dinnerTime)
     {
 #if ANDROID
-        if (OperatingSystem.IsAndroidVersionAtLeast(33))
+        try
         {
-            var status = await Permissions.CheckStatusAsync<Permissions.PostNotifications>();
-            if (status != PermissionStatus.Granted)
+            if (OperatingSystem.IsAndroidVersionAtLeast(33))
             {
-                status = await Permissions.RequestAsync<Permissions.PostNotifications>();
+                var status = await Permissions.CheckStatusAsync<Permissions.PostNotifications>();
                 if (status != PermissionStatus.Granted)
-                    return;
+                {
+                    status = await Permissions.RequestAsync<Permissions.PostNotifications>();
+                    if (status != PermissionStatus.Granted)
+                        return;
+                }
             }
-        }
 
-        if (!enabled)
+            if (!enabled)
+            {
+                Cancel(BreakfastNotificationId);
+                Cancel(LunchNotificationId);
+                Cancel(DinnerNotificationId);
+                return;
+            }
+
+            ScheduleDaily(BreakfastNotificationId, breakfastTime, "Rappel petit-déjeuner", "Pense à enregistrer ton repas du matin.");
+            ScheduleDaily(LunchNotificationId, lunchTime, "Rappel déjeuner", "Pense à enregistrer ton repas de midi.");
+            ScheduleDaily(DinnerNotificationId, dinnerTime, "Rappel dîner", "Pense à enregistrer ton repas du soir.");
+        }
+        catch
         {
-            Cancel(BreakfastNotificationId);
-            Cancel(LunchNotificationId);
-            Cancel(DinnerNotificationId);
             return;
         }
-
-        ScheduleDaily(BreakfastNotificationId, breakfastTime, "Rappel petit-déjeuner", "Pense à enregistrer ton repas du matin.");
-        ScheduleDaily(LunchNotificationId, lunchTime, "Rappel déjeuner", "Pense à enregistrer ton repas de midi.");
-        ScheduleDaily(DinnerNotificationId, dinnerTime, "Rappel dîner", "Pense à enregistrer ton repas du soir.");
 #endif
     }
 
@@ -72,13 +79,13 @@ public class MealReminderService : IMealReminderService
     {
         if (OperatingSystem.IsAndroidVersionAtLeast(23))
         {
-            alarmManager.SetExactAndAllowWhileIdle(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
+            alarmManager.SetAndAllowWhileIdle(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
             return;
         }
 
         if (OperatingSystem.IsAndroidVersionAtLeast(19))
         {
-            alarmManager.SetExact(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
+            alarmManager.Set(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
             return;
         }
 
