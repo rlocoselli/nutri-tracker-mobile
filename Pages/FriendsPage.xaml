@@ -45,7 +45,7 @@
                                             CommandParameter="{Binding .}" />
                                 </Grid>
 
-                                <Grid ColumnDefinitions="*,*" ColumnSpacing="8" IsVisible="{Binding IsFriend}">
+                                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8" IsVisible="{Binding IsFriend}">
                                     <Button Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.StoriesText}"
                                             Style="{StaticResource SecondaryButton}"
                                             Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.ViewStoriesCommand}"
@@ -55,6 +55,11 @@
                                             Style="{StaticResource SecondaryButton}"
                                             Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.SendMessageCommand}"
                                             CommandParameter="{Binding .}" />
+                                    <Button Grid.Column="2"
+                                        Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.ViewMessagesText}"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.ViewMessagesCommand}"
+                                        CommandParameter="{Binding .}" />
                                 </Grid>
                             </VerticalStackLayout>
                         </Border>

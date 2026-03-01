@@ -28,6 +28,7 @@ public partial class FriendsViewModel : ObservableObject
     public string RefreshText => T("refresh");
     public string StoriesText => T("friend_stories");
     public string MessageText => T("friend_message");
+    public string ViewMessagesText => T("story_view_messages");
 
     public FriendsViewModel(SocialService social, BackendSyncService sync, PointsService points)
     {
@@ -48,6 +49,7 @@ public partial class FriendsViewModel : ObservableObject
         OnPropertyChanged(nameof(RefreshText));
         OnPropertyChanged(nameof(StoriesText));
         OnPropertyChanged(nameof(MessageText));
+        OnPropertyChanged(nameof(ViewMessagesText));
         Reload();
         return Task.CompletedTask;
     }
@@ -182,20 +184,7 @@ public partial class FriendsViewModel : ObservableObject
             return;
         }
 
-        var directory = await _sync.GetFriendDirectoryAsync();
-        var otherUserId = directory
-            .Where(x => string.Equals((x.email ?? "").Trim(), row.Email.Trim(), StringComparison.OrdinalIgnoreCase))
-            .Select(x => (x.user_id ?? "").Trim())
-            .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
-
-        if (string.IsNullOrWhiteSpace(otherUserId))
-        {
-            var feed = await _sync.GetFriendsFeedAsync(days: 30, limit: 120);
-            otherUserId = feed
-                .Where(x => string.Equals((x.author_email ?? "").Trim(), row.Email.Trim(), StringComparison.OrdinalIgnoreCase))
-                .Select(x => (x.user_id ?? "").Trim())
-                .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
-        }
+        var otherUserId = await ResolveOtherUserIdByEmailAsync(row.Email);
 
         if (string.IsNullOrWhiteSpace(otherUserId))
         {
@@ -220,21 +209,78 @@ public partial class FriendsViewModel : ObservableObject
             return;
         }
 
-        var messages = await _sync.GetPrivateMessagesAsync(otherUserId, limit: 30);
+        await ShowConversationAsync(otherUserId, row.Email);
+    }
+
+    [RelayCommand]
+    private async Task ViewMessages(FriendsInviteRow? row)
+    {
+        if (row == null || row.IsPending || string.IsNullOrWhiteSpace(row.Email))
+            return;
+
+        var token = Preferences.Default.Get("auth_id_token", "");
+        var identityOk = await _sync.EnsureBackendIdentityAsync(token);
+        if (!identityOk)
+        {
+            await Application.Current!.MainPage!.DisplayAlert(T("friends_title"), T("friend_action_signin_needed"), "OK");
+            return;
+        }
+
+        var otherUserId = await ResolveOtherUserIdByEmailAsync(row.Email);
+        if (string.IsNullOrWhiteSpace(otherUserId))
+        {
+            await Application.Current!.MainPage!.DisplayAlert(T("friend_message"), T("friend_message_unavailable"), "OK");
+            return;
+        }
+
+        await ShowConversationAsync(otherUserId, row.Email);
+    }
+
+    private async Task<string> ResolveOtherUserIdByEmailAsync(string email)
+    {
+        var normalized = (email ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+            return "";
+
+        var directory = await _sync.GetFriendDirectoryAsync();
+        var userId = directory
+            .Where(x => string.Equals((x.email ?? "").Trim(), normalized, StringComparison.OrdinalIgnoreCase))
+            .Select(x => (x.user_id ?? "").Trim())
+            .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+
+        if (!string.IsNullOrWhiteSpace(userId))
+            return userId;
+
+        var feed = await _sync.GetFriendsFeedAsync(days: 30, limit: 120);
+        return feed
+            .Where(x => string.Equals((x.author_email ?? "").Trim(), normalized, StringComparison.OrdinalIgnoreCase))
+            .Select(x => (x.user_id ?? "").Trim())
+            .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? "";
+    }
+
+    private async Task ShowConversationAsync(string otherUserId, string otherEmail)
+    {
+        var messages = await _sync.GetPrivateMessagesAsync(otherUserId, limit: 40);
+        if (messages.Count == 0)
+        {
+            await Application.Current!.MainPage!.DisplayAlert(T("friend_message"), T("story_no_messages"), "OK");
+            return;
+        }
+
         var meUserId = Preferences.Default.Get("backend_user_id", "").Trim();
         var lines = messages
-            .TakeLast(12)
+            .TakeLast(20)
             .Select(x =>
             {
                 var author = string.Equals(x.sender_user_id?.Trim(), meUserId, StringComparison.OrdinalIgnoreCase)
                     ? T("you")
-                    : row.Email;
-                return $"{author}: {x.text}";
+                    : otherEmail;
+                var time = x.created_at_utc.ToLocalTime().ToString("dd/MM HH:mm");
+                return $"[{time}] {author}: {x.text}";
             })
             .ToList();
 
-        var body = lines.Count == 0 ? T("story_message_sent") : string.Join("\n", lines);
-        await Application.Current!.MainPage!.DisplayAlert(T("friend_message"), body, "OK");
+        await Application.Current!.MainPage!.DisplayAlert(T("friend_message"), string.Join("\n", lines), "OK");
     }
 
     private void Reload()
