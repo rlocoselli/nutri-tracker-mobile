@@ -28,6 +28,7 @@ public partial class StoriesViewModel : ObservableObject
     public string CommentPlaceholder => T("story_comment_placeholder");
     public string SendText => T("send");
     public string ViewMessagesText => T("story_view_messages");
+    public string ViewAllCommentsText => T("story_view_all_comments");
 
     public StoriesViewModel(BackendSyncService sync)
     {
@@ -48,6 +49,7 @@ public partial class StoriesViewModel : ObservableObject
         OnPropertyChanged(nameof(CommentPlaceholder));
         OnPropertyChanged(nameof(SendText));
         OnPropertyChanged(nameof(ViewMessagesText));
+        OnPropertyChanged(nameof(ViewAllCommentsText));
         await RefreshAsync();
     }
 
@@ -89,7 +91,7 @@ public partial class StoriesViewModel : ObservableObject
                     continue;
 
                 var avatar = ResolveAvatar(row, meUserId, myProfilePicture);
-                Items.Add(new StoryFeedItem
+                var item = new StoryFeedItem
                 {
                     MealId = row.meal_id,
                     AuthorUserId = row.user_id,
@@ -103,7 +105,20 @@ public partial class StoriesViewModel : ObservableObject
                     IsLiked = row.liked_by_me,
                     PhotoSource = photo,
                     AvatarSource = avatar,
-                });
+                };
+
+                var preview = await _sync.GetStoryCommentsAsync(row.meal_id, limit: 3);
+                foreach (var comment in preview)
+                {
+                    item.Comments.Add(new StoryCommentLine
+                    {
+                        AuthorName = NormalizeAuthor(comment.author_name),
+                        Text = comment.text?.Trim() ?? "",
+                    });
+                }
+
+                item.HasMoreComments = row.comment_count > item.Comments.Count;
+                Items.Add(item);
             }
         }
         finally
@@ -141,7 +156,13 @@ public partial class StoriesViewModel : ObservableObject
             return;
 
         item.CommentDraft = "";
-        await RefreshAsync();
+        item.Comments.Add(new StoryCommentLine
+        {
+            AuthorName = NormalizeAuthor(created.author_name),
+            Text = created.text?.Trim() ?? "",
+        });
+        item.CommentCount++;
+        item.HasMoreComments = false;
     }
 
     [RelayCommand]
@@ -150,20 +171,18 @@ public partial class StoriesViewModel : ObservableObject
         if (item == null || string.IsNullOrWhiteSpace(item.MealId) || IsBusy)
             return;
 
-        var comments = await _sync.GetStoryCommentsAsync(item.MealId, limit: 60);
-        if (comments.Count == 0)
+        var comments = await _sync.GetStoryCommentsAsync(item.MealId, limit: 80);
+        item.Comments.Clear();
+        foreach (var comment in comments.OrderBy(x => x.created_at_utc))
         {
-            await Application.Current!.MainPage!.DisplayAlert(T("story_view_messages"), T("story_no_messages"), "OK");
-            return;
+            item.Comments.Add(new StoryCommentLine
+            {
+                AuthorName = NormalizeAuthor(comment.author_name),
+                Text = comment.text?.Trim() ?? "",
+            });
         }
 
-        var lines = comments
-            .OrderBy(x => x.created_at_utc)
-            .Select(x => $"{x.author_name}: {x.text}")
-            .ToList();
-
-        var body = string.Join("\n", lines);
-        await Application.Current!.MainPage!.DisplayAlert(T("story_view_messages"), body, "OK");
+        item.HasMoreComments = false;
     }
 
     [RelayCommand]
@@ -187,10 +206,10 @@ public partial class StoriesViewModel : ObservableObject
             return;
 
         var ok = await _sync.SendPrivateMessageAsync(item.AuthorUserId, message.Trim());
-        if (ok)
-        {
-            await Application.Current!.MainPage!.DisplayAlert(T("saved_title"), T("story_message_sent"), "OK");
-        }
+        await Application.Current!.MainPage!.DisplayAlert(
+            T("story_message"),
+            ok ? T("story_message_sent") : T("friend_message_failed"),
+            "OK");
     }
 
     private string ResolveAuthor(BackendStory story, string meUserId, string myProfileName)
@@ -211,6 +230,22 @@ public partial class StoriesViewModel : ObservableObject
             var localPart = email.Split('@')[0].Trim();
             if (!string.IsNullOrWhiteSpace(localPart))
                 return localPart;
+        }
+
+        return T("story_default_author");
+    }
+
+    private string NormalizeAuthor(string? raw)
+    {
+        var name = (raw ?? "").Trim();
+        if (!string.IsNullOrWhiteSpace(name) && !string.Equals(name, "new user", StringComparison.OrdinalIgnoreCase))
+            return name;
+
+        if (!string.IsNullOrWhiteSpace(name) && name.Contains('@'))
+        {
+            var local = name.Split('@')[0].Trim();
+            if (!string.IsNullOrWhiteSpace(local))
+                return local;
         }
 
         return T("story_default_author");
@@ -253,11 +288,13 @@ public partial class StoriesViewModel : ObservableObject
             "story_comment" => L(lang, "Commenter", "Comment", "Comentar", "Comentar"),
             "story_comment_placeholder" => L(lang, "Écrire un commentaire", "Write a comment", "Escreva um comentário", "Escribe un comentario"),
             "story_view_messages" => L(lang, "Voir messages", "View messages", "Ver mensagens", "Ver mensajes"),
+            "story_view_all_comments" => L(lang, "Voir tous les commentaires", "View all comments", "Ver todos comentários", "Ver todos los comentarios"),
             "story_no_messages" => L(lang, "Aucun message pour cette photo.", "No messages for this photo.", "Nenhuma mensagem para esta foto.", "No hay mensajes para esta foto."),
             "story_message" => L(lang, "Message privé", "Private message", "Mensagem privada", "Mensaje privado"),
             "story_message_to" => L(lang, "Envoyer un message à {0}", "Send a message to {0}", "Enviar mensagem para {0}", "Enviar mensaje a {0}"),
             "story_message_placeholder" => L(lang, "Votre message", "Your message", "Sua mensagem", "Tu mensaje"),
             "story_message_sent" => L(lang, "Message envoyé", "Message sent", "Mensagem enviada", "Mensaje enviado"),
+            "friend_message_failed" => L(lang, "Échec de l'envoi du message", "Message failed to send", "Falha ao enviar mensagem", "Error al enviar el mensaje"),
             "saved_title" => L(lang, "Enregistré", "Saved", "Salvo", "Guardado"),
             "send" => L(lang, "Envoyer", "Send", "Enviar", "Enviar"),
             "cancel" => L(lang, "Annuler", "Cancel", "Cancelar", "Cancelar"),
@@ -279,9 +316,18 @@ public class StoryFeedItem
     public int CommentCount { get; set; }
     public bool IsLiked { get; set; }
     public string CommentDraft { get; set; } = "";
+    public ObservableCollection<StoryCommentLine> Comments { get; } = new();
+    public bool HasMoreComments { get; set; }
+    public bool HasComments => Comments.Count > 0;
     public ImageSource PhotoSource { get; set; } = ImageSource.FromFile("ic_profile.svg");
     public ImageSource AvatarSource { get; set; } = ImageSource.FromFile("ic_profile.svg");
     public bool HasPhoto => PhotoSource != null;
+}
+
+public class StoryCommentLine
+{
+    public string AuthorName { get; set; } = "";
+    public string Text { get; set; } = "";
 }
 
 internal static class StoriesPhotoSourceHelper

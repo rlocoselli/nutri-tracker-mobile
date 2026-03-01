@@ -182,11 +182,20 @@ public partial class FriendsViewModel : ObservableObject
             return;
         }
 
-        var feed = await _sync.GetFriendsFeedAsync(days: 30, limit: 120);
-        var otherUserId = feed
-            .Where(x => string.Equals((x.author_email ?? "").Trim(), row.Email.Trim(), StringComparison.OrdinalIgnoreCase))
+        var directory = await _sync.GetFriendDirectoryAsync();
+        var otherUserId = directory
+            .Where(x => string.Equals((x.email ?? "").Trim(), row.Email.Trim(), StringComparison.OrdinalIgnoreCase))
             .Select(x => (x.user_id ?? "").Trim())
             .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+
+        if (string.IsNullOrWhiteSpace(otherUserId))
+        {
+            var feed = await _sync.GetFriendsFeedAsync(days: 30, limit: 120);
+            otherUserId = feed
+                .Where(x => string.Equals((x.author_email ?? "").Trim(), row.Email.Trim(), StringComparison.OrdinalIgnoreCase))
+                .Select(x => (x.user_id ?? "").Trim())
+                .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+        }
 
         if (string.IsNullOrWhiteSpace(otherUserId))
         {
@@ -205,10 +214,27 @@ public partial class FriendsViewModel : ObservableObject
             return;
 
         var ok = await _sync.SendPrivateMessageAsync(otherUserId, message.Trim());
-        await Application.Current!.MainPage!.DisplayAlert(
-            T("friend_message"),
-            ok ? T("story_message_sent") : T("friend_message_failed"),
-            "OK");
+        if (!ok)
+        {
+            await Application.Current!.MainPage!.DisplayAlert(T("friend_message"), T("friend_message_failed"), "OK");
+            return;
+        }
+
+        var messages = await _sync.GetPrivateMessagesAsync(otherUserId, limit: 30);
+        var meUserId = Preferences.Default.Get("backend_user_id", "").Trim();
+        var lines = messages
+            .TakeLast(12)
+            .Select(x =>
+            {
+                var author = string.Equals(x.sender_user_id?.Trim(), meUserId, StringComparison.OrdinalIgnoreCase)
+                    ? T("you")
+                    : row.Email;
+                return $"{author}: {x.text}";
+            })
+            .ToList();
+
+        var body = lines.Count == 0 ? T("story_message_sent") : string.Join("\n", lines);
+        await Application.Current!.MainPage!.DisplayAlert(T("friend_message"), body, "OK");
     }
 
     private void Reload()
