@@ -3,6 +3,7 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     x:Class="NutritionTracker.Pages.StoriesPage"
+    x:Name="StoriesRoot"
     Title="{Binding PageTitle}"
     BackgroundColor="{StaticResource Background}">
 
@@ -36,6 +37,29 @@
 
                                     <Label Text="{Binding Caption}" FontAttributes="Bold" />
                                     <Label Text="{Binding NutritionText}" />
+
+                                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                                        <Button Grid.Column="0"
+                                                Text="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.LikeText}"
+                                                Style="{StaticResource SecondaryButton}"
+                                                Command="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.ToggleLikeCommand}"
+                                                CommandParameter="{Binding .}" />
+                                        <Button Grid.Column="1"
+                                                Text="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.CommentText}"
+                                                Style="{StaticResource SecondaryButton}"
+                                                Command="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.AddCommentCommand}"
+                                                CommandParameter="{Binding .}" />
+                                        <Button Grid.Column="2"
+                                                Text="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.MessageText}"
+                                                Style="{StaticResource SecondaryButton}"
+                                                Command="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.SendMessageCommand}"
+                                                CommandParameter="{Binding .}" />
+                                    </Grid>
+
+                                    <Label Text="{Binding LikeCount, StringFormat='❤️ {0}'}" FontSize="11" TextColor="{StaticResource Muted}" />
+                                    <Label Text="{Binding CommentCount, StringFormat='💬 {0}'}" FontSize="11" TextColor="{StaticResource Muted}" />
+                                    <Entry Text="{Binding CommentDraft}"
+                                           Placeholder="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.CommentPlaceholder}" />
                                 </VerticalStackLayout>
                             </Border>
                         </DataTemplate>

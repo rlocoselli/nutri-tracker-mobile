@@ -113,3 +113,36 @@ class FriendStoryOut(BaseModel):
     total_carbs_g: float
     total_protein_g: float
     quality_label: str
+    like_count: int = 0
+    comment_count: int = 0
+    liked_by_me: bool = False
+
+
+class StoryLikeOut(BaseModel):
+    liked: bool
+    like_count: int
+
+
+class StoryCommentIn(BaseModel):
+    text: str = ""
+
+
+class StoryCommentOut(BaseModel):
+    id: str
+    meal_id: str
+    user_id: str
+    author_name: str
+    text: str
+    created_at_utc: datetime
+
+
+class PrivateMessageIn(BaseModel):
+    text: str = ""
+
+
+class PrivateMessageOut(BaseModel):
+    id: str
+    sender_user_id: str
+    recipient_user_id: str
+    text: str
+    created_at_utc: datetime

@@ -264,6 +264,70 @@ public class BackendSyncService
         return parsed ?? new List<BackendStory>();
     }
 
+    public async Task<(bool liked, int likeCount)> ToggleStoryLikeAsync(string mealId)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(mealId))
+            return (false, 0);
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, $"{ApiBaseUrl}/friends/feed/{mealId}/like");
+        req.Headers.Add("X-User-Id", userId);
+        req.Content = JsonContent.Create(new { });
+        var resp = await _http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode)
+            return (false, 0);
+
+        var parsed = await resp.Content.ReadFromJsonAsync<StoryLikeResultDto>();
+        return (parsed?.liked ?? false, parsed?.like_count ?? 0);
+    }
+
+    public async Task<List<StoryCommentDto>> GetStoryCommentsAsync(string mealId, int limit = 40)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(mealId))
+            return new List<StoryCommentDto>();
+
+        var safeLimit = Math.Clamp(limit, 1, 120);
+        using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/friends/feed/{mealId}/comments?limit={safeLimit}");
+        req.Headers.Add("X-User-Id", userId);
+        var resp = await _http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode)
+            return new List<StoryCommentDto>();
+
+        var parsed = await resp.Content.ReadFromJsonAsync<List<StoryCommentDto>>();
+        return parsed ?? new List<StoryCommentDto>();
+    }
+
+    public async Task<StoryCommentDto?> AddStoryCommentAsync(string mealId, string text)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(mealId) || string.IsNullOrWhiteSpace(text))
+            return null;
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, $"{ApiBaseUrl}/friends/feed/{mealId}/comments");
+        req.Headers.Add("X-User-Id", userId);
+        req.Content = JsonContent.Create(new { text });
+
+        var resp = await _http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode)
+            return null;
+
+        return await resp.Content.ReadFromJsonAsync<StoryCommentDto>();
+    }
+
+    public async Task<bool> SendPrivateMessageAsync(string otherUserId, string text)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(otherUserId) || string.IsNullOrWhiteSpace(text))
+            return false;
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, $"{ApiBaseUrl}/friends/messages/{otherUserId}");
+        req.Headers.Add("X-User-Id", userId);
+        req.Content = JsonContent.Create(new { text });
+        var resp = await _http.SendAsync(req);
+        return resp.IsSuccessStatusCode;
+    }
+
     private sealed class AuthResponse
     {
         public string user_id { get; set; } = "";
@@ -350,4 +414,23 @@ public class BackendStory
     public double total_carbs_g { get; set; }
     public double total_protein_g { get; set; }
     public string quality_label { get; set; } = "";
+    public int like_count { get; set; }
+    public int comment_count { get; set; }
+    public bool liked_by_me { get; set; }
+}
+
+public class StoryLikeResultDto
+{
+    public bool liked { get; set; }
+    public int like_count { get; set; }
+}
+
+public class StoryCommentDto
+{
+    public string id { get; set; } = "";
+    public string meal_id { get; set; } = "";
+    public string user_id { get; set; } = "";
+    public string author_name { get; set; } = "";
+    public string text { get; set; } = "";
+    public DateTime created_at_utc { get; set; }
 }

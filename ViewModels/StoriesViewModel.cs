@@ -21,6 +21,11 @@ public partial class StoriesViewModel : ObservableObject
     public string HeaderSubtitle => T("stories_header_subtitle");
     public string RefreshText => T("refresh");
     public string EmptyText => T("stories_empty");
+    public string LikeText => T("story_like");
+    public string UnlikeText => T("story_unlike");
+    public string CommentText => T("story_comment");
+    public string MessageText => T("story_message");
+    public string CommentPlaceholder => T("story_comment_placeholder");
 
     public StoriesViewModel(BackendSyncService sync)
     {
@@ -34,6 +39,11 @@ public partial class StoriesViewModel : ObservableObject
         OnPropertyChanged(nameof(HeaderSubtitle));
         OnPropertyChanged(nameof(RefreshText));
         OnPropertyChanged(nameof(EmptyText));
+        OnPropertyChanged(nameof(LikeText));
+        OnPropertyChanged(nameof(UnlikeText));
+        OnPropertyChanged(nameof(CommentText));
+        OnPropertyChanged(nameof(MessageText));
+        OnPropertyChanged(nameof(CommentPlaceholder));
         await RefreshAsync();
     }
 
@@ -77,11 +87,16 @@ public partial class StoriesViewModel : ObservableObject
                 var avatar = ResolveAvatar(row, meUserId, myProfilePicture);
                 Items.Add(new StoryFeedItem
                 {
+                    MealId = row.meal_id,
+                    AuthorUserId = row.user_id,
                     Author = ResolveAuthor(row, meUserId, myProfileName),
                     PostedAtText = row.date_utc.ToLocalTime().ToString("dd/MM HH:mm"),
                     Caption = string.IsNullOrWhiteSpace(row.raw_text) ? T("story_meal") : row.raw_text,
                     NutritionText = $"{Math.Round(row.total_calories)} kcal · P {Math.Round(row.total_protein_g)}g · C {Math.Round(row.total_carbs_g)}g",
                     QualityText = string.IsNullOrWhiteSpace(row.quality_label) ? "" : row.quality_label,
+                    LikeCount = row.like_count,
+                    CommentCount = row.comment_count,
+                    IsLiked = row.liked_by_me,
                     PhotoSource = photo,
                     AvatarSource = avatar,
                 });
@@ -92,6 +107,63 @@ public partial class StoriesViewModel : ObservableObject
             IsBusy = false;
             OnPropertyChanged(nameof(HasItems));
             OnPropertyChanged(nameof(IsEmpty));
+        }
+    }
+
+    [RelayCommand]
+    private async Task ToggleLike(StoryFeedItem? item)
+    {
+        if (item == null || string.IsNullOrWhiteSpace(item.MealId) || IsBusy)
+            return;
+
+        var (liked, likeCount) = await _sync.ToggleStoryLikeAsync(item.MealId);
+        item.IsLiked = liked;
+        item.LikeCount = likeCount;
+        await RefreshAsync();
+    }
+
+    [RelayCommand]
+    private async Task AddComment(StoryFeedItem? item)
+    {
+        if (item == null || string.IsNullOrWhiteSpace(item.MealId) || IsBusy)
+            return;
+
+        var text = (item.CommentDraft ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(text))
+            return;
+
+        var created = await _sync.AddStoryCommentAsync(item.MealId, text);
+        if (created == null)
+            return;
+
+        item.CommentDraft = "";
+        await RefreshAsync();
+    }
+
+    [RelayCommand]
+    private async Task SendMessage(StoryFeedItem? item)
+    {
+        if (item == null || string.IsNullOrWhiteSpace(item.AuthorUserId) || IsBusy)
+            return;
+
+        var meUserId = Preferences.Default.Get("backend_user_id", "").Trim();
+        if (string.Equals(meUserId, item.AuthorUserId, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var message = await Application.Current!.MainPage!.DisplayPromptAsync(
+            T("story_message"),
+            string.Format(T("story_message_to"), item.Author),
+            T("send"),
+            T("cancel"),
+            T("story_message_placeholder"));
+
+        if (string.IsNullOrWhiteSpace(message))
+            return;
+
+        var ok = await _sync.SendPrivateMessageAsync(item.AuthorUserId, message.Trim());
+        if (ok)
+        {
+            await Application.Current!.MainPage!.DisplayAlert(T("saved_title"), T("story_message_sent"), "OK");
         }
     }
 
@@ -150,6 +222,17 @@ public partial class StoriesViewModel : ObservableObject
             "refresh" => L(lang, "Rafraîchir", "Refresh", "Atualizar", "Actualizar"),
             "story_default_author" => L(lang, "Utilisateur", "User", "Usuário", "Usuario"),
             "story_meal" => L(lang, "Repas", "Meal", "Refeição", "Comida"),
+            "story_like" => L(lang, "J'aime", "Like", "Curtir", "Me gusta"),
+            "story_unlike" => L(lang, "Aimé", "Liked", "Curtido", "Te gusta"),
+            "story_comment" => L(lang, "Commenter", "Comment", "Comentar", "Comentar"),
+            "story_comment_placeholder" => L(lang, "Écrire un commentaire", "Write a comment", "Escreva um comentário", "Escribe un comentario"),
+            "story_message" => L(lang, "Message privé", "Private message", "Mensagem privada", "Mensaje privado"),
+            "story_message_to" => L(lang, "Envoyer un message à {0}", "Send a message to {0}", "Enviar mensagem para {0}", "Enviar mensaje a {0}"),
+            "story_message_placeholder" => L(lang, "Votre message", "Your message", "Sua mensagem", "Tu mensaje"),
+            "story_message_sent" => L(lang, "Message envoyé", "Message sent", "Mensagem enviada", "Mensaje enviado"),
+            "saved_title" => L(lang, "Enregistré", "Saved", "Salvo", "Guardado"),
+            "send" => L(lang, "Envoyer", "Send", "Enviar", "Enviar"),
+            "cancel" => L(lang, "Annuler", "Cancel", "Cancelar", "Cancelar"),
             _ => key,
         };
     }
@@ -157,11 +240,17 @@ public partial class StoriesViewModel : ObservableObject
 
 public class StoryFeedItem
 {
+    public string MealId { get; set; } = "";
+    public string AuthorUserId { get; set; } = "";
     public string Author { get; set; } = "";
     public string PostedAtText { get; set; } = "";
     public string Caption { get; set; } = "";
     public string NutritionText { get; set; } = "";
     public string QualityText { get; set; } = "";
+    public int LikeCount { get; set; }
+    public int CommentCount { get; set; }
+    public bool IsLiked { get; set; }
+    public string CommentDraft { get; set; } = "";
     public ImageSource PhotoSource { get; set; } = ImageSource.FromFile("ic_profile.svg");
     public ImageSource AvatarSource { get; set; } = ImageSource.FromFile("ic_profile.svg");
     public bool HasPhoto => PhotoSource != null;
