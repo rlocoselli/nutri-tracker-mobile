@@ -13,18 +13,26 @@ public partial class FriendsViewModel : ObservableObject
     private readonly PointsService _points;
 
     [ObservableProperty] private string inviteEmail = "";
+    [ObservableProperty] private string searchQuery = "";
     [ObservableProperty] private string statusText = "";
 
     public ObservableCollection<FriendsInviteRow> Friends { get; } = new();
     public ObservableCollection<FriendsRankRow> League { get; } = new();
+    public ObservableCollection<FriendSearchRow> SearchResults { get; } = new();
+    public ObservableCollection<IncomingInviteRow> IncomingInvites { get; } = new();
 
     public string TitleText => T("friends_title");
     public string InvitePlaceholder => T("invite_email_placeholder");
+    public string SearchPlaceholder => T("friend_search_placeholder");
     public string InviteText => T("invite_friend");
     public string AddBuddyText => T("add_buddy");
+    public string SearchText => T("search");
     public string AcceptText => T("accept");
+    public string DeclineText => T("decline");
     public string RemoveText => T("remove");
     public string LeagueTitleText => T("friends_league_title");
+    public string IncomingInvitesTitleText => T("incoming_invites_title");
+    public string SearchResultsTitleText => T("search_results_title");
     public string RefreshText => T("refresh");
     public string StoriesText => T("friend_stories");
     public string MessageText => T("friend_message");
@@ -37,28 +45,31 @@ public partial class FriendsViewModel : ObservableObject
         _points = points;
     }
 
-    public Task LoadAsync()
+    public async Task LoadAsync()
     {
         OnPropertyChanged(nameof(TitleText));
         OnPropertyChanged(nameof(InvitePlaceholder));
+        OnPropertyChanged(nameof(SearchPlaceholder));
         OnPropertyChanged(nameof(InviteText));
         OnPropertyChanged(nameof(AddBuddyText));
+        OnPropertyChanged(nameof(SearchText));
         OnPropertyChanged(nameof(AcceptText));
+        OnPropertyChanged(nameof(DeclineText));
         OnPropertyChanged(nameof(RemoveText));
         OnPropertyChanged(nameof(LeagueTitleText));
+        OnPropertyChanged(nameof(IncomingInvitesTitleText));
+        OnPropertyChanged(nameof(SearchResultsTitleText));
         OnPropertyChanged(nameof(RefreshText));
         OnPropertyChanged(nameof(StoriesText));
         OnPropertyChanged(nameof(MessageText));
         OnPropertyChanged(nameof(ViewMessagesText));
-        Reload();
-        return Task.CompletedTask;
+        await ReloadAsync();
     }
 
     [RelayCommand]
-    private Task Refresh()
+    private async Task Refresh()
     {
-        Reload();
-        return Task.CompletedTask;
+        await ReloadAsync();
     }
 
     [RelayCommand]
@@ -81,7 +92,7 @@ public partial class FriendsViewModel : ObservableObject
         _ = _sync.TryInviteFriendAsync(email);
         InviteEmail = "";
         StatusText = T("invite_sent");
-        Reload();
+        _ = ReloadAsync();
     }
 
     [RelayCommand]
@@ -104,7 +115,58 @@ public partial class FriendsViewModel : ObservableObject
         _ = _sync.TryInviteFriendAsync(email);
         InviteEmail = "";
         StatusText = T("buddy_added");
-        Reload();
+        _ = ReloadAsync();
+    }
+
+    [RelayCommand]
+    private async Task SearchUsers()
+    {
+        var query = (SearchQuery ?? "").Trim();
+        SearchResults.Clear();
+
+        if (query.Length < 2)
+        {
+            StatusText = T("friend_search_hint");
+            return;
+        }
+
+        var token = Preferences.Default.Get("auth_id_token", "");
+        var identityOk = await _sync.EnsureBackendIdentityAsync(token);
+        if (!identityOk)
+        {
+            StatusText = T("friend_action_signin_needed");
+            return;
+        }
+
+        var users = await _sync.SearchFriendUsersAsync(query, limit: 20);
+        foreach (var user in users)
+        {
+            var email = (user.email ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(email))
+                continue;
+
+            SearchResults.Add(new FriendSearchRow
+            {
+                UserId = (user.user_id ?? "").Trim(),
+                Email = email,
+                DisplayName = string.IsNullOrWhiteSpace(user.display_name) ? email.Split('@')[0] : user.display_name,
+            });
+        }
+
+        StatusText = SearchResults.Count == 0 ? T("friend_search_empty") : T("friend_search_success");
+    }
+
+    [RelayCommand]
+    private async Task InviteUser(FriendSearchRow? row)
+    {
+        if (row == null || string.IsNullOrWhiteSpace(row.Email))
+            return;
+
+        var email = row.Email.Trim();
+        _social.Invite(email);
+        var ok = await _sync.TryInviteFriendAsync(email);
+        StatusText = ok ? T("invite_sent") : T("invite_already_exists");
+        await ReloadAsync();
     }
 
     [RelayCommand]
@@ -113,7 +175,7 @@ public partial class FriendsViewModel : ObservableObject
         if (row == null) return;
         _social.Accept(row.Email);
         StatusText = T("friend_accepted");
-        Reload();
+        _ = ReloadAsync();
     }
 
     [RelayCommand]
@@ -122,7 +184,38 @@ public partial class FriendsViewModel : ObservableObject
         if (row == null) return;
         _social.Remove(row.Email);
         StatusText = T("friend_removed");
-        Reload();
+        _ = ReloadAsync();
+    }
+
+    [RelayCommand]
+    private async Task AcceptIncoming(IncomingInviteRow? row)
+    {
+        if (row == null || string.IsNullOrWhiteSpace(row.InviteId))
+            return;
+
+        var ok = await _sync.TryAcceptInviteAsync(row.InviteId);
+        if (!ok)
+        {
+            StatusText = T("invite_accept_failed");
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(row.InviterEmail))
+            _social.AddFriend(row.InviterEmail);
+
+        StatusText = T("friend_accepted");
+        await ReloadAsync();
+    }
+
+    [RelayCommand]
+    private async Task DeclineIncoming(IncomingInviteRow? row)
+    {
+        if (row == null || string.IsNullOrWhiteSpace(row.InviteId))
+            return;
+
+        var ok = await _sync.TryDeclineInviteAsync(row.InviteId);
+        StatusText = ok ? T("invite_declined") : T("invite_decline_failed");
+        await ReloadAsync();
     }
 
     [RelayCommand]
@@ -283,7 +376,7 @@ public partial class FriendsViewModel : ObservableObject
         await Application.Current!.MainPage!.DisplayAlert(T("friend_message"), string.Join("\n", lines), "OK");
     }
 
-    private void Reload()
+    private async Task ReloadAsync()
     {
         Friends.Clear();
         foreach (var item in _social.GetInvites())
@@ -296,6 +389,29 @@ public partial class FriendsViewModel : ObservableObject
                 Badge = pending ? "🟡" : "🟢",
                 IsPending = pending,
             });
+        }
+
+        IncomingInvites.Clear();
+        var token = Preferences.Default.Get("auth_id_token", "");
+        var identityOk = await _sync.EnsureBackendIdentityAsync(token);
+        if (identityOk)
+        {
+            var incoming = await _sync.GetIncomingInvitesAsync();
+            foreach (var invite in incoming)
+            {
+                var email = (invite.inviter_email ?? "").Trim();
+                var display = (invite.inviter_display_name ?? "").Trim();
+                if (string.IsNullOrWhiteSpace(display))
+                    display = !string.IsNullOrWhiteSpace(email) && email.Contains('@') ? email.Split('@')[0] : "User";
+
+                IncomingInvites.Add(new IncomingInviteRow
+                {
+                    InviteId = invite.id,
+                    InviterUserId = invite.inviter_user_id,
+                    InviterEmail = email,
+                    InviterDisplay = display,
+                });
+            }
         }
 
         League.Clear();
@@ -342,4 +458,19 @@ public class FriendsRankRow
     public string Rank { get; set; } = "";
     public string Name { get; set; } = "";
     public string Detail { get; set; } = "";
+}
+
+public class FriendSearchRow
+{
+    public string UserId { get; set; } = "";
+    public string Email { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+}
+
+public class IncomingInviteRow
+{
+    public string InviteId { get; set; } = "";
+    public string InviterUserId { get; set; } = "";
+    public string InviterEmail { get; set; } = "";
+    public string InviterDisplay { get; set; } = "";
 }

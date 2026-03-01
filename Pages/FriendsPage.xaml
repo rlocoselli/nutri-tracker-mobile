@@ -11,11 +11,64 @@
         <VerticalStackLayout Padding="20" Spacing="14">
             <Label Text="{Binding TitleText}" Style="{StaticResource H1}" />
 
-            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                 <Entry Text="{Binding InviteEmail}" Placeholder="{Binding InvitePlaceholder}" Keyboard="Email" />
                 <Button Grid.Column="1" Text="{Binding InviteText}" Style="{StaticResource SecondaryButton}" Command="{Binding InviteCommand}" />
-                <Button Grid.Column="2" Text="{Binding AddBuddyText}" Style="{StaticResource SecondaryButton}" Command="{Binding AddBuddyCommand}" />
             </Grid>
+
+            <Button Text="{Binding AddBuddyText}" Style="{StaticResource SecondaryButton}" Command="{Binding AddBuddyCommand}" />
+
+            <Label Text="{Binding SearchResultsTitleText}" FontAttributes="Bold" Margin="0,8,0,0" />
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Entry Text="{Binding SearchQuery}" Placeholder="{Binding SearchPlaceholder}" />
+                <Button Grid.Column="1" Text="{Binding SearchText}" Style="{StaticResource SecondaryButton}" Command="{Binding SearchUsersCommand}" />
+            </Grid>
+
+            <CollectionView ItemsSource="{Binding SearchResults}" SelectionMode="None">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,8">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" VerticalOptions="Center">
+                                <VerticalStackLayout Spacing="2">
+                                    <Label Text="{Binding DisplayName}" FontAttributes="Bold" />
+                                    <Label Text="{Binding Email}" Style="{StaticResource BodyMuted}" />
+                                </VerticalStackLayout>
+                                <Button Grid.Column="1"
+                                        Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.InviteText}"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.InviteUserCommand}"
+                                        CommandParameter="{Binding .}" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <Label Text="{Binding IncomingInvitesTitleText}" FontAttributes="Bold" Margin="0,6,0,0" />
+            <CollectionView ItemsSource="{Binding IncomingInvites}" SelectionMode="None">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,8">
+                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" VerticalOptions="Center">
+                                <VerticalStackLayout Spacing="2">
+                                    <Label Text="{Binding InviterDisplay}" FontAttributes="Bold" />
+                                    <Label Text="{Binding InviterEmail}" Style="{StaticResource BodyMuted}" />
+                                </VerticalStackLayout>
+                                <Button Grid.Column="1"
+                                        Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.AcceptText}"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.AcceptIncomingCommand}"
+                                        CommandParameter="{Binding .}" />
+                                <Button Grid.Column="2"
+                                        Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.DeclineText}"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.DeclineIncomingCommand}"
+                                        CommandParameter="{Binding .}" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
 
             <Label Text="{Binding StatusText}" Style="{StaticResource BodyMuted}" />
 

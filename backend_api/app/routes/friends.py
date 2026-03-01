@@ -1,11 +1,11 @@
 import uuid
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from sqlalchemy.orm import Session
 from ..db import get_db
 from ..models import FriendInvite, Friendship, MealEntry, User, StoryLike, StoryComment, PrivateMessage
-from ..schemas import InviteIn, FriendStoryOut, StoryLikeOut, StoryCommentIn, StoryCommentOut, PrivateMessageIn, PrivateMessageOut, FriendDirectoryOut
+from ..schemas import InviteIn, FriendStoryOut, StoryLikeOut, StoryCommentIn, StoryCommentOut, PrivateMessageIn, PrivateMessageOut, FriendDirectoryOut, IncomingInviteOut
 from ..security import get_current_user_id
 
 router = APIRouter(prefix="/friends", tags=["friends"])
@@ -54,6 +54,39 @@ def list_invites(user_id: uuid.UUID = Depends(get_current_user_id), db: Session 
     return rows
 
 
+@router.get("/invites/incoming", response_model=list[IncomingInviteOut])
+def list_incoming_invites(user_id: uuid.UUID = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    me = db.query(User).filter(User.id == user_id).first()
+    if not me or not (me.email or "").strip():
+        return []
+
+    my_email = (me.email or "").strip().lower()
+    rows = (
+        db.query(FriendInvite, User)
+        .join(User, User.id == FriendInvite.inviter_user_id)
+        .filter(func.lower(FriendInvite.invitee_email) == my_email)
+        .filter(FriendInvite.status == "pending")
+        .order_by(FriendInvite.created_at_utc.desc())
+        .all()
+    )
+
+    out: list[IncomingInviteOut] = []
+    for invite, inviter in rows:
+        out.append(
+            IncomingInviteOut(
+                id=str(invite.id),
+                inviter_user_id=str(invite.inviter_user_id),
+                inviter_display_name=_display_name(inviter),
+                inviter_email=(inviter.email or "").strip().lower(),
+                invitee_email=(invite.invitee_email or "").strip().lower(),
+                status=invite.status,
+                created_at_utc=invite.created_at_utc,
+            )
+        )
+
+    return out
+
+
 @router.post("/invites")
 def create_invite(payload: InviteIn, user_id: uuid.UUID = Depends(get_current_user_id), db: Session = Depends(get_db)):
     exists = (
@@ -76,6 +109,15 @@ def accept_invite(invite_id: uuid.UUID, user_id: uuid.UUID = Depends(get_current
     row = db.query(FriendInvite).filter(FriendInvite.id == invite_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Invite not found")
+
+    me = db.query(User).filter(User.id == user_id).first()
+    my_email = ((me.email if me else "") or "").strip().lower()
+    invitee_email = (row.invitee_email or "").strip().lower()
+    if not my_email or not invitee_email or my_email != invitee_email:
+        raise HTTPException(status_code=403, detail="Not allowed")
+
+    if row.status != "pending":
+        raise HTTPException(status_code=409, detail="Invite is not pending")
 
     row.status = "accepted"
     row.responded_at_utc = datetime.utcnow()
@@ -106,6 +148,27 @@ def delete_invite(invite_id: uuid.UUID, user_id: uuid.UUID = Depends(get_current
     return {"deleted": True}
 
 
+@router.post("/invites/{invite_id}/decline")
+def decline_invite(invite_id: uuid.UUID, user_id: uuid.UUID = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    row = db.query(FriendInvite).filter(FriendInvite.id == invite_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Invite not found")
+
+    me = db.query(User).filter(User.id == user_id).first()
+    my_email = ((me.email if me else "") or "").strip().lower()
+    invitee_email = (row.invitee_email or "").strip().lower()
+    if not my_email or not invitee_email or my_email != invitee_email:
+        raise HTTPException(status_code=403, detail="Not allowed")
+
+    if row.status != "pending":
+        raise HTTPException(status_code=409, detail="Invite is not pending")
+
+    row.status = "declined"
+    row.responded_at_utc = datetime.utcnow()
+    db.commit()
+    return {"declined": True}
+
+
 @router.get("")
 def list_friends(user_id: uuid.UUID = Depends(get_current_user_id), db: Session = Depends(get_db)):
     rows = (
@@ -134,6 +197,45 @@ def friend_directory(user_id: uuid.UUID = Depends(get_current_user_id), db: Sess
         )
 
     return sorted(out, key=lambda x: x.display_name.lower())
+
+
+@router.get("/users/search", response_model=list[FriendDirectoryOut])
+def search_users(
+    q: str,
+    limit: int = 20,
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    query = (q or "").strip()
+    if len(query) < 2:
+        return []
+
+    safe_limit = max(1, min(limit, 30))
+    pattern = f"%{query.lower()}%"
+
+    users = (
+        db.query(User)
+        .filter(User.id != user_id)
+        .filter(
+            or_(
+                func.lower(User.email).like(pattern),
+                func.lower(User.display_name).like(pattern),
+            )
+        )
+        .order_by(User.created_at_utc.desc())
+        .limit(safe_limit)
+        .all()
+    )
+
+    return [
+        FriendDirectoryOut(
+            user_id=str(user.id),
+            email=(user.email or "").strip().lower(),
+            display_name=_display_name(user),
+            picture_url=user.picture_url or "",
+        )
+        for user in users
+    ]
 
 
 @router.get("/feed", response_model=list[FriendStoryOut])

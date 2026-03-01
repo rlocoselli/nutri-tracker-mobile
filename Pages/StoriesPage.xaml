@@ -38,16 +38,11 @@
                                     <Label Text="{Binding Caption}" FontAttributes="Bold" />
                                     <Label Text="{Binding NutritionText}" />
 
-                                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                        <Grid ColumnDefinitions="*" ColumnSpacing="8">
                                         <Button Grid.Column="0"
                                                 Text="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.LikeText}"
                                                 Style="{StaticResource SecondaryButton}"
                                                 Command="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.ToggleLikeCommand}"
-                                                CommandParameter="{Binding .}" />
-                                        <Button Grid.Column="1"
-                                                Text="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.MessageText}"
-                                                Style="{StaticResource SecondaryButton}"
-                                                Command="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.SendMessageCommand}"
                                                 CommandParameter="{Binding .}" />
                                     </Grid>
 

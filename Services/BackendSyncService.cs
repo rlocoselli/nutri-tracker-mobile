@@ -245,6 +245,56 @@ public class BackendSyncService
         return resp.IsSuccessStatusCode;
     }
 
+    public async Task<bool> TryDeclineInviteAsync(string inviteId)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(inviteId))
+            return false;
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, $"{ApiBaseUrl}/friends/invites/{inviteId}/decline");
+        req.Headers.Add("X-User-Id", userId);
+        req.Content = JsonContent.Create(new { });
+        var resp = await _http.SendAsync(req);
+        return resp.IsSuccessStatusCode;
+    }
+
+    public async Task<List<IncomingInviteDto>> GetIncomingInvitesAsync()
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
+            return new List<IncomingInviteDto>();
+
+        using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/friends/invites/incoming");
+        req.Headers.Add("X-User-Id", userId);
+        var resp = await _http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode)
+            return new List<IncomingInviteDto>();
+
+        var parsed = await resp.Content.ReadFromJsonAsync<List<IncomingInviteDto>>();
+        return parsed ?? new List<IncomingInviteDto>();
+    }
+
+    public async Task<List<FriendDirectoryDto>> SearchFriendUsersAsync(string query, int limit = 20)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
+            return new List<FriendDirectoryDto>();
+
+        var safeQ = Uri.EscapeDataString((query ?? "").Trim());
+        if (string.IsNullOrWhiteSpace(safeQ))
+            return new List<FriendDirectoryDto>();
+
+        var safeLimit = Math.Clamp(limit, 1, 30);
+        using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/friends/users/search?q={safeQ}&limit={safeLimit}");
+        req.Headers.Add("X-User-Id", userId);
+        var resp = await _http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode)
+            return new List<FriendDirectoryDto>();
+
+        var parsed = await resp.Content.ReadFromJsonAsync<List<FriendDirectoryDto>>();
+        return parsed ?? new List<FriendDirectoryDto>();
+    }
+
     public async Task<List<BackendStory>> GetFriendsFeedAsync(int days = 2, int limit = 40)
     {
         var userId = Preferences.Default.Get("backend_user_id", "");
@@ -483,4 +533,15 @@ public class FriendDirectoryDto
     public string email { get; set; } = "";
     public string display_name { get; set; } = "";
     public string picture_url { get; set; } = "";
+}
+
+public class IncomingInviteDto
+{
+    public string id { get; set; } = "";
+    public string inviter_user_id { get; set; } = "";
+    public string inviter_display_name { get; set; } = "";
+    public string inviter_email { get; set; } = "";
+    public string invitee_email { get; set; } = "";
+    public string status { get; set; } = "";
+    public DateTime created_at_utc { get; set; }
 }

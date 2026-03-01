@@ -153,3 +153,13 @@ class FriendDirectoryOut(BaseModel):
     email: str
     display_name: str
     picture_url: str
+
+
+class IncomingInviteOut(BaseModel):
+    id: str
+    inviter_user_id: str
+    inviter_display_name: str
+    inviter_email: str
+    invitee_email: str
+    status: str
+    created_at_utc: datetime
