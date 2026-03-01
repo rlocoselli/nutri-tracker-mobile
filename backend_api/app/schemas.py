@@ -98,3 +98,17 @@ class WaterIntakeIn(BaseModel):
 class WaterIntakeOut(BaseModel):
     day_key_utc: date
     liters: float
+
+
+class FriendStoryOut(BaseModel):
+    meal_id: str
+    user_id: str
+    display_name: str
+    picture_url: str
+    date_utc: datetime
+    raw_text: str
+    photo_url: str
+    total_calories: float
+    total_carbs_g: float
+    total_protein_g: float
+    quality_label: str

@@ -5,8 +5,9 @@
              Title="Ajouter"
              BackgroundColor="{StaticResource Background}">
 
-  <ScrollView>
-    <VerticalStackLayout Padding="20" Spacing="16">
+  <Grid>
+    <ScrollView>
+      <VerticalStackLayout Padding="20" Spacing="16">
 
       <Label Text="{Binding TitleText}" Style="{StaticResource H1}" />
       <Label Text="{Binding SubtitleText}" Style="{StaticResource BodyMuted}" />
@@ -29,19 +30,33 @@
         <Button Grid.Column="1" Text="{Binding ClearText}" Style="{StaticResource SecondaryButton}" Command="{Binding ClearCommand}" />
       </Grid>
 
-      <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+        <Border Style="{StaticResource Card}" IsVisible="{Binding HasResult}">
+          <VerticalStackLayout Spacing="6">
+            <Label Text="{Binding ResultTitle}" FontAttributes="Bold" />
+            <Label Text="{Binding ResultSummary}" />
+            <Label Text="{Binding ResultQuality}" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
+            <Label Text="{Binding ResultBadge}" FontAttributes="Bold" />
+            <Label Text="{Binding ResultSemaphore}" Style="{StaticResource BodyMuted}" />
+            <Label Text="{Binding ResultNotes}" FontSize="12" Opacity="0.7" />
+          </VerticalStackLayout>
+        </Border>
 
-      <Border Style="{StaticResource Card}" IsVisible="{Binding HasResult}">
-        <VerticalStackLayout Spacing="6">
-          <Label Text="{Binding ResultTitle}" FontAttributes="Bold" />
-          <Label Text="{Binding ResultSummary}" />
-          <Label Text="{Binding ResultQuality}" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
-          <Label Text="{Binding ResultBadge}" FontAttributes="Bold" />
-          <Label Text="{Binding ResultSemaphore}" Style="{StaticResource BodyMuted}" />
-          <Label Text="{Binding ResultNotes}" FontSize="12" Opacity="0.7" />
+      </VerticalStackLayout>
+    </ScrollView>
+
+    <Grid IsVisible="{Binding IsBusy}"
+          BackgroundColor="#80000000"
+          InputTransparent="False">
+      <Border Style="{StaticResource Card}"
+              Padding="18"
+              MaximumWidthRequest="260"
+              HorizontalOptions="Center"
+              VerticalOptions="Center">
+        <VerticalStackLayout Spacing="10" HorizontalOptions="Center">
+          <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+          <Label Text="Analyse en cours..." HorizontalTextAlignment="Center" />
         </VerticalStackLayout>
       </Border>
-
-    </VerticalStackLayout>
-  </ScrollView>
+    </Grid>
+  </Grid>
 </ContentPage>

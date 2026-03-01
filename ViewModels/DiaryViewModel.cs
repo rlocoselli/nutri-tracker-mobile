@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Maui.Controls;
 using NutritionTracker.Models;
 using NutritionTracker.Services;
 
@@ -28,6 +29,8 @@ public partial class DiaryViewModel : ObservableObject
 
     // Meals for the selected day
     public ObservableCollection<DiaryMealItem> Meals { get; } = new();
+    public ObservableCollection<StoryPostItem> StoryPosts { get; } = new();
+    public bool HasStories => StoryPosts.Count > 0;
 
     [ObservableProperty] private string dayTotalsText = "";
 
@@ -79,6 +82,14 @@ public partial class DiaryViewModel : ObservableObject
 
     [ObservableProperty] private IList<double> chartValues = Array.Empty<double>();
     [ObservableProperty] private IList<string> chartLabels = Array.Empty<string>();
+    [ObservableProperty] private IList<double> macroDonutValues = Array.Empty<double>();
+    [ObservableProperty] private IList<string> macroDonutLabels = Array.Empty<string>();
+    [ObservableProperty] private string macroProteinText = "P 0g";
+    [ObservableProperty] private string macroCarbsText = "C 0g";
+    [ObservableProperty] private string macroFatText = "F 0g";
+    [ObservableProperty] private double dailyGoalProgress;
+    [ObservableProperty] private string dailyGoalText = "0 / 0 kcal";
+    [ObservableProperty] private string dailyGoalStatusText = "";
 
     [ObservableProperty] private double waterLiters;
     [ObservableProperty] private string waterLitersText = "0 L";
@@ -87,6 +98,9 @@ public partial class DiaryViewModel : ObservableObject
     public string AddHalfLiterText => T("add_half_liter");
     public string AddOneLiterText => T("add_one_liter");
     public string RemoveHalfLiterText => T("remove_half_liter");
+    public string StoriesTitle => T("stories_title");
+    public string NutritionSplitTitle => T("nutrition_split_title");
+    public string DailyGoalTitle => T("daily_goal_title");
 
     public DiaryViewModel(LocalDb db, PointsService points, BackendSyncService sync)
     {
@@ -186,11 +200,16 @@ public partial class DiaryViewModel : ObservableObject
         OnPropertyChanged(nameof(AddHalfLiterText));
         OnPropertyChanged(nameof(AddOneLiterText));
         OnPropertyChanged(nameof(RemoveHalfLiterText));
+        OnPropertyChanged(nameof(StoriesTitle));
+        OnPropertyChanged(nameof(HasStories));
+        OnPropertyChanged(nameof(NutritionSplitTitle));
+        OnPropertyChanged(nameof(DailyGoalTitle));
         RebuildMetricTabs();
         RebuildPeriodTabs();
         RebuildDayTabs();
 
         await LoadDayAsync(SelectedDayLocal);
+        await LoadStoriesAsync();
         await LoadChartAsync();
     }
 
@@ -299,6 +318,7 @@ public partial class DiaryViewModel : ObservableObject
         var manualBalance = _points.Award(8);
         await Application.Current!.MainPage!.DisplayAlert(T("saved_title"), string.Format(T("earned_points"), 8, manualBalance), "OK");
         await LoadDayAsync(SelectedDayLocal);
+        await LoadStoriesAsync();
         await LoadChartAsync();
     }
 
@@ -385,6 +405,7 @@ public partial class DiaryViewModel : ObservableObject
         var editBalance = _points.Award(4);
         await Application.Current!.MainPage!.DisplayAlert(T("saved_title"), string.Format(T("earned_points"), 4, editBalance), "OK");
         await LoadDayAsync(SelectedDayLocal);
+        await LoadStoriesAsync();
         await LoadChartAsync();
     }
 
@@ -417,6 +438,7 @@ public partial class DiaryViewModel : ObservableObject
         }
 
         await LoadDayAsync(SelectedDayLocal);
+        await LoadStoriesAsync();
         await LoadChartAsync();
     }
 
@@ -425,6 +447,7 @@ public partial class DiaryViewModel : ObservableObject
     {
         SelectedDayLocal = SelectedDayLocal.AddDays(-1);
         await LoadDayAsync(SelectedDayLocal);
+        await LoadStoriesAsync();
         await LoadChartAsync();
     }
 
@@ -473,8 +496,55 @@ public partial class DiaryViewModel : ObservableObject
         var netCalories = cal - exercise.burnedCalories;
         DayTotalsText = $"{T("total")}: {Math.Round(cal)} kcal · C {Math.Round(carbs)}g · P {Math.Round(prot)}g · {T("burn")}: {Math.Round(exercise.burnedCalories)} · {T("net")}: {Math.Round(netCalories)}";
 
+        var goals = await _db.GetGoalsAsync();
+        var targetCalories = Math.Max(1, goals.CaloriesTarget);
+        DailyGoalProgress = Math.Clamp(cal / targetCalories, 0, 1);
+        DailyGoalText = $"{Math.Round(cal)} / {Math.Round(targetCalories)} kcal";
+        var delta = targetCalories - cal;
+        DailyGoalStatusText = delta >= 0
+            ? string.Format(T("daily_goal_remaining"), Math.Round(delta))
+            : string.Format(T("daily_goal_exceeded"), Math.Round(Math.Abs(delta)));
+
+        var proteinKcal = Math.Max(0, prot * 4);
+        var carbsKcal = Math.Max(0, carbs * 4);
+        var fatKcal = Math.Max(0, cal - proteinKcal - carbsKcal);
+        var fatGrams = fatKcal / 9d;
+
+        MacroDonutValues = new List<double> { proteinKcal, carbsKcal, fatKcal };
+        MacroDonutLabels = new List<string> { T("macro_protein"), T("macro_carbs"), T("macro_fat") };
+        MacroProteinText = $"{T("macro_protein")}: {Math.Round(prot)} g";
+        MacroCarbsText = $"{T("macro_carbs")}: {Math.Round(carbs)} g";
+        MacroFatText = $"{T("macro_fat")}: {Math.Round(fatGrams)} g";
+
         var liters = await _db.GetWaterLitersForDayLocalAsync(dayLocal);
         UpdateWaterUi(liters);
+    }
+
+    private async Task LoadStoriesAsync()
+    {
+        StoryPosts.Clear();
+        OnPropertyChanged(nameof(HasStories));
+
+        var token = Preferences.Default.Get("auth_id_token", "");
+        var identityOk = await _sync.EnsureBackendIdentityAsync(token);
+        if (!identityOk)
+            return;
+
+        var feed = await _sync.GetFriendsFeedAsync(days: 3, limit: 40);
+        foreach (var s in feed)
+        {
+            StoryPosts.Add(new StoryPostItem
+            {
+                Author = string.IsNullOrWhiteSpace(s.display_name) ? T("story_default_author") : s.display_name,
+                PostedAtText = s.date_utc.ToLocalTime().ToString("dd/MM HH:mm"),
+                Caption = string.IsNullOrWhiteSpace(s.raw_text) ? T("story_meal") : s.raw_text,
+                NutritionText = $"{Math.Round(s.total_calories)} kcal · P {Math.Round(s.total_protein_g)}g · C {Math.Round(s.total_carbs_g)}g",
+                QualityText = string.IsNullOrWhiteSpace(s.quality_label) ? "" : $"IA: {s.quality_label}",
+                PhotoSource = PhotoSourceHelper.Build(s.photo_url),
+            });
+        }
+
+        OnPropertyChanged(nameof(HasStories));
     }
 
     private async Task SetWaterLitersAsync(double liters)
@@ -674,6 +744,16 @@ public partial class DiaryViewModel : ObservableObject
             "add_half_liter" => L(lang, "+0,5 L", "+0.5 L", "+0,5 L", "+0,5 L"),
             "add_one_liter" => L(lang, "+1 L", "+1 L", "+1 L", "+1 L"),
             "remove_half_liter" => L(lang, "-0,5 L", "-0.5 L", "-0,5 L", "-0,5 L"),
+            "stories_title" => L(lang, "Stories nutrition", "Nutrition stories", "Stories de nutrição", "Stories de nutrición"),
+            "story_default_author" => L(lang, "Utilisateur", "User", "Usuário", "Usuario"),
+            "story_meal" => L(lang, "Repas", "Meal", "Refeição", "Comida"),
+            "nutrition_split_title" => L(lang, "Répartition nutrition", "Nutrition split", "Divisão nutricional", "Distribución nutricional"),
+            "daily_goal_title" => L(lang, "Objectif calories", "Calories goal", "Meta de calorias", "Objetivo de calorías"),
+            "daily_goal_remaining" => L(lang, "Reste {0} kcal", "{0} kcal remaining", "Faltam {0} kcal", "Quedan {0} kcal"),
+            "daily_goal_exceeded" => L(lang, "+{0} kcal au-dessus", "+{0} kcal above", "+{0} kcal acima", "+{0} kcal por encima"),
+            "macro_protein" => L(lang, "Protéines", "Protein", "Proteínas", "Proteínas"),
+            "macro_carbs" => L(lang, "Glucides", "Carbs", "Carboidratos", "Carbohidratos"),
+            "macro_fat" => L(lang, "Lipides", "Fat", "Gorduras", "Grasas"),
             "metric_calories" => L(lang, "Calories", "Calories", "Calorias", "Calorías"),
             "metric_proteins" => L(lang, "Protéines", "Proteins", "Proteínas", "Proteínas"),
             "metric_activities" => L(lang, "Activités", "Activities", "Atividades", "Actividades"),
@@ -867,6 +947,8 @@ public class DiaryMealItem
     public string Description { get; set; } = "";
     public string AiNotes { get; set; } = "";
     public string PhotoPath { get; set; } = "";
+    public ImageSource? PhotoSource { get; set; }
+    public bool HasPhoto => PhotoSource != null;
     public DateTime DateUtc { get; set; }
     public string DayKeyUtc { get; set; } = "";
     public double TotalCalories { get; set; }
@@ -922,6 +1004,7 @@ public class DiaryMealItem
             Description = e.Description,
             AiNotes = e.AiNotes,
             PhotoPath = e.PhotoPath,
+            PhotoSource = PhotoSourceHelper.Build(e.PhotoPath),
             DateUtc = e.DateUtc,
             DayKeyUtc = e.DayKeyUtc,
             TotalCalories = e.TotalCalories,
@@ -963,5 +1046,56 @@ public class DiaryMealItem
         if (!string.IsNullOrWhiteSpace(itemsText))
             return $"IA: {itemsText}";
         return "";
+    }
+}
+
+public class StoryPostItem
+{
+    public string Author { get; set; } = "";
+    public string PostedAtText { get; set; } = "";
+    public string Caption { get; set; } = "";
+    public string NutritionText { get; set; } = "";
+    public string QualityText { get; set; } = "";
+    public ImageSource? PhotoSource { get; set; }
+    public bool HasPhoto => PhotoSource != null;
+}
+
+internal static class PhotoSourceHelper
+{
+    public static ImageSource? Build(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return null;
+
+        var value = raw.Trim();
+
+        if (value.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+        {
+            var commaIndex = value.IndexOf(',');
+            if (commaIndex > 0 && commaIndex < value.Length - 1)
+            {
+                var base64 = value[(commaIndex + 1)..];
+                try
+                {
+                    var bytes = Convert.FromBase64String(base64);
+                    return ImageSource.FromStream(() => new MemoryStream(bytes));
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+        }
+
+        if (value.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || value.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            if (Uri.TryCreate(value, UriKind.Absolute, out var uri))
+                return ImageSource.FromUri(uri);
+        }
+
+        if (File.Exists(value))
+            return ImageSource.FromFile(value);
+
+        return null;
     }
 }

@@ -13,11 +13,15 @@ public class MealReminderService : IMealReminderService
     private const int LunchNotificationId = 2102;
     private const int DinnerNotificationId = 2103;
 
-    public async Task ScheduleDailyMealRemindersAsync(bool enabled, TimeSpan breakfastTime, TimeSpan lunchTime, TimeSpan dinnerTime)
+    public async Task<bool> ScheduleDailyMealRemindersAsync(bool enabled, TimeSpan breakfastTime, TimeSpan lunchTime, TimeSpan dinnerTime)
     {
 #if ANDROID
         try
         {
+            var context = Android.App.Application.Context;
+            if (context == null)
+                return false;
+
             if (OperatingSystem.IsAndroidVersionAtLeast(33))
             {
                 var status = await Permissions.CheckStatusAsync<Permissions.PostNotifications>();
@@ -25,30 +29,60 @@ public class MealReminderService : IMealReminderService
                 {
                     status = await Permissions.RequestAsync<Permissions.PostNotifications>();
                     if (status != PermissionStatus.Granted)
-                        return;
+                        return false;
                 }
             }
+
+            if (!NotificationManagerCompat.From(context).AreNotificationsEnabled())
+                return false;
+
+            EnsureNotificationChannel(context);
 
             if (!enabled)
             {
                 Cancel(BreakfastNotificationId);
                 Cancel(LunchNotificationId);
                 Cancel(DinnerNotificationId);
-                return;
+                return true;
             }
 
             ScheduleDaily(BreakfastNotificationId, breakfastTime, "Rappel petit-déjeuner", "Pense à enregistrer ton repas du matin.");
             ScheduleDaily(LunchNotificationId, lunchTime, "Rappel déjeuner", "Pense à enregistrer ton repas de midi.");
             ScheduleDaily(DinnerNotificationId, dinnerTime, "Rappel dîner", "Pense à enregistrer ton repas du soir.");
+            return true;
         }
         catch
         {
-            return;
+            return false;
         }
-#endif
+    #else
+        await Task.CompletedTask;
+        return true;
+    #endif
     }
 
 #if ANDROID
+    private const string ChannelId = "meal_reminders";
+
+    private static void EnsureNotificationChannel(Context context)
+    {
+        if (!OperatingSystem.IsAndroidVersionAtLeast(26))
+            return;
+
+        var manager = (NotificationManager?)context.GetSystemService(Context.NotificationService);
+        if (manager == null) return;
+
+        var existing = manager.GetNotificationChannel(ChannelId);
+        if (existing != null) return;
+
+        var channel = new NotificationChannel(ChannelId, "Meal reminders", NotificationImportance.Default)
+        {
+            Description = "Rappels quotidiens pour enregistrer les repas"
+        };
+
+        manager.CreateNotificationChannel(channel);
+    }
+
     private static void ScheduleDaily(int id, TimeSpan timeOfDay, string title, string message)
     {
         var context = Android.App.Application.Context;
@@ -77,6 +111,12 @@ public class MealReminderService : IMealReminderService
 
     private static void SetBestAlarm(AlarmManager alarmManager, long triggerAtMillis, PendingIntent pendingIntent)
     {
+        if (OperatingSystem.IsAndroidVersionAtLeast(31) && alarmManager.CanScheduleExactAlarms())
+        {
+            alarmManager.SetExactAndAllowWhileIdle(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
+            return;
+        }
+
         if (OperatingSystem.IsAndroidVersionAtLeast(23))
         {
             alarmManager.SetAndAllowWhileIdle(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);

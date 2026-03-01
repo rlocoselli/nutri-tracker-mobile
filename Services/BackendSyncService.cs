@@ -245,6 +245,25 @@ public class BackendSyncService
         return resp.IsSuccessStatusCode;
     }
 
+    public async Task<List<BackendStory>> GetFriendsFeedAsync(int days = 2, int limit = 40)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
+            return new List<BackendStory>();
+
+        var safeDays = Math.Clamp(days, 1, 14);
+        var safeLimit = Math.Clamp(limit, 1, 120);
+
+        using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/friends/feed?days={safeDays}&limit={safeLimit}");
+        req.Headers.Add("X-User-Id", userId);
+        var resp = await _http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode)
+            return new List<BackendStory>();
+
+        var parsed = await resp.Content.ReadFromJsonAsync<List<BackendStory>>();
+        return parsed ?? new List<BackendStory>();
+    }
+
     private sealed class AuthResponse
     {
         public string user_id { get; set; } = "";
@@ -315,4 +334,19 @@ public class BackendMealItem
     public double carbs_g { get; set; }
     public double protein_g { get; set; }
     public double confidence { get; set; }
+}
+
+public class BackendStory
+{
+    public string meal_id { get; set; } = "";
+    public string user_id { get; set; } = "";
+    public string display_name { get; set; } = "";
+    public string picture_url { get; set; } = "";
+    public DateTime date_utc { get; set; }
+    public string raw_text { get; set; } = "";
+    public string photo_url { get; set; } = "";
+    public double total_calories { get; set; }
+    public double total_carbs_g { get; set; }
+    public double total_protein_g { get; set; }
+    public string quality_label { get; set; } = "";
 }

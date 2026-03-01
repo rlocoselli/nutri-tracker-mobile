@@ -25,6 +25,11 @@
     <AndroidTargetSdkVersion>35</AndroidTargetSdkVersion>
   </PropertyGroup>
 
+  <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' and '$(Configuration)' == 'Debug'">
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+    <AndroidFastDeploymentType>None</AndroidFastDeploymentType>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />

@@ -99,6 +99,11 @@ public partial class AddMealViewModel : ObservableObject
 
             var resp = await _api.AnalyzeMealAsync(idToken, lang, Text, PhotoBytes, PhotoMime);
             var (entry, items) = MealMapper.MapToDb(resp, Text, PhotoPath);
+            if (PhotoBytes is { Length: > 0 })
+            {
+                var mime = string.IsNullOrWhiteSpace(PhotoMime) ? "image/jpeg" : PhotoMime;
+                entry.PhotoPath = $"data:{mime};base64,{Convert.ToBase64String(PhotoBytes)}";
+            }
 
             var identityOk = await _sync.EnsureBackendIdentityAsync(idToken);
             if (!identityOk)

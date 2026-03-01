@@ -8,7 +8,9 @@
     Title="Journal"
     BackgroundColor="{StaticResource Background}">
 
-    <Grid Padding="20" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" RowSpacing="14">
+    <Grid>
+        <ScrollView>
+            <Grid Padding="20" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="14">
 
         <!-- Day navigation -->
         <Grid ColumnDefinitions="Auto,*,Auto" VerticalOptions="Center">
@@ -43,8 +45,37 @@
             </CollectionView.ItemTemplate>
         </CollectionView>
 
+        <Border Grid.Row="2" Style="{StaticResource Card}" IsVisible="{Binding HasStories}">
+            <VerticalStackLayout Spacing="10">
+                <Label Text="{Binding StoriesTitle}" FontAttributes="Bold" FontSize="12" />
+                <CollectionView ItemsSource="{Binding StoryPosts}" SelectionMode="None" HeightRequest="236">
+                    <CollectionView.ItemsLayout>
+                        <LinearItemsLayout Orientation="Horizontal" ItemSpacing="10" />
+                    </CollectionView.ItemsLayout>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource Card}" WidthRequest="164" Padding="0">
+                                <Grid RowDefinitions="*,Auto" HeightRequest="220">
+                                    <Grid>
+                                        <Image Source="{Binding PhotoSource}" Aspect="AspectFill" IsVisible="{Binding HasPhoto}" />
+                                        <Border Background="#33000000" StrokeThickness="0" IsVisible="{Binding HasPhoto}" />
+                                    </Grid>
+                                    <VerticalStackLayout Grid.Row="1" Spacing="2" Padding="8" BackgroundColor="{StaticResource Card}">
+                                        <Label Text="{Binding Author}" FontAttributes="Bold" FontSize="12" LineBreakMode="TailTruncation" />
+                                        <Label Text="{Binding PostedAtText}" FontSize="10" TextColor="{StaticResource Muted}" />
+                                        <Label Text="{Binding Caption}" FontSize="11" LineBreakMode="TailTruncation" MaxLines="2" />
+                                        <Label Text="{Binding NutritionText}" FontSize="11" FontAttributes="Bold" />
+                                    </VerticalStackLayout>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </VerticalStackLayout>
+        </Border>
+
         <!-- Chart -->
-        <Border Grid.Row="2" Style="{StaticResource Card}">
+        <Border Grid.Row="3" Style="{StaticResource Card}">
             <VerticalStackLayout Spacing="12">
                 <Label Text="{Binding MetricTitle}" FontAttributes="Bold" FontSize="12" />
                 <CollectionView ItemsSource="{Binding MetricTabs}" SelectionMode="None" HeightRequest="46">
@@ -93,10 +124,37 @@
                 <controls:TrendChart HeightRequest="210"
                                      Values="{Binding ChartValues}"
                                      Labels="{Binding ChartLabels}" />
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <Border Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="{Binding NutritionSplitTitle}" FontAttributes="Bold" FontSize="12" />
+                            <controls:MacroDonutChart HeightRequest="150"
+                                                      Values="{Binding MacroDonutValues}"
+                                                      Labels="{Binding MacroDonutLabels}" />
+                            <Label Text="{Binding MacroProteinText}" FontSize="12" TextColor="{StaticResource MacroProtein}" />
+                            <Label Text="{Binding MacroCarbsText}" FontSize="12" TextColor="{StaticResource MacroCarbs}" />
+                            <Label Text="{Binding MacroFatText}" FontSize="12" TextColor="{StaticResource MacroFat}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Grid.Column="1" Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
+                        <VerticalStackLayout Spacing="10" HorizontalOptions="Center">
+                            <Label Text="{Binding DailyGoalTitle}" FontAttributes="Bold" FontSize="12" HorizontalTextAlignment="Center" />
+                            <controls:RingGauge HeightRequest="120"
+                                                WidthRequest="120"
+                                                Progress="{Binding DailyGoalProgress}"
+                                                RingColor="{StaticResource Primary}"
+                                                TrackColor="{StaticResource Stroke}" />
+                            <Label Text="{Binding DailyGoalText}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                            <Label Text="{Binding DailyGoalStatusText}" Style="{StaticResource BodyMuted}" HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </Border>
+                </Grid>
             </VerticalStackLayout>
         </Border>
 
-        <Border Grid.Row="3" Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
+        <Border Grid.Row="4" Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
             <VerticalStackLayout Spacing="10">
                 <Label Text="{Binding HydrationTitle}" FontAttributes="Bold" />
                 <Label Text="{Binding WaterLitersText}" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
@@ -118,70 +176,77 @@
             </VerticalStackLayout>
         </Border>
 
-        <Grid Grid.Row="4" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="4">
+        <Grid Grid.Row="5" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="4">
             <Label Text="{Binding MealsTitle}" Style="{StaticResource H1}" />
             <Button Grid.Column="1" Text="{Binding AddManualText}" Style="{StaticResource SecondaryButton}" Command="{Binding AddManualCommand}" />
             <Label Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding MealsSubtitle}" Style="{StaticResource BodyMuted}" />
         </Grid>
 
-        <CollectionView Grid.Row="5" ItemsSource="{Binding Meals}" SelectionMode="None">
-            <CollectionView.ItemTemplate>
-                <DataTemplate>
-                    <Border Style="{StaticResource Card}" Margin="0,0,0,12">
-                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
-                            <Label Text="{Binding Title}" FontAttributes="Bold" FontSize="15" />
-                            <Label Grid.Column="1" Text="{Binding CaloriesText}" FontAttributes="Bold" />
-                            <Label Grid.Row="1" Text="{Binding Subtitle}" TextColor="{StaticResource Muted}" FontSize="12" />
-                            <HorizontalStackLayout Grid.Row="1" Grid.Column="1" Spacing="10" HorizontalOptions="End">
-                                <Label Text="{Binding ProteinText}" TextColor="{StaticResource MacroProtein}" FontSize="12" />
-                                <Label Text="{Binding CarbsText}" TextColor="{StaticResource MacroCarbs}" FontSize="12" />
-                            </HorizontalStackLayout>
-                            <Label Grid.Row="2"
-                                   Grid.ColumnSpan="2"
-                                   Text="{Binding DescriptionText}"
-                                   IsVisible="{Binding HasDescription}"
-                                   LineBreakMode="TailTruncation"
-                                   MaxLines="2"
-                                   Style="{StaticResource BodyMuted}" />
-                            <Label Grid.Row="3"
-                                Grid.ColumnSpan="2"
-                                Text="{Binding AnalysisText}"
-                                IsVisible="{Binding HasAnalysis}"
-                                LineBreakMode="WordWrap"
-                                MaxLines="3"
-                                FontSize="12"
-                                TextColor="{StaticResource Primary}" />
-                            <Label Grid.Row="4"
-                                   Grid.ColumnSpan="2"
-                                   Text="{Binding QualityBadgeText}"
-                                   IsVisible="{Binding HasQualityBadge}"
-                                   FontAttributes="Bold"
-                                   FontSize="12" />
-                            <Label Grid.Row="5"
-                                   Grid.ColumnSpan="2"
-                                   Text="{Binding QualitySemaphoreText}"
-                                   IsVisible="{Binding HasQualitySemaphore}"
-                                   Style="{StaticResource BodyMuted}" />
-                            <HorizontalStackLayout Grid.Row="6" Grid.ColumnSpan="2" Spacing="8" HorizontalOptions="End">
-                                <Button Style="{StaticResource SecondaryButton}"
-                                    Text="{Binding Source={x:Reference DiaryRoot}, Path=BindingContext.EditText}"
-                                        Command="{Binding Source={x:Reference DiaryRoot}, Path=BindingContext.EditMealCommand}"
-                                        CommandParameter="{Binding .}" />
-                                <Button Text="{Binding Source={x:Reference DiaryRoot}, Path=BindingContext.DeleteText}"
-                                        Style="{StaticResource SecondaryButton}"
-                                        Command="{Binding Source={x:Reference DiaryRoot}, Path=BindingContext.DeleteMealCommand}"
-                                        CommandParameter="{Binding .}" />
-                            </HorizontalStackLayout>
-                        </Grid>
-                    </Border>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
+            <VerticalStackLayout Grid.Row="6" Spacing="0" BindableLayout.ItemsSource="{Binding Meals}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
+                                <Label Text="{Binding Title}" FontAttributes="Bold" FontSize="15" />
+                                <Label Grid.Column="1" Text="{Binding CaloriesText}" FontAttributes="Bold" />
+                                <Label Grid.Row="1" Text="{Binding Subtitle}" TextColor="{StaticResource Muted}" FontSize="12" />
+                                <HorizontalStackLayout Grid.Row="1" Grid.Column="1" Spacing="10" HorizontalOptions="End">
+                                    <Label Text="{Binding ProteinText}" TextColor="{StaticResource MacroProtein}" FontSize="12" />
+                                    <Label Text="{Binding CarbsText}" TextColor="{StaticResource MacroCarbs}" FontSize="12" />
+                                </HorizontalStackLayout>
+                                <Label Grid.Row="2"
+                                       Grid.ColumnSpan="2"
+                                       Text="{Binding DescriptionText}"
+                                       IsVisible="{Binding HasDescription}"
+                                       LineBreakMode="TailTruncation"
+                                       MaxLines="2"
+                                       Style="{StaticResource BodyMuted}" />
+                                <Label Grid.Row="3"
+                                    Grid.ColumnSpan="2"
+                                    Text="{Binding AnalysisText}"
+                                    IsVisible="{Binding HasAnalysis}"
+                                    LineBreakMode="WordWrap"
+                                    MaxLines="3"
+                                    FontSize="12"
+                                    TextColor="{StaticResource Primary}" />
+                                <Image Grid.Row="4"
+                                       Grid.ColumnSpan="2"
+                                       Source="{Binding PhotoSource}"
+                                       IsVisible="{Binding HasPhoto}"
+                                       HeightRequest="170"
+                                       Aspect="AspectFill" />
+                                          <Label Grid.Row="5"
+                                       Grid.ColumnSpan="2"
+                                       Text="{Binding QualityBadgeText}"
+                                       IsVisible="{Binding HasQualityBadge}"
+                                       FontAttributes="Bold"
+                                       FontSize="12" />
+                                          <Label Grid.Row="6"
+                                       Grid.ColumnSpan="2"
+                                       Text="{Binding QualitySemaphoreText}"
+                                       IsVisible="{Binding HasQualitySemaphore}"
+                                       Style="{StaticResource BodyMuted}" />
+                                          <HorizontalStackLayout Grid.Row="7" Grid.ColumnSpan="2" Spacing="8" HorizontalOptions="End">
+                                    <Button Style="{StaticResource SecondaryButton}"
+                                        Text="{Binding Source={x:Reference DiaryRoot}, Path=BindingContext.EditText}"
+                                            Command="{Binding Source={x:Reference DiaryRoot}, Path=BindingContext.EditMealCommand}"
+                                            CommandParameter="{Binding .}" />
+                                    <Button Text="{Binding Source={x:Reference DiaryRoot}, Path=BindingContext.DeleteText}"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Command="{Binding Source={x:Reference DiaryRoot}, Path=BindingContext.DeleteMealCommand}"
+                                            CommandParameter="{Binding .}" />
+                                </HorizontalStackLayout>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+            </Grid>
+        </ScrollView>
 
         <Grid IsVisible="{Binding IsManualPopupVisible}"
               BackgroundColor="#80000000"
-              InputTransparent="False"
-              Grid.RowSpan="5">
+              InputTransparent="False">
             <Border Style="{StaticResource Card}"
                     MaximumWidthRequest="460"
                     HorizontalOptions="Center"
@@ -222,8 +287,7 @@
 
         <Grid IsVisible="{Binding IsEditPopupVisible}"
               BackgroundColor="#80000000"
-              InputTransparent="False"
-              Grid.RowSpan="5">
+                            InputTransparent="False">
             <Border Style="{StaticResource Card}"
                     MaximumWidthRequest="460"
                     HorizontalOptions="Center"

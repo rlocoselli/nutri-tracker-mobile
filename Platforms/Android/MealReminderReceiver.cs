@@ -67,6 +67,12 @@ public class MealReminderReceiver : BroadcastReceiver
         var trigger = new DateTime(now.Year, now.Month, now.Day, Math.Clamp(hour, 0, 23), Math.Clamp(minute, 0, 59), 0).AddDays(1);
         var triggerAtMillis = new DateTimeOffset(trigger).ToUnixTimeMilliseconds();
 
+        if (OperatingSystem.IsAndroidVersionAtLeast(31) && alarmManager.CanScheduleExactAlarms())
+        {
+            alarmManager.SetExactAndAllowWhileIdle(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
+            return;
+        }
+
         if (OperatingSystem.IsAndroidVersionAtLeast(23))
         {
             alarmManager.SetAndAllowWhileIdle(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);

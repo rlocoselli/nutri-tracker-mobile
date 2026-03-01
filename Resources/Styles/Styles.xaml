@@ -64,6 +64,12 @@
         <Setter Property="PlaceholderColor" Value="{StaticResource Muted}" />
     </Style>
 
+    <Style TargetType="Picker">
+        <Setter Property="BackgroundColor" Value="{StaticResource Card}" />
+        <Setter Property="TextColor" Value="{StaticResource Text}" />
+        <Setter Property="TitleColor" Value="{StaticResource Muted}" />
+    </Style>
+
     <!-- Cards -->
     <Style x:Key="Card" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource CardBrush}" />
