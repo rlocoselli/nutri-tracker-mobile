@@ -328,6 +328,39 @@ public class BackendSyncService
         return resp.IsSuccessStatusCode;
     }
 
+    public async Task<List<PrivateMessageDto>> GetPrivateMessagesAsync(string otherUserId, int limit = 80)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(otherUserId))
+            return new List<PrivateMessageDto>();
+
+        var safeLimit = Math.Clamp(limit, 1, 200);
+        using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/friends/messages/{otherUserId}?limit={safeLimit}");
+        req.Headers.Add("X-User-Id", userId);
+        var resp = await _http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode)
+            return new List<PrivateMessageDto>();
+
+        var parsed = await resp.Content.ReadFromJsonAsync<List<PrivateMessageDto>>();
+        return parsed ?? new List<PrivateMessageDto>();
+    }
+
+    public async Task<List<FriendDirectoryDto>> GetFriendDirectoryAsync()
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
+            return new List<FriendDirectoryDto>();
+
+        using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/friends/directory");
+        req.Headers.Add("X-User-Id", userId);
+        var resp = await _http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode)
+            return new List<FriendDirectoryDto>();
+
+        var parsed = await resp.Content.ReadFromJsonAsync<List<FriendDirectoryDto>>();
+        return parsed ?? new List<FriendDirectoryDto>();
+    }
+
     private sealed class AuthResponse
     {
         public string user_id { get; set; } = "";
@@ -433,4 +466,21 @@ public class StoryCommentDto
     public string author_name { get; set; } = "";
     public string text { get; set; } = "";
     public DateTime created_at_utc { get; set; }
+}
+
+public class PrivateMessageDto
+{
+    public string id { get; set; } = "";
+    public string sender_user_id { get; set; } = "";
+    public string recipient_user_id { get; set; } = "";
+    public string text { get; set; } = "";
+    public DateTime created_at_utc { get; set; }
+}
+
+public class FriendDirectoryDto
+{
+    public string user_id { get; set; } = "";
+    public string email { get; set; } = "";
+    public string display_name { get; set; } = "";
+    public string picture_url { get; set; } = "";
 }

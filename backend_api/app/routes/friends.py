@@ -5,10 +5,25 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from ..db import get_db
 from ..models import FriendInvite, Friendship, MealEntry, User, StoryLike, StoryComment, PrivateMessage
-from ..schemas import InviteIn, FriendStoryOut, StoryLikeOut, StoryCommentIn, StoryCommentOut, PrivateMessageIn, PrivateMessageOut
+from ..schemas import InviteIn, FriendStoryOut, StoryLikeOut, StoryCommentIn, StoryCommentOut, PrivateMessageIn, PrivateMessageOut, FriendDirectoryOut
 from ..security import get_current_user_id
 
 router = APIRouter(prefix="/friends", tags=["friends"])
+
+
+def _display_name(user: User | None) -> str:
+    if not user:
+        return "User"
+
+    name = (user.display_name or "").strip()
+    if name and name.lower() != "new user":
+        return name
+
+    email = (user.email or "").strip()
+    if email and "@" in email:
+        return email.split("@", 1)[0]
+
+    return "User"
 
 
 def _visible_user_ids(db: Session, user_id: uuid.UUID) -> set[uuid.UUID]:
@@ -101,6 +116,26 @@ def list_friends(user_id: uuid.UUID = Depends(get_current_user_id), db: Session 
     return rows
 
 
+@router.get("/directory", response_model=list[FriendDirectoryOut])
+def friend_directory(user_id: uuid.UUID = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    visible = _visible_user_ids(db, user_id)
+    visible.discard(user_id)
+
+    users = db.query(User).filter(User.id.in_(list(visible))).all()
+    out: list[FriendDirectoryOut] = []
+    for user in users:
+        out.append(
+            FriendDirectoryOut(
+                user_id=str(user.id),
+                email=(user.email or "").strip().lower(),
+                display_name=_display_name(user),
+                picture_url=user.picture_url or "",
+            )
+        )
+
+    return sorted(out, key=lambda x: x.display_name.lower())
+
+
 @router.get("/feed", response_model=list[FriendStoryOut])
 def friends_feed(
     days: int = 2,
@@ -140,7 +175,7 @@ def friends_feed(
             FriendStoryOut(
                 meal_id=str(meal.id),
                 user_id=str(user.id),
-                display_name=user.display_name or user.email or "User",
+                display_name=_display_name(user),
                 author_email=user.email or "",
                 picture_url=user.picture_url or "",
                 date_utc=meal.date_utc,
@@ -215,7 +250,7 @@ def list_story_comments(
 
     out: list[StoryCommentOut] = []
     for comment, author in rows:
-        author_name = (author.display_name or "").strip() or (author.email or "User")
+        author_name = _display_name(author)
         out.append(
             StoryCommentOut(
                 id=str(comment.id),
@@ -255,9 +290,7 @@ def add_story_comment(
     db.refresh(row)
 
     me = db.query(User).filter(User.id == user_id).first()
-    author_name = "User"
-    if me:
-        author_name = (me.display_name or "").strip() or (me.email or "User")
+    author_name = _display_name(me)
 
     return StoryCommentOut(
         id=str(row.id),

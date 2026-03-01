@@ -146,3 +146,10 @@ class PrivateMessageOut(BaseModel):
     recipient_user_id: str
     text: str
     created_at_utc: datetime
+
+
+class FriendDirectoryOut(BaseModel):
+    user_id: str
+    email: str
+    display_name: str
+    picture_url: str

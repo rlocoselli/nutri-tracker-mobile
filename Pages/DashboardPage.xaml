@@ -51,7 +51,10 @@
 
             <Border Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
                 <VerticalStackLayout Spacing="6">
-                    <Label Text="{Binding StreakTitleText}" FontAttributes="Bold" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <Label Text="{Binding StreakTitleText}" FontAttributes="Bold" VerticalOptions="Center" />
+                        <Button Grid.Column="1" Text="ℹ" Style="{StaticResource IconButton}" Command="{Binding ShowBalanceInfoCommand}" />
+                    </Grid>
                     <Label Text="{Binding StreakText}" FontSize="24" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
                     <Label Text="{Binding RecordingStreakTitleText}" FontAttributes="Bold" />
                     <Label Text="{Binding RecordingStreakText}" FontSize="20" FontAttributes="Bold" />

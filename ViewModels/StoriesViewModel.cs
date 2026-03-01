@@ -26,6 +26,8 @@ public partial class StoriesViewModel : ObservableObject
     public string CommentText => T("story_comment");
     public string MessageText => T("story_message");
     public string CommentPlaceholder => T("story_comment_placeholder");
+    public string SendText => T("send");
+    public string ViewMessagesText => T("story_view_messages");
 
     public StoriesViewModel(BackendSyncService sync)
     {
@@ -44,6 +46,8 @@ public partial class StoriesViewModel : ObservableObject
         OnPropertyChanged(nameof(CommentText));
         OnPropertyChanged(nameof(MessageText));
         OnPropertyChanged(nameof(CommentPlaceholder));
+        OnPropertyChanged(nameof(SendText));
+        OnPropertyChanged(nameof(ViewMessagesText));
         await RefreshAsync();
     }
 
@@ -141,6 +145,28 @@ public partial class StoriesViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task ViewComments(StoryFeedItem? item)
+    {
+        if (item == null || string.IsNullOrWhiteSpace(item.MealId) || IsBusy)
+            return;
+
+        var comments = await _sync.GetStoryCommentsAsync(item.MealId, limit: 60);
+        if (comments.Count == 0)
+        {
+            await Application.Current!.MainPage!.DisplayAlert(T("story_view_messages"), T("story_no_messages"), "OK");
+            return;
+        }
+
+        var lines = comments
+            .OrderBy(x => x.created_at_utc)
+            .Select(x => $"{x.author_name}: {x.text}")
+            .ToList();
+
+        var body = string.Join("\n", lines);
+        await Application.Current!.MainPage!.DisplayAlert(T("story_view_messages"), body, "OK");
+    }
+
+    [RelayCommand]
     private async Task SendMessage(StoryFeedItem? item)
     {
         if (item == null || string.IsNullOrWhiteSpace(item.AuthorUserId) || IsBusy)
@@ -226,6 +252,8 @@ public partial class StoriesViewModel : ObservableObject
             "story_unlike" => L(lang, "Aimé", "Liked", "Curtido", "Te gusta"),
             "story_comment" => L(lang, "Commenter", "Comment", "Comentar", "Comentar"),
             "story_comment_placeholder" => L(lang, "Écrire un commentaire", "Write a comment", "Escreva um comentário", "Escribe un comentario"),
+            "story_view_messages" => L(lang, "Voir messages", "View messages", "Ver mensagens", "Ver mensajes"),
+            "story_no_messages" => L(lang, "Aucun message pour cette photo.", "No messages for this photo.", "Nenhuma mensagem para esta foto.", "No hay mensajes para esta foto."),
             "story_message" => L(lang, "Message privé", "Private message", "Mensagem privada", "Mensaje privado"),
             "story_message_to" => L(lang, "Envoyer un message à {0}", "Send a message to {0}", "Enviar mensagem para {0}", "Enviar mensaje a {0}"),
             "story_message_placeholder" => L(lang, "Votre message", "Your message", "Sua mensagem", "Tu mensaje"),

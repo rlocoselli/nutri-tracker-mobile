@@ -44,6 +44,7 @@ public partial class DashboardViewModel : ObservableObject
     public string BurnLabelText => LocalizationService.T("burned_calories");
     public string StreakTitleText => LocalizationService.T("reward_streak_title");
     public string StreakSubtitleText => LocalizationService.T("reward_streak_subtitle");
+    public string BalanceInfoTitleText => LocalizationService.T("balance_info_title");
     public string RecordingStreakTitleText => LocalizationService.T("recording_streak_title");
     public string CoinsTitleText => LocalizationService.T("coins_balance");
     public bool ShowGoogleFitUi => FeatureFlags.EnableGoogleFit;
@@ -72,6 +73,7 @@ public partial class DashboardViewModel : ObservableObject
         OnPropertyChanged(nameof(BurnLabelText));
         OnPropertyChanged(nameof(StreakTitleText));
         OnPropertyChanged(nameof(StreakSubtitleText));
+        OnPropertyChanged(nameof(BalanceInfoTitleText));
         OnPropertyChanged(nameof(RecordingStreakTitleText));
         OnPropertyChanged(nameof(CoinsTitleText));
         OnPropertyChanged(nameof(ShowGoogleFitUi));
@@ -186,6 +188,15 @@ public partial class DashboardViewModel : ObservableObject
     private async Task OpenRecommendations()
     {
         await Shell.Current.Navigation.PushAsync(_sp.GetRequiredService<Pages.RecommendationsPage>());
+    }
+
+    [RelayCommand]
+    private async Task ShowBalanceInfo()
+    {
+        await Application.Current!.MainPage!.DisplayAlert(
+            BalanceInfoTitleText,
+            LocalizationService.T("balance_info_body"),
+            "OK");
     }
 
     private async Task<List<MealEntry>> GetMealsForRangeAsync(DateTime fromUtc, DateTime toUtc)

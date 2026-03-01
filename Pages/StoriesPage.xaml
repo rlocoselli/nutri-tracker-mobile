@@ -38,18 +38,13 @@
                                     <Label Text="{Binding Caption}" FontAttributes="Bold" />
                                     <Label Text="{Binding NutritionText}" />
 
-                                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
                                         <Button Grid.Column="0"
                                                 Text="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.LikeText}"
                                                 Style="{StaticResource SecondaryButton}"
                                                 Command="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.ToggleLikeCommand}"
                                                 CommandParameter="{Binding .}" />
                                         <Button Grid.Column="1"
-                                                Text="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.CommentText}"
-                                                Style="{StaticResource SecondaryButton}"
-                                                Command="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.AddCommentCommand}"
-                                                CommandParameter="{Binding .}" />
-                                        <Button Grid.Column="2"
                                                 Text="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.MessageText}"
                                                 Style="{StaticResource SecondaryButton}"
                                                 Command="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.SendMessageCommand}"
@@ -58,8 +53,21 @@
 
                                     <Label Text="{Binding LikeCount, StringFormat='❤️ {0}'}" FontSize="11" TextColor="{StaticResource Muted}" />
                                     <Label Text="{Binding CommentCount, StringFormat='💬 {0}'}" FontSize="11" TextColor="{StaticResource Muted}" />
-                                    <Entry Text="{Binding CommentDraft}"
-                                           Placeholder="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.CommentPlaceholder}" />
+
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                        <Entry Text="{Binding CommentDraft}"
+                                               Placeholder="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.CommentPlaceholder}" />
+                                        <Button Grid.Column="1"
+                                            Text="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.SendText}"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Command="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.AddCommentCommand}"
+                                            CommandParameter="{Binding .}" />
+                                        </Grid>
+
+                                        <Button Text="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.ViewMessagesText}"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Command="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.ViewCommentsCommand}"
+                                            CommandParameter="{Binding .}" />
                                 </VerticalStackLayout>
                             </Border>
                         </DataTemplate>
