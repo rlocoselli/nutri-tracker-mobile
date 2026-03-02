@@ -16,8 +16,13 @@ public partial class FriendsViewModel : ObservableObject
     [ObservableProperty] private string inviteEmail = "";
     [ObservableProperty] private string searchQuery = "";
     [ObservableProperty] private string statusText = "";
+    [ObservableProperty] private bool isBusy;
+    [ObservableProperty] private string selectedTab = "friends";
+    [ObservableProperty] private string friendsSearchQuery = "";
 
     public ObservableCollection<FriendsInviteRow> Friends { get; } = new();
+    public ObservableCollection<FriendsInviteRow> AcceptedFriends { get; } = new();
+    public ObservableCollection<FriendsInviteRow> OutgoingInvites { get; } = new();
     public ObservableCollection<FriendsRankRow> League { get; } = new();
     public ObservableCollection<FriendSearchRow> SearchResults { get; } = new();
     public ObservableCollection<IncomingInviteRow> IncomingInvites { get; } = new();
@@ -43,6 +48,32 @@ public partial class FriendsViewModel : ObservableObject
     public string MessageText => T("friend_message");
     public string ViewMessagesText => T("story_view_messages");
     public string ChatText => T("friend_chat_open");
+    public string TabFriendsText => T("friends_tab_friends");
+    public string TabRequestsText => T("friends_tab_requests");
+    public string TabSuggestionsText => T("friends_tab_suggestions");
+    public string IncomingSectionText => T("incoming_invites_title");
+    public string OutgoingSectionText => T("outgoing_invites_title");
+    public string SuggestionsHintText => T("suggestions_hint");
+    public string FriendsSearchLocalPlaceholder => T("friends_local_search_placeholder");
+    public string EmptyRequestsText => T("friends_requests_empty");
+    public string EmptySuggestionsText => T("friends_suggestions_empty");
+    public string EmptyFriendsHelpText => T("friends_empty_help");
+    public string AcceptAllText => T("accept_all");
+    public string DeclineAllText => T("decline_all");
+    public string SyncContactsText => T("sync_contacts");
+    public string InviteLinkText => T("invite_link");
+    public string ShowQrText => T("show_qr");
+    public string RequestToConfirmText => T("request_to_confirm");
+    public string RequestSentStateText => T("request_sent_state");
+
+    public bool IsFriendsTab => string.Equals(SelectedTab, "friends", StringComparison.OrdinalIgnoreCase);
+    public bool IsRequestsTab => string.Equals(SelectedTab, "requests", StringComparison.OrdinalIgnoreCase);
+    public bool IsSuggestionsTab => string.Equals(SelectedTab, "suggestions", StringComparison.OrdinalIgnoreCase);
+    public bool HasIncomingInvites => IncomingInvites.Count > 0;
+    public bool HasOutgoingInvites => OutgoingInvites.Count > 0;
+    public bool HasRequestItems => HasIncomingInvites || HasOutgoingInvites;
+    public bool HasSuggestions => SearchResults.Count > 0;
+    public bool HasAcceptedFriends => AcceptedFriends.Count > 0;
 
     public FriendsViewModel(SocialService social, BackendSyncService sync, PointsService points, IServiceProvider services)
     {
@@ -75,8 +106,46 @@ public partial class FriendsViewModel : ObservableObject
         OnPropertyChanged(nameof(MessageText));
         OnPropertyChanged(nameof(ViewMessagesText));
         OnPropertyChanged(nameof(ChatText));
+        OnPropertyChanged(nameof(TabFriendsText));
+        OnPropertyChanged(nameof(TabRequestsText));
+        OnPropertyChanged(nameof(TabSuggestionsText));
+        OnPropertyChanged(nameof(IncomingSectionText));
+        OnPropertyChanged(nameof(OutgoingSectionText));
+        OnPropertyChanged(nameof(SuggestionsHintText));
+        OnPropertyChanged(nameof(FriendsSearchLocalPlaceholder));
+        OnPropertyChanged(nameof(EmptyRequestsText));
+        OnPropertyChanged(nameof(EmptySuggestionsText));
+        OnPropertyChanged(nameof(EmptyFriendsHelpText));
+        OnPropertyChanged(nameof(AcceptAllText));
+        OnPropertyChanged(nameof(DeclineAllText));
+        OnPropertyChanged(nameof(SyncContactsText));
+        OnPropertyChanged(nameof(InviteLinkText));
+        OnPropertyChanged(nameof(ShowQrText));
+        OnPropertyChanged(nameof(RequestToConfirmText));
+        OnPropertyChanged(nameof(RequestSentStateText));
         await ReloadAsync();
     }
+
+    partial void OnSelectedTabChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsFriendsTab));
+        OnPropertyChanged(nameof(IsRequestsTab));
+        OnPropertyChanged(nameof(IsSuggestionsTab));
+    }
+
+    partial void OnFriendsSearchQueryChanged(string value)
+    {
+        ApplyFriendsFilter();
+    }
+
+    [RelayCommand]
+    private void ShowFriendsTab() => SelectedTab = "friends";
+
+    [RelayCommand]
+    private void ShowRequestsTab() => SelectedTab = "requests";
+
+    [RelayCommand]
+    private void ShowSuggestionsTab() => SelectedTab = "suggestions";
 
     [RelayCommand]
     private async Task Refresh()
@@ -87,6 +156,9 @@ public partial class FriendsViewModel : ObservableObject
     [RelayCommand]
     private async Task Invite()
     {
+        if (IsBusy)
+            return;
+
         if (string.IsNullOrWhiteSpace(InviteEmail) || !InviteEmail.Contains('@'))
         {
             StatusText = T("invite_invalid_email");
@@ -100,22 +172,26 @@ public partial class FriendsViewModel : ObservableObject
             return;
         }
 
-        var added = _social.Invite(email);
-        if (!added)
+        try
         {
-            StatusText = T("invite_already_exists");
-            return;
+            IsBusy = true;
+            var backendOk = await _sync.TryInviteFriendAsync(email);
+            InviteEmail = "";
+            StatusText = backendOk ? T("invite_sent") : T("invite_send_failed");
+            await ReloadAsync();
         }
-
-        var backendOk = await _sync.TryInviteFriendAsync(email);
-        InviteEmail = "";
-        StatusText = backendOk ? T("invite_sent") : T("invite_send_failed");
-        await ReloadAsync();
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     [RelayCommand]
     private async Task AddBuddy()
     {
+        if (IsBusy)
+            return;
+
         if (string.IsNullOrWhiteSpace(InviteEmail) || !InviteEmail.Contains('@'))
         {
             StatusText = T("invite_invalid_email");
@@ -129,22 +205,26 @@ public partial class FriendsViewModel : ObservableObject
             return;
         }
 
-        var ok = _social.AddFriend(email);
-        if (!ok)
+        try
         {
-            StatusText = T("invite_already_exists");
-            return;
+            IsBusy = true;
+            var ok = await _sync.TryInviteFriendAsync(email);
+            InviteEmail = "";
+            StatusText = ok ? T("invite_sent") : T("invite_send_failed");
+            await ReloadAsync();
         }
-
-        _ = await _sync.TryInviteFriendAsync(email);
-        InviteEmail = "";
-        StatusText = T("buddy_added");
-        await ReloadAsync();
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     [RelayCommand]
     private async Task SearchUsers()
     {
+        if (IsBusy)
+            return;
+
         var query = (SearchQuery ?? "").Trim();
         SearchResults.Clear();
 
@@ -162,28 +242,56 @@ public partial class FriendsViewModel : ObservableObject
             return;
         }
 
-        var users = await _sync.SearchFriendUsersAsync(query, limit: 20);
-        foreach (var user in users)
+        try
         {
-            var email = (user.email ?? "").Trim();
-            if (string.IsNullOrWhiteSpace(email))
-                continue;
+            IsBusy = true;
+            var knownEmails = Friends
+                .Select(x => (x.Email ?? "").Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            SearchResults.Add(new FriendSearchRow
+            foreach (var invite in IncomingInvites)
             {
-                UserId = (user.user_id ?? "").Trim(),
-                Email = email,
-                DisplayName = string.IsNullOrWhiteSpace(user.display_name) ? email.Split('@')[0] : user.display_name,
-                Handle = BuildHandle(string.IsNullOrWhiteSpace(user.display_name) ? email.Split('@')[0] : user.display_name),
-            });
+                var email = (invite.InviterEmail ?? "").Trim();
+                if (!string.IsNullOrWhiteSpace(email))
+                    knownEmails.Add(email);
+            }
+
+            var users = await _sync.SearchFriendUsersAsync(query, limit: 20);
+            foreach (var user in users)
+            {
+                var email = (user.email ?? "").Trim();
+                if (string.IsNullOrWhiteSpace(email))
+                    continue;
+
+                if (IsCurrentUserEmail(email) || knownEmails.Contains(email))
+                    continue;
+
+                SearchResults.Add(new FriendSearchRow
+                {
+                    UserId = (user.user_id ?? "").Trim(),
+                    Email = email,
+                    DisplayName = string.IsNullOrWhiteSpace(user.display_name) ? email.Split('@')[0] : user.display_name,
+                    Handle = BuildHandle(string.IsNullOrWhiteSpace(user.display_name) ? email.Split('@')[0] : user.display_name),
+                    NutritionHint = T("friend_suggestion_nutrition_hint"),
+                });
+            }
+        }
+        finally
+        {
+            IsBusy = false;
         }
 
         StatusText = SearchResults.Count == 0 ? T("friend_search_empty") : T("friend_search_success");
+        SelectedTab = "suggestions";
     }
 
     [RelayCommand]
     private async Task InviteUser(FriendSearchRow? row)
     {
+        if (IsBusy)
+            return;
+
         if (row == null || string.IsNullOrWhiteSpace(row.Email))
             return;
 
@@ -194,59 +302,180 @@ public partial class FriendsViewModel : ObservableObject
             return;
         }
 
-        _social.Invite(email);
-        var ok = await _sync.TryInviteFriendAsync(email);
-        StatusText = ok ? T("invite_sent") : T("invite_send_failed");
-        await ReloadAsync();
+        try
+        {
+            IsBusy = true;
+            var ok = await _sync.TryInviteFriendAsync(email);
+            StatusText = ok ? T("invite_sent") : T("invite_send_failed");
+            await ReloadAsync();
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     [RelayCommand]
     private void Accept(FriendsInviteRow? row)
     {
         if (row == null) return;
-        _social.Accept(row.Email);
-        StatusText = T("friend_accepted");
-        _ = ReloadAsync();
+        StatusText = row.IsPending ? T("invite_accept_failed") : T("friend_accepted");
     }
 
     [RelayCommand]
-    private void Remove(FriendsInviteRow? row)
+    private async Task Remove(FriendsInviteRow? row)
     {
         if (row == null) return;
-        _social.Remove(row.Email);
-        StatusText = T("friend_removed");
-        _ = ReloadAsync();
+
+        if (IsBusy)
+            return;
+
+        try
+        {
+            IsBusy = true;
+            if (row.IsPending && !string.IsNullOrWhiteSpace(row.InviteId))
+            {
+                var ok = await _sync.TryDeleteInviteAsync(row.InviteId);
+                StatusText = ok ? T("friend_invite_cancelled") : T("friend_invite_cancel_failed");
+                await ReloadAsync();
+                return;
+            }
+
+            _social.Remove(row.Email);
+            StatusText = T("friend_removed");
+            await ReloadAsync();
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     [RelayCommand]
     private async Task AcceptIncoming(IncomingInviteRow? row)
     {
+        if (IsBusy)
+            return;
+
         if (row == null || string.IsNullOrWhiteSpace(row.InviteId))
             return;
 
-        var ok = await _sync.TryAcceptInviteAsync(row.InviteId);
-        if (!ok)
+        try
         {
-            StatusText = T("invite_accept_failed");
-            return;
+            IsBusy = true;
+            var ok = await _sync.TryAcceptInviteAsync(row.InviteId);
+            if (!ok)
+            {
+                StatusText = T("invite_accept_failed");
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(row.InviterEmail))
+                _social.AddFriend(row.InviterEmail);
+
+            StatusText = T("friend_accepted");
+            await ReloadAsync();
         }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
 
-        if (!string.IsNullOrWhiteSpace(row.InviterEmail))
-            _social.AddFriend(row.InviterEmail);
+    [RelayCommand]
+    private async Task AcceptAllIncoming()
+    {
+        if (IsBusy || IncomingInvites.Count == 0)
+            return;
 
-        StatusText = T("friend_accepted");
-        await ReloadAsync();
+        IsBusy = true;
+        try
+        {
+            var success = 0;
+            foreach (var invite in IncomingInvites.ToList())
+            {
+                if (string.IsNullOrWhiteSpace(invite.InviteId))
+                    continue;
+
+                if (await _sync.TryAcceptInviteAsync(invite.InviteId))
+                    success++;
+            }
+
+            StatusText = success > 0 ? T("friend_accepted") : T("invite_accept_failed");
+            await ReloadAsync();
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task DeclineAllIncoming()
+    {
+        if (IsBusy || IncomingInvites.Count == 0)
+            return;
+
+        IsBusy = true;
+        try
+        {
+            var success = 0;
+            foreach (var invite in IncomingInvites.ToList())
+            {
+                if (string.IsNullOrWhiteSpace(invite.InviteId))
+                    continue;
+
+                if (await _sync.TryDeclineInviteAsync(invite.InviteId))
+                    success++;
+            }
+
+            StatusText = success > 0 ? T("invite_declined") : T("invite_decline_failed");
+            await ReloadAsync();
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task SyncContacts()
+    {
+        await Application.Current!.MainPage!.DisplayAlert(T("friends_title"), T("contacts_permission_explainer"), "OK");
+    }
+
+    [RelayCommand]
+    private async Task InviteByLink()
+    {
+        await Application.Current!.MainPage!.DisplayAlert(T("friends_title"), T("invite_link_hint"), "OK");
+    }
+
+    [RelayCommand]
+    private async Task ShowQr()
+    {
+        await Application.Current!.MainPage!.DisplayAlert(T("friends_title"), T("qr_hint"), "OK");
     }
 
     [RelayCommand]
     private async Task DeclineIncoming(IncomingInviteRow? row)
     {
+        if (IsBusy)
+            return;
+
         if (row == null || string.IsNullOrWhiteSpace(row.InviteId))
             return;
 
-        var ok = await _sync.TryDeclineInviteAsync(row.InviteId);
-        StatusText = ok ? T("invite_declined") : T("invite_decline_failed");
-        await ReloadAsync();
+        try
+        {
+            IsBusy = true;
+            var ok = await _sync.TryDeclineInviteAsync(row.InviteId);
+            StatusText = ok ? T("invite_declined") : T("invite_decline_failed");
+            await ReloadAsync();
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     [RelayCommand]
@@ -353,6 +582,7 @@ public partial class FriendsViewModel : ObservableObject
     private async Task ReloadAsync()
     {
         var displayByEmail = new Dictionary<string, (string Name, string UserId)>(StringComparer.OrdinalIgnoreCase);
+        var outgoingByEmail = new Dictionary<string, OutgoingInviteDto>(StringComparer.OrdinalIgnoreCase);
         var token = Preferences.Default.Get("auth_id_token", "");
         var identityOk = await _sync.EnsureBackendIdentityAsync(token);
         if (identityOk)
@@ -370,14 +600,27 @@ public partial class FriendsViewModel : ObservableObject
 
                 displayByEmail[email] = (name, (user.user_id ?? "").Trim());
             }
+
+            var outgoing = await _sync.GetOutgoingInvitesAsync();
+            foreach (var invite in outgoing)
+            {
+                var email = (invite.invitee_email ?? "").Trim().ToLowerInvariant();
+                if (string.IsNullOrWhiteSpace(email))
+                    continue;
+
+                if (!string.Equals((invite.status ?? "").Trim(), "pending", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                outgoingByEmail[email] = invite;
+            }
         }
 
         Friends.Clear();
         var knownEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var item in _social.GetInvites())
+        foreach (var pair in outgoingByEmail)
         {
-            var pending = string.Equals(item.Status, "pending", StringComparison.OrdinalIgnoreCase);
-            var email = (item.Email ?? "").Trim().ToLowerInvariant();
+            var pending = true;
+            var email = pair.Key;
             knownEmails.Add(email);
 
             var displayName = displayByEmail.TryGetValue(email, out var mapped)
@@ -390,6 +633,7 @@ public partial class FriendsViewModel : ObservableObject
                 DisplayName = displayName,
                 Handle = BuildHandle(displayName),
                 UserId = displayByEmail.TryGetValue(email, out var info) ? info.UserId : "",
+                InviteId = pair.Value.id,
                 Status = pending ? T("status_pending") : T("status_friend"),
                 Badge = pending ? "🟡" : "🟢",
                 IsPending = pending,
@@ -407,10 +651,35 @@ public partial class FriendsViewModel : ObservableObject
                 DisplayName = kv.Value.Name,
                 Handle = BuildHandle(kv.Value.Name),
                 UserId = kv.Value.UserId,
+                InviteId = "",
                 Status = T("status_friend"),
                 Badge = "🟢",
                 IsPending = false,
             });
+        }
+
+        if (!identityOk)
+        {
+            foreach (var item in _social.GetInvites())
+            {
+                var pending = string.Equals(item.Status, "pending", StringComparison.OrdinalIgnoreCase);
+                var email = (item.Email ?? "").Trim().ToLowerInvariant();
+                if (string.IsNullOrWhiteSpace(email) || Friends.Any(x => string.Equals(x.Email, email, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+
+                var displayName = DisplayNameFromEmail(email);
+                Friends.Add(new FriendsInviteRow
+                {
+                    Email = email,
+                    DisplayName = displayName,
+                    Handle = BuildHandle(displayName),
+                    UserId = "",
+                    InviteId = "",
+                    Status = pending ? T("status_pending") : T("status_friend"),
+                    Badge = pending ? "🟡" : "🟢",
+                    IsPending = pending,
+                });
+            }
         }
 
         IncomingInvites.Clear();
@@ -434,6 +703,14 @@ public partial class FriendsViewModel : ObservableObject
                 });
             }
         }
+
+        ApplyFriendsFilter();
+        RebuildOutgoingInvites();
+        OnPropertyChanged(nameof(HasIncomingInvites));
+        OnPropertyChanged(nameof(HasOutgoingInvites));
+        OnPropertyChanged(nameof(HasRequestItems));
+        OnPropertyChanged(nameof(HasAcceptedFriends));
+        OnPropertyChanged(nameof(HasSuggestions));
 
         League.Clear();
         var selfEmail = Preferences.Default.Get("profile_email", "");
@@ -504,11 +781,39 @@ public partial class FriendsViewModel : ObservableObject
     }
 
     private static string T(string key) => LocalizationService.T(key);
+
+    private void ApplyFriendsFilter()
+    {
+        AcceptedFriends.Clear();
+        var q = (FriendsSearchQuery ?? "").Trim().ToLowerInvariant();
+
+        foreach (var row in Friends.Where(x => !x.IsPending))
+        {
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var inName = (row.DisplayName ?? "").ToLowerInvariant().Contains(q);
+                var inHandle = (row.Handle ?? "").ToLowerInvariant().Contains(q);
+                var inEmail = (row.Email ?? "").ToLowerInvariant().Contains(q);
+                if (!inName && !inHandle && !inEmail)
+                    continue;
+            }
+
+            AcceptedFriends.Add(row);
+        }
+    }
+
+    private void RebuildOutgoingInvites()
+    {
+        OutgoingInvites.Clear();
+        foreach (var row in Friends.Where(x => x.IsPending))
+            OutgoingInvites.Add(row);
+    }
 }
 
 public class FriendsInviteRow
 {
     public string UserId { get; set; } = "";
+    public string InviteId { get; set; } = "";
     public string DisplayName { get; set; } = "";
     public string Handle { get; set; } = "@user";
     public string Email { get; set; } = "";
@@ -531,6 +836,7 @@ public class FriendSearchRow
     public string Email { get; set; } = "";
     public string DisplayName { get; set; } = "";
     public string Handle { get; set; } = "@user";
+    public string NutritionHint { get; set; } = "";
 }
 
 public class IncomingInviteRow

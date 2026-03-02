@@ -166,6 +166,7 @@ public partial class AddMealViewModel : ObservableObject
             var earnedText = string.Format(T("earned_points"), 10, newBalance);
 
             await Application.Current!.MainPage!.DisplayAlert(T("saved_title"), $"{T("saved_message")}\n{earnedText}", "OK");
+            await PromptShareToFriendAsync(resp.meal.notes, entry.TotalCalories, entry.TotalProteinG, entry.TotalCarbsG);
         }
         catch (Exception ex)
         {
@@ -191,6 +192,72 @@ public partial class AddMealViewModel : ObservableObject
         StoryVisibilityOptions.Add(new StoryVisibilityOption("friends", T("story_visibility_friends")));
         StoryVisibilityOptions.Add(new StoryVisibilityOption("public", T("story_visibility_public")));
         StoryVisibilityOptions.Add(new StoryVisibilityOption("self", T("story_visibility_self")));
+    }
+
+    private async Task PromptShareToFriendAsync(string notes, double calories, double protein, double carbs)
+    {
+        var page = Application.Current?.MainPage;
+        if (page == null)
+            return;
+
+        var wantsShare = await page.DisplayAlert(T("share_meal_title"), T("share_meal_prompt"), T("share_meal_yes"), T("share_meal_no"));
+        if (!wantsShare)
+            return;
+
+        var token = Preferences.Default.Get("auth_id_token", "");
+        var identityOk = await _sync.EnsureBackendIdentityAsync(token);
+        if (!identityOk)
+        {
+            await page.DisplayAlert(T("friends_title"), T("friend_action_signin_needed"), "OK");
+            return;
+        }
+
+        var directory = await _sync.GetFriendDirectoryAsync();
+        if (directory.Count == 0)
+        {
+            await page.DisplayAlert(T("share_meal_title"), T("share_no_friends"), "OK");
+            return;
+        }
+
+        var options = directory
+            .Select(x => new
+            {
+                UserId = (x.user_id ?? "").Trim(),
+                Display = string.IsNullOrWhiteSpace(x.display_name) ? (x.email ?? "").Trim() : x.display_name.Trim()
+            })
+            .Where(x => !string.IsNullOrWhiteSpace(x.UserId) && !string.IsNullOrWhiteSpace(x.Display))
+            .OrderBy(x => x.Display)
+            .ToList();
+
+        if (options.Count == 0)
+        {
+            await page.DisplayAlert(T("share_meal_title"), T("share_no_friends"), "OK");
+            return;
+        }
+
+        var selected = await page.DisplayActionSheet(
+            T("share_pick_friend"),
+            T("cancel"),
+            null,
+            options.Select(x => x.Display).ToArray());
+
+        if (string.IsNullOrWhiteSpace(selected) || string.Equals(selected, T("cancel"), StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var peer = options.FirstOrDefault(x => string.Equals(x.Display, selected, StringComparison.Ordinal));
+        if (peer == null)
+            return;
+
+        var summary = string.IsNullOrWhiteSpace(notes) ? T("story_meal") : notes.Trim();
+        var text = string.Format(
+            T("share_meal_message_template"),
+            summary,
+            Math.Round(calories),
+            Math.Round(protein),
+            Math.Round(carbs));
+
+        var sent = await _sync.SendPrivateMessageAsync(peer.UserId, text);
+        await page.DisplayAlert(T("share_meal_title"), sent ? T("share_meal_sent") : T("friend_message_failed"), "OK");
     }
 }
 

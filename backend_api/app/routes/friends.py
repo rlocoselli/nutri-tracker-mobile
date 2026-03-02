@@ -189,6 +189,28 @@ def create_invite(payload: InviteIn, user_id: uuid.UUID = Depends(get_current_us
 
     inviter_name = _display_name(inviter)
 
+    invitee_user = db.query(User).filter(func.lower(User.email) == invitee_email).first()
+    if invitee_user:
+        pair_a = min(str(user_id), str(invitee_user.id))
+        pair_b = max(str(user_id), str(invitee_user.id))
+        already_friends = (
+            db.query(Friendship)
+            .filter(Friendship.user_a_id == uuid.UUID(pair_a), Friendship.user_b_id == uuid.UUID(pair_b))
+            .first()
+        )
+        if already_friends:
+            raise HTTPException(status_code=409, detail="Already friends")
+
+        reverse_pending = (
+            db.query(FriendInvite)
+            .filter(FriendInvite.inviter_user_id == invitee_user.id)
+            .filter(func.lower(FriendInvite.invitee_email) == inviter_email)
+            .filter(FriendInvite.status == "pending")
+            .first()
+        )
+        if reverse_pending:
+            raise HTTPException(status_code=409, detail="Pending invite already exists in reverse")
+
     exists = (
         db.query(FriendInvite)
         .filter(FriendInvite.inviter_user_id == user_id, func.lower(FriendInvite.invitee_email) == invitee_email)

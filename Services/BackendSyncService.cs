@@ -562,6 +562,22 @@ public class BackendSyncService
         return parsed ?? new List<IncomingInviteDto>();
     }
 
+    public async Task<List<OutgoingInviteDto>> GetOutgoingInvitesAsync()
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
+            return new List<OutgoingInviteDto>();
+
+        using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/friends/invites");
+        req.Headers.Add("X-User-Id", userId);
+        var resp = await _http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode)
+            return new List<OutgoingInviteDto>();
+
+        var parsed = await resp.Content.ReadFromJsonAsync<List<OutgoingInviteDto>>();
+        return parsed ?? new List<OutgoingInviteDto>();
+    }
+
     public async Task<List<FriendDirectoryDto>> SearchFriendUsersAsync(string query, int limit = 20)
     {
         var userId = Preferences.Default.Get("backend_user_id", "");
@@ -967,6 +983,14 @@ public class IncomingInviteDto
     public string inviter_user_id { get; set; } = "";
     public string inviter_display_name { get; set; } = "";
     public string inviter_email { get; set; } = "";
+    public string invitee_email { get; set; } = "";
+    public string status { get; set; } = "";
+    public DateTime created_at_utc { get; set; }
+}
+
+public class OutgoingInviteDto
+{
+    public string id { get; set; } = "";
     public string invitee_email { get; set; } = "";
     public string status { get; set; } = "";
     public DateTime created_at_utc { get; set; }

@@ -10,146 +10,202 @@
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="14">
             <Label Text="{Binding TitleText}" Style="{StaticResource H1}" />
+            <ActivityIndicator IsVisible="{Binding IsBusy}" IsRunning="{Binding IsBusy}" />
 
-            <Border Style="{StaticResource Card}">
-                <VerticalStackLayout Spacing="10">
-                    <Label Text="{Binding InviteSectionTitleText}" FontAttributes="Bold" />
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                        <Entry Text="{Binding InviteEmail}" Placeholder="{Binding InvitePlaceholder}" Keyboard="Email" />
-                        <Button Grid.Column="1" Text="{Binding InviteText}" Style="{StaticResource SecondaryButton}" Command="{Binding InviteCommand}" />
-                    </Grid>
-                    <Button Text="{Binding AddBuddyText}" Style="{StaticResource SecondaryButton}" Command="{Binding AddBuddyCommand}" />
-                </VerticalStackLayout>
-            </Border>
-
-            <Border Style="{StaticResource Card}">
-                <VerticalStackLayout Spacing="10">
-                    <Label Text="{Binding SearchSectionTitleText}" FontAttributes="Bold" />
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                        <Entry Text="{Binding SearchQuery}" Placeholder="{Binding SearchPlaceholder}" />
-                        <Button Grid.Column="1" Text="{Binding SearchText}" Style="{StaticResource SecondaryButton}" Command="{Binding SearchUsersCommand}" />
-                    </Grid>
-                    <Label Text="{Binding SearchResultsTitleText}" Style="{StaticResource BodyMuted}" />
-                </VerticalStackLayout>
-            </Border>
-
-            <CollectionView ItemsSource="{Binding SearchResults}" SelectionMode="None">
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Border Style="{StaticResource Card}" Margin="0,0,0,8">
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" VerticalOptions="Center">
-                                <VerticalStackLayout Spacing="2">
-                                    <Label Text="{Binding DisplayName}" FontAttributes="Bold" />
-                                    <Label Text="{Binding Handle}" Style="{StaticResource BodyMuted}" />
-                                </VerticalStackLayout>
-                                <Button Grid.Column="1"
-                                        Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.InviteText}"
-                                        Style="{StaticResource SecondaryButton}"
-                                        Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.InviteUserCommand}"
-                                        CommandParameter="{Binding .}" />
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
-
-            <Label Text="{Binding IncomingInvitesTitleText}" FontAttributes="Bold" Margin="0,6,0,0" />
-            <CollectionView ItemsSource="{Binding IncomingInvites}" SelectionMode="None">
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Border Style="{StaticResource Card}" Margin="0,0,0,8">
-                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" VerticalOptions="Center">
-                                <VerticalStackLayout Spacing="2">
-                                    <Label Text="{Binding InviterDisplay}" FontAttributes="Bold" />
-                                    <Label Text="{Binding InviterHandle}" Style="{StaticResource BodyMuted}" />
-                                </VerticalStackLayout>
-                                <Button Grid.Column="1"
-                                        Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.AcceptText}"
-                                        Style="{StaticResource SecondaryButton}"
-                                        Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.AcceptIncomingCommand}"
-                                        CommandParameter="{Binding .}" />
-                                <Button Grid.Column="2"
-                                        Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.DeclineText}"
-                                        Style="{StaticResource SecondaryButton}"
-                                        Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.DeclineIncomingCommand}"
-                                        CommandParameter="{Binding .}" />
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                <Button Text="{Binding TabFriendsText}" Style="{StaticResource SecondaryButton}" Command="{Binding ShowFriendsTabCommand}" />
+                <Button Grid.Column="1" Text="{Binding TabRequestsText}" Style="{StaticResource SecondaryButton}" Command="{Binding ShowRequestsTabCommand}" />
+                <Button Grid.Column="2" Text="{Binding TabSuggestionsText}" Style="{StaticResource SecondaryButton}" Command="{Binding ShowSuggestionsTabCommand}" />
+            </Grid>
 
             <Label Text="{Binding StatusText}" Style="{StaticResource BodyMuted}" />
 
-            <Button Text="{Binding RefreshText}" Style="{StaticResource SecondaryButton}" Command="{Binding RefreshCommand}" />
+            <VerticalStackLayout Spacing="12" IsVisible="{Binding IsFriendsTab}">
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="{Binding FriendsSectionTitleText}" FontAttributes="Bold" />
+                        <Entry Text="{Binding FriendsSearchQuery}" Placeholder="{Binding FriendsSearchLocalPlaceholder}" />
+                    </VerticalStackLayout>
+                </Border>
 
-            <Label Text="{Binding FriendsSectionTitleText}" FontAttributes="Bold" Margin="0,6,0,0" />
-            <Label Text="{Binding EmptyFriendsText}" Style="{StaticResource BodyMuted}" IsVisible="False">
-                <Label.Triggers>
-                    <DataTrigger TargetType="Label" Binding="{Binding Friends.Count}" Value="0">
-                        <Setter Property="IsVisible" Value="True" />
-                    </DataTrigger>
-                </Label.Triggers>
-            </Label>
+                <Label Text="{Binding EmptyFriendsText}" Style="{StaticResource BodyMuted}" IsVisible="False">
+                    <Label.Triggers>
+                        <DataTrigger TargetType="Label" Binding="{Binding HasAcceptedFriends}" Value="False">
+                            <Setter Property="IsVisible" Value="True" />
+                        </DataTrigger>
+                    </Label.Triggers>
+                </Label>
+                <Label Text="{Binding EmptyFriendsHelpText}" Style="{StaticResource BodyMuted}" IsVisible="False">
+                    <Label.Triggers>
+                        <DataTrigger TargetType="Label" Binding="{Binding HasAcceptedFriends}" Value="False">
+                            <Setter Property="IsVisible" Value="True" />
+                        </DataTrigger>
+                    </Label.Triggers>
+                </Label>
 
-            <CollectionView ItemsSource="{Binding Friends}" SelectionMode="None">
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Border Style="{StaticResource Card}" Margin="0,0,0,8">
-                            <VerticalStackLayout Spacing="8">
-                                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
-                                    <Label Text="{Binding Badge}" FontSize="18" VerticalOptions="Center" />
+                <CollectionView ItemsSource="{Binding AcceptedFriends}" SelectionMode="None">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource Card}" Margin="0,0,0,8">
+                                <VerticalStackLayout Spacing="8">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                        <Label Text="{Binding Badge}" FontSize="18" VerticalOptions="Center" />
+                                        <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                            <Label Text="{Binding DisplayName}" FontAttributes="Bold" />
+                                            <Label Text="{Binding Handle}" Style="{StaticResource BodyMuted}" />
+                                            <Label Text="{Binding Status}" Style="{StaticResource BodyMuted}" />
+                                        </VerticalStackLayout>
+                                    </Grid>
+
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                        <Button Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.ChatText}"
+                                                Style="{StaticResource SecondaryButton}"
+                                                Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.OpenChatCommand}"
+                                                CommandParameter="{Binding .}" />
+                                        <Button Grid.Column="1"
+                                                Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.StoriesText}"
+                                                Style="{StaticResource SecondaryButton}"
+                                                Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.ViewStoriesCommand}"
+                                                CommandParameter="{Binding .}" />
+                                    </Grid>
+                                </VerticalStackLayout>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <Label Text="{Binding LeagueTitleText}" FontAttributes="Bold" Margin="0,6,0,0" />
+                <CollectionView ItemsSource="{Binding League}" SelectionMode="None">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource Card}" Margin="0,0,0,8">
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" VerticalOptions="Center">
+                                    <Label Text="{Binding Rank}" FontSize="18" VerticalOptions="Center" />
                                     <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                        <Label Text="{Binding Name}" FontAttributes="Bold" />
+                                        <Label Text="{Binding Detail}" Style="{StaticResource BodyMuted}" />
+                                    </VerticalStackLayout>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="12" IsVisible="{Binding IsRequestsTab}">
+                <Border Style="{StaticResource Card}">
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                        <Label Text="{Binding IncomingSectionText}" VerticalOptions="Center" FontAttributes="Bold" />
+                        <Button Grid.Column="1" Text="{Binding AcceptAllText}" Style="{StaticResource SecondaryButton}" Command="{Binding AcceptAllIncomingCommand}" />
+                        <Button Grid.Column="2" Text="{Binding DeclineAllText}" Style="{StaticResource SecondaryButton}" Command="{Binding DeclineAllIncomingCommand}" />
+                    </Grid>
+                </Border>
+
+                <CollectionView ItemsSource="{Binding IncomingInvites}" SelectionMode="None">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource Card}" Margin="0,0,0,8">
+                                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" VerticalOptions="Center">
+                                    <VerticalStackLayout Spacing="2">
+                                        <Label Text="{Binding InviterDisplay}" FontAttributes="Bold" />
+                                        <Label Text="{Binding InviterHandle}" Style="{StaticResource BodyMuted}" />
+                                        <Label Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.RequestToConfirmText}" Style="{StaticResource BodyMuted}" />
+                                    </VerticalStackLayout>
+                                    <Button Grid.Column="1"
+                                            Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.AcceptText}"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.AcceptIncomingCommand}"
+                                            CommandParameter="{Binding .}" />
+                                    <Button Grid.Column="2"
+                                            Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.DeclineText}"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.DeclineIncomingCommand}"
+                                            CommandParameter="{Binding .}" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <Label Text="{Binding OutgoingSectionText}" FontAttributes="Bold" />
+                <CollectionView ItemsSource="{Binding OutgoingInvites}" SelectionMode="None">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource Card}" Margin="0,0,0,8">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" VerticalOptions="Center">
+                                    <VerticalStackLayout Spacing="2">
                                         <Label Text="{Binding DisplayName}" FontAttributes="Bold" />
                                         <Label Text="{Binding Handle}" Style="{StaticResource BodyMuted}" />
-                                        <Label Text="{Binding Status}" Style="{StaticResource BodyMuted}" />
+                                        <Label Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.RequestSentStateText}" Style="{StaticResource BodyMuted}" />
                                     </VerticalStackLayout>
-                                    <Button Grid.Column="2"
-                                            Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.AcceptText}"
-                                            IsVisible="{Binding IsPending}"
-                                            Style="{StaticResource SecondaryButton}"
-                                            Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.AcceptCommand}"
-                                            CommandParameter="{Binding .}" />
-                                    <Button Grid.Column="3"
+                                    <Button Grid.Column="1"
                                             Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.RemoveText}"
                                             Style="{StaticResource SecondaryButton}"
                                             Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.RemoveCommand}"
                                             CommandParameter="{Binding .}" />
                                 </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
 
-                                <Grid ColumnDefinitions="*,*" ColumnSpacing="8" IsVisible="{Binding IsFriend}">
-                                    <Button Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.ChatText}"
-                                            Style="{StaticResource SecondaryButton}"
-                                        Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.OpenChatCommand}"
-                                            CommandParameter="{Binding .}" />
+                <Label Text="{Binding EmptyRequestsText}" Style="{StaticResource BodyMuted}" IsVisible="False">
+                    <Label.Triggers>
+                        <DataTrigger TargetType="Label" Binding="{Binding HasRequestItems}" Value="False">
+                            <Setter Property="IsVisible" Value="True" />
+                        </DataTrigger>
+                    </Label.Triggers>
+                </Label>
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="12" IsVisible="{Binding IsSuggestionsTab}">
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="{Binding SearchSectionTitleText}" FontAttributes="Bold" />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <Entry Text="{Binding SearchQuery}" Placeholder="{Binding SearchPlaceholder}" />
+                            <Button Grid.Column="1" Text="{Binding SearchText}" Style="{StaticResource SecondaryButton}" Command="{Binding SearchUsersCommand}" />
+                        </Grid>
+                        <Label Text="{Binding SuggestionsHintText}" Style="{StaticResource BodyMuted}" />
+                        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                            <Button Text="{Binding SyncContactsText}" Style="{StaticResource SecondaryButton}" Command="{Binding SyncContactsCommand}" />
+                            <Button Grid.Column="1" Text="{Binding InviteLinkText}" Style="{StaticResource SecondaryButton}" Command="{Binding InviteByLinkCommand}" />
+                            <Button Grid.Column="2" Text="{Binding ShowQrText}" Style="{StaticResource SecondaryButton}" Command="{Binding ShowQrCommand}" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
+                <CollectionView ItemsSource="{Binding SearchResults}" SelectionMode="None">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource Card}" Margin="0,0,0,8">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" VerticalOptions="Center">
+                                    <VerticalStackLayout Spacing="2">
+                                        <Label Text="{Binding DisplayName}" FontAttributes="Bold" />
+                                        <Label Text="{Binding Handle}" Style="{StaticResource BodyMuted}" />
+                                        <Label Text="{Binding NutritionHint}" Style="{StaticResource BodyMuted}" />
+                                    </VerticalStackLayout>
                                     <Button Grid.Column="1"
-                                        Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.StoriesText}"
+                                            Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.InviteText}"
                                             Style="{StaticResource SecondaryButton}"
-                                        Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.ViewStoriesCommand}"
+                                            Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.InviteUserCommand}"
                                             CommandParameter="{Binding .}" />
                                 </Grid>
-                            </VerticalStackLayout>
-                        </Border>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
 
-            <Label Text="{Binding LeagueTitleText}" FontAttributes="Bold" Margin="0,6,0,0" />
-            <CollectionView ItemsSource="{Binding League}" SelectionMode="None">
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Border Style="{StaticResource Card}" Margin="0,0,0,8">
-                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" VerticalOptions="Center">
-                                <Label Text="{Binding Rank}" FontSize="18" VerticalOptions="Center" />
-                                <VerticalStackLayout Grid.Column="1" Spacing="2">
-                                    <Label Text="{Binding Name}" FontAttributes="Bold" />
-                                    <Label Text="{Binding Detail}" Style="{StaticResource BodyMuted}" />
-                                </VerticalStackLayout>
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
+                <Label Text="{Binding EmptySuggestionsText}" Style="{StaticResource BodyMuted}" IsVisible="False">
+                    <Label.Triggers>
+                        <DataTrigger TargetType="Label" Binding="{Binding HasSuggestions}" Value="False">
+                            <Setter Property="IsVisible" Value="True" />
+                        </DataTrigger>
+                    </Label.Triggers>
+                </Label>
+            </VerticalStackLayout>
+
+            <Button Text="{Binding RefreshText}" Style="{StaticResource SecondaryButton}" Command="{Binding RefreshCommand}" />
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>
