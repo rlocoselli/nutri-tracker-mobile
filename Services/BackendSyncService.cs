@@ -111,12 +111,21 @@ public class BackendSyncService
             return (false, LocalizationService.T("backend_identity_error"));
 
         try
-        {
-            var payload = new { email = (email ?? "").Trim(), code = (code ?? "").Trim() };
-            var resp = await _http.PostAsJsonAsync($"{ApiBaseUrl}/auth/email/verify", payload);
-            var parsed = await resp.Content.ReadFromJsonAsync<MessageResponseDto>();
-            if (!resp.IsSuccessStatusCode)
-                return (false, parsed?.detail ?? parsed?.message ?? LocalizationService.T("login_failed"));
+                if (string.IsNullOrWhiteSpace(currentEmail))
+                    return !string.IsNullOrWhiteSpace(existingUserId);
+
+                if (string.IsNullOrWhiteSpace(storedEmailSubject))
+                {
+                    Preferences.Default.Set(BackendIdentitySubjectKey, currentEmail);
+                    return true;
+                }
+
+                if (string.Equals(storedEmailSubject, currentEmail, StringComparison.Ordinal))
+                    return true;
+
+                Preferences.Default.Remove(BackendUserIdKey);
+                Preferences.Default.Remove(BackendIdentitySubjectKey);
+                return false;
 
             return (true, parsed?.message ?? LocalizationService.T("login_success"));
         }
@@ -127,9 +136,17 @@ public class BackendSyncService
     }
 
     public async Task<(bool ok, string message)> ResendVerificationCodeAsync(string email)
-    {
-        if (!IsConfigured)
+                if (string.IsNullOrWhiteSpace(incomingSubject))
+                    return true;
+
+                if (string.IsNullOrWhiteSpace(storedSubject))
+                {
+                    Preferences.Default.Set(BackendIdentitySubjectKey, incomingSubject);
             return (false, LocalizationService.T("backend_identity_error"));
+                }
+
+                if (string.Equals(storedSubject, incomingSubject, StringComparison.Ordinal))
+                    return true;
 
         try
         {

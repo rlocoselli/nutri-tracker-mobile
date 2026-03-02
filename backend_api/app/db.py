@@ -41,6 +41,28 @@ def ensure_postgres_objects() -> None:
             raise
 
 
+def ensure_postgres_required_columns() -> None:
+    backend = (engine.url.get_backend_name() or "").lower()
+    if "postgres" not in backend:
+        return
+
+    statements = [
+        "ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS default_story_visibility TEXT NOT NULL DEFAULT 'friends'",
+        "ALTER TABLE IF EXISTS meal_entries ADD COLUMN IF NOT EXISTS story_visibility TEXT NOT NULL DEFAULT 'friends'",
+        "ALTER TABLE IF EXISTS users DROP CONSTRAINT IF EXISTS chk_users_default_story_visibility",
+        "ALTER TABLE IF EXISTS users ADD CONSTRAINT chk_users_default_story_visibility CHECK (default_story_visibility IN ('friends','public','self'))",
+        "ALTER TABLE IF EXISTS meal_entries DROP CONSTRAINT IF EXISTS chk_meal_entries_story_visibility",
+        "ALTER TABLE IF EXISTS meal_entries ADD CONSTRAINT chk_meal_entries_story_visibility CHECK (story_visibility IN ('friends','public','self'))",
+    ]
+
+    for statement in statements:
+        try:
+            with engine.begin() as conn:
+                conn.exec_driver_sql(statement)
+        except Exception as exc:
+            logger.warning("PostgreSQL schema guard skipped statement '%s': %s", statement, exc)
+
+
 def _split_sql_statements(sql_text: str) -> list[str]:
     cleaned_lines: list[str] = []
     for raw_line in sql_text.splitlines():

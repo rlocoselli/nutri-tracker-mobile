@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
-from .db import Base, engine, ensure_postgres_objects
+from .db import Base, engine, ensure_postgres_objects, ensure_postgres_required_columns
 from . import models  # noqa: F401
 from .routes import auth, meals, goals, points, reminders, friends, water
 
@@ -18,6 +18,7 @@ app = FastAPI(
 def startup_event():
     ensure_postgres_objects()
     Base.metadata.create_all(bind=engine)
+    ensure_postgres_required_columns()
 
 
 @app.get("/health")
