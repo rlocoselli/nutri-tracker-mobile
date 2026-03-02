@@ -56,19 +56,25 @@ Server-side script (already included):
 - `scripts/deploy_from_env_secrets.sh`
 
 It expects these environment variables at runtime:
-- `POSTGRES_DB`
-- `POSTGRES_USER`
-- `POSTGRES_PASSWORD`
+- `DB_HOST`
+- `DB_PORT` (optional, default `5432`)
+- `DB_NAME`
+- `DB_USER`
+- `DB_PASSWORD`
 - `API_HOST` (optional, default `0.0.0.0`)
 - `API_PORT` (optional, default `8000`)
+
+Backward compatibility is kept with `POSTGRES_*` names, but `DB_*` is preferred.
 
 Example manual run on server:
 
 ```bash
 cd backend_api
-POSTGRES_DB=nutrition_tracker \
-POSTGRES_USER=nutrition_user \
-POSTGRES_PASSWORD='super-secret' \
+DB_HOST=82.165.153.80 \
+DB_PORT=5432 \
+DB_NAME=nutritiontracker \
+DB_USER=ecom_admin \
+DB_PASSWORD='super-secret' \
 API_HOST=0.0.0.0 \
 API_PORT=8000 \
 bash scripts/deploy_from_env_secrets.sh
@@ -83,9 +89,11 @@ Required GitHub repository secrets:
 - `VPS_USER`
 - `VPS_SSH_PRIVATE_KEY`
 - `BACKEND_API_DIR` (absolute path on server)
-- `POSTGRES_DB`
-- `POSTGRES_USER`
-- `POSTGRES_PASSWORD`
+- `DB_HOST`
+- `DB_PORT`
+- `DB_NAME`
+- `DB_USER`
+- `DB_PASSWORD`
 - `API_HOST` (optional)
 - `API_PORT` (optional)
 

@@ -46,9 +46,16 @@ jobs:
             cd "$BACKEND_DIR"
 
             {
+              echo "DB_HOST=${{ secrets.DB_HOST }}"
+              echo "DB_PORT=${{ secrets.DB_PORT }}"
+              echo "DB_NAME=${{ secrets.DB_NAME }}"
+              echo "DB_USER=${{ secrets.DB_USER }}"
+              echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}"
+
               echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}"
               echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}"
               echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}"
+
               echo "API_HOST=${{ secrets.API_HOST }}"
               echo "API_PORT=${{ secrets.API_PORT }}"
 
@@ -65,7 +72,36 @@ jobs:
               fi
             } > .env
 
-            for var_name in POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD; do
+            DB_HOST_VALUE="$(grep '^DB_HOST=' .env | cut -d'=' -f2-)"
+            DB_PORT_VALUE="$(grep '^DB_PORT=' .env | cut -d'=' -f2-)"
+            DB_NAME_VALUE="$(grep '^DB_NAME=' .env | cut -d'=' -f2-)"
+            DB_USER_VALUE="$(grep '^DB_USER=' .env | cut -d'=' -f2-)"
+            DB_PASSWORD_VALUE="$(grep '^DB_PASSWORD=' .env | cut -d'=' -f2-)"
+
+            if [ -z "${DB_HOST_VALUE}" ]; then
+              DB_HOST_VALUE="$(grep '^POSTGRES_HOST=' .env | cut -d'=' -f2-)"
+            fi
+            if [ -z "${DB_PORT_VALUE}" ]; then
+              DB_PORT_VALUE="$(grep '^POSTGRES_PORT=' .env | cut -d'=' -f2-)"
+            fi
+            if [ -z "${DB_NAME_VALUE}" ]; then
+              DB_NAME_VALUE="$(grep '^POSTGRES_DB=' .env | cut -d'=' -f2-)"
+            fi
+            if [ -z "${DB_USER_VALUE}" ]; then
+              DB_USER_VALUE="$(grep '^POSTGRES_USER=' .env | cut -d'=' -f2-)"
+            fi
+            if [ -z "${DB_PASSWORD_VALUE}" ]; then
+              DB_PASSWORD_VALUE="$(grep '^POSTGRES_PASSWORD=' .env | cut -d'=' -f2-)"
+            fi
+
+            if [ -z "${DB_HOST_VALUE}" ] || [ -z "${DB_PORT_VALUE}" ] || [ -z "${DB_NAME_VALUE}" ] || [ -z "${DB_USER_VALUE}" ] || [ -z "${DB_PASSWORD_VALUE}" ]; then
+              echo "❌ Missing DB connection values (DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD)"
+              exit 1
+            fi
+
+            echo "DATABASE_URL=postgresql+psycopg://${DB_USER_VALUE}:${DB_PASSWORD_VALUE}@${DB_HOST_VALUE}:${DB_PORT_VALUE}/${DB_NAME_VALUE}" >> .env
+
+            for var_name in DATABASE_URL; do
               if ! grep -q "^${var_name}=" .env; then
                 echo "❌ Missing ${var_name} in generated .env"
                 exit 1

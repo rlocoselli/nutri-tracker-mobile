@@ -1,29 +1,16 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-nutrition_tracker}
-      POSTGRES_USER: ${POSTGRES_USER:-nutrition_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nutrition_user} -d ${POSTGRES_DB:-nutrition_tracker}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
   api:
     build:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-nutrition_user}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-nutrition_tracker}
+      DB_HOST: ${DB_HOST:-127.0.0.1}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-nutritiontracker}
+      DB_USER: ${DB_USER:-nutrition_user}
+      DB_PASSWORD: ${DB_PASSWORD:-change-me}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://${DB_USER:-nutrition_user}:${DB_PASSWORD:-change-me}@${DB_HOST:-127.0.0.1}:${DB_PORT:-5432}/${DB_NAME:-nutritiontracker}}
       API_HOST: 0.0.0.0
       API_PORT: ${API_PORT:-8090}
     ports:
@@ -33,6 +20,3 @@ services:
       interval: 15s
       timeout: 5s
       retries: 10
-
-volumes:
-  postgres_data:
