@@ -120,7 +120,7 @@ run_smoke_test() {
   log "Running MAUI Android smoke test"
   rm -rf /tmp/MauiSmokeTest
   "$DOTNET_ROOT/dotnet" new maui -n MauiSmokeTest -o /tmp/MauiSmokeTest
-  "$DOTNET_ROOT/dotnet" build /tmp/MauiSmokeTest/MauiSmokeTest.csproj -f net9.0-android -p:TargetFrameworks=net9.0-android -v minimal
+  "$DOTNET_ROOT/dotnet" build /tmp/MauiSmokeTest/MauiSmokeTest.csproj -f net8.0-android -p:TargetFrameworks=net8.0-android -v minimal
   log "Smoke test OK: /tmp/MauiSmokeTest/bin/Debug/net8.0-android"
 }
 

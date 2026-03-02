@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECT_PATH="${PROJECT_PATH:-$ROOT_DIR/NutritionTracker.csproj}"
-ANDROID_TARGET_FRAMEWORK="${ANDROID_TARGET_FRAMEWORK:-net9.0-android}"
+ANDROID_TARGET_FRAMEWORK="${ANDROID_TARGET_FRAMEWORK:-net8.0-android}"
 PACKAGE_NAME="${GOOGLE_PLAY_PACKAGE_NAME:-com.audela.nutritiontracker}"
 TRACK="${GOOGLE_PLAY_TRACK:-internal}"
 RELEASE_STATUS="${GOOGLE_PLAY_RELEASE_STATUS:-completed}"

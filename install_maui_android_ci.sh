@@ -130,8 +130,8 @@ smoke_test() {
   rm -rf /tmp/MauiSmokeTest
   "$DOTNET_ROOT/dotnet" new maui -n MauiSmokeTest -o /tmp/MauiSmokeTest >/dev/null
   "$DOTNET_ROOT/dotnet" build /tmp/MauiSmokeTest/MauiSmokeTest.csproj \
-    -f net9.0-android \
-    -p:TargetFrameworks=net9.0-android \
+    -f net8.0-android \
+    -p:TargetFrameworks=net8.0-android \
     -v q
 
   if [[ -f "/tmp/MauiSmokeTest/bin/Debug/net8.0-android/com.companyname.mauismoketest.apk" ]]; then
