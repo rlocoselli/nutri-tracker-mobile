@@ -1,6 +1,7 @@
 namespace NutritionTracker;
 
 using NutritionTracker.Services;
+using NutritionTracker.Pages;
 
 public partial class AppShell : Shell
 {
@@ -10,6 +11,7 @@ public partial class AppShell : Shell
     {
         _socialNotifications = socialNotifications;
         InitializeComponent();
+        Routing.RegisterRoute(nameof(ResetPasswordPage), typeof(ResetPasswordPage));
         DashboardTab.Title = LocalizationService.T("tab_dashboard");
         DiaryTab.Title = LocalizationService.T("tab_diary");
         AddTab.Title = LocalizationService.T("tab_add");

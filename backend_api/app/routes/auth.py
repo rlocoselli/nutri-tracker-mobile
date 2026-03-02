@@ -3,12 +3,13 @@ import hashlib
 import hmac
 import os
 import secrets
+from urllib.parse import quote
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from ..db import get_db
-from ..config import AUTH_CODE_TTL_MINUTES, APP_COMPANY_NAME, APP_DATA_LOCATION
+from ..config import AUTH_CODE_TTL_MINUTES, APP_COMPANY_NAME, APP_DATA_LOCATION, APP_DEEP_LINK_RESET_TEMPLATE
 from ..mailer import send_email
 from ..models import User, EmailAccount, EmailVerificationCode, PasswordResetCode
 from ..schemas import (
@@ -78,10 +79,15 @@ def _send_verification_email(to_email: str, code: str) -> bool:
 
 
 def _send_reset_email(to_email: str, code: str) -> bool:
+    reset_link = (
+        f"{APP_DEEP_LINK_RESET_TEMPLATE}"
+        f"?email={quote(to_email)}&code={quote(code)}"
+    )
     subject = "NutritionTracker - Reset password"
     body = (
         "Bonjour,\n\n"
         f"Votre code de réinitialisation est: {code}\n"
+        f"Lien direct dans l'application: {reset_link}\n"
         f"Ce code expire dans {AUTH_CODE_TTL_MINUTES} minutes.\n\n"
         "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email."
     )

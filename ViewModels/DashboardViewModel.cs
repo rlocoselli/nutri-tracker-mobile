@@ -49,8 +49,10 @@ public partial class DashboardViewModel : ObservableObject
     public string CaloriesLabelText => LocalizationService.T("metric_calories");
     public string ProteinLabelText => LocalizationService.T("metric_proteins");
     public string CarbsLabelText => LocalizationService.T("macro_carbs");
+    public string FatLabelText => LocalizationService.T("macro_fat");
     public string NetLabelText => LocalizationService.T("net_label");
     public string MacroChartTitle => LocalizationService.T("dashboard_macro_chart_title");
+    public string MacroLegendTitle => LocalizationService.T("dashboard_macro_legend_title");
     public string GoalChartTitle => LocalizationService.T("dashboard_goal_chart_title");
     public string LoadingText => LocalizationService.T("main_loading");
     public string DailySummaryHintText => LocalizationService.T("daily_summary_hint");
@@ -94,8 +96,10 @@ public partial class DashboardViewModel : ObservableObject
         OnPropertyChanged(nameof(CaloriesLabelText));
         OnPropertyChanged(nameof(ProteinLabelText));
         OnPropertyChanged(nameof(CarbsLabelText));
+        OnPropertyChanged(nameof(FatLabelText));
         OnPropertyChanged(nameof(NetLabelText));
         OnPropertyChanged(nameof(MacroChartTitle));
+        OnPropertyChanged(nameof(MacroLegendTitle));
         OnPropertyChanged(nameof(GoalChartTitle));
         OnPropertyChanged(nameof(LoadingText));
         OnPropertyChanged(nameof(DailySummaryHintText));

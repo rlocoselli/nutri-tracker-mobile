@@ -11,9 +11,9 @@ public partial class GoalsViewModel : ObservableObject
     private readonly PointsService _points;
     private readonly BackendSyncService _sync;
 
-    [ObservableProperty] private string caloriesTarget = "2000";
-    [ObservableProperty] private string proteinGTarget = "120";
-    [ObservableProperty] private string carbsGTarget = "220";
+    [ObservableProperty] private double caloriesTarget = 2000;
+    [ObservableProperty] private double proteinGTarget = 120;
+    [ObservableProperty] private double carbsGTarget = 220;
 
     [ObservableProperty] private double caloriesProgress;
     [ObservableProperty] private double proteinProgress;
@@ -26,12 +26,16 @@ public partial class GoalsViewModel : ObservableObject
         _sync = sync;
     }
 
+    public string CaloriesTargetDisplay => $"{Math.Round(CaloriesTarget)} kcal";
+    public string ProteinGTargetDisplay => $"{Math.Round(ProteinGTarget)} g";
+    public string CarbsGTargetDisplay => $"{Math.Round(CarbsGTarget)} g";
+
     public async Task LoadAsync()
     {
         var g = await _db.GetGoalsAsync();
-        CaloriesTarget = g.CaloriesTarget.ToString();
-        ProteinGTarget = g.ProteinGTarget.ToString();
-        CarbsGTarget = g.CarbsGTarget.ToString();
+        CaloriesTarget = g.CaloriesTarget;
+        ProteinGTarget = g.ProteinGTarget;
+        CarbsGTarget = g.CarbsGTarget;
 
         var (cal, carbs, prot) = await _db.GetTotalsForDayUtcAsync(DateTime.UtcNow.Date);
         CaloriesProgress = g.CaloriesTarget <= 0 ? 0 : Math.Min(1, cal / g.CaloriesTarget);
@@ -42,9 +46,9 @@ public partial class GoalsViewModel : ObservableObject
     [RelayCommand]
     private async Task Save()
     {
-        if (!double.TryParse(CaloriesTarget, out var cal)) cal = 2000;
-        if (!double.TryParse(ProteinGTarget, out var prot)) prot = 120;
-        if (!double.TryParse(CarbsGTarget, out var carbs)) carbs = 220;
+        var cal = Math.Round(Math.Clamp(CaloriesTarget, 1200, 4500));
+        var prot = Math.Round(Math.Clamp(ProteinGTarget, 40, 260));
+        var carbs = Math.Round(Math.Clamp(CarbsGTarget, 60, 500));
 
         var g = new UserGoals
         {
@@ -64,5 +68,20 @@ public partial class GoalsViewModel : ObservableObject
         await Application.Current!.MainPage!.DisplayAlert(title, message, "OK");
         if (Shell.Current?.Navigation != null)
             await Shell.Current.Navigation.PopAsync();
+    }
+
+    partial void OnCaloriesTargetChanged(double value)
+    {
+        OnPropertyChanged(nameof(CaloriesTargetDisplay));
+    }
+
+    partial void OnProteinGTargetChanged(double value)
+    {
+        OnPropertyChanged(nameof(ProteinGTargetDisplay));
+    }
+
+    partial void OnCarbsGTargetChanged(double value)
+    {
+        OnPropertyChanged(nameof(CarbsGTargetDisplay));
     }
 }

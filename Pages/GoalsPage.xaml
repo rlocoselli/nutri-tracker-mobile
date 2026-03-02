@@ -14,33 +14,33 @@
 
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Spacing="10">
-                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="6">
+                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto" RowSpacing="6">
                         <Label Text="{local:Translate Key=goal_cal_day}" FontAttributes="Bold" />
-                        <Label Grid.Column="1" Text="kcal" TextColor="{StaticResource Muted}" />
-                        <Entry Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding CaloriesTarget}" Keyboard="Numeric" Placeholder="2000" />
+                        <Label Grid.Column="1" Text="{Binding CaloriesTargetDisplay}" TextColor="{StaticResource Muted}" />
                     </Grid>
+                    <Slider Minimum="1200" Maximum="4500" Value="{Binding CaloriesTarget}" />
                     <ProgressBar Progress="{Binding CaloriesProgress}" />
                 </VerticalStackLayout>
             </Border>
 
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Spacing="10">
-                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="6">
+                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto" RowSpacing="6">
                         <Label Text="{local:Translate Key=goal_protein_day}" FontAttributes="Bold" />
-                        <Label Grid.Column="1" Text="g" TextColor="{StaticResource Muted}" />
-                        <Entry Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding ProteinGTarget}" Keyboard="Numeric" Placeholder="120" />
+                        <Label Grid.Column="1" Text="{Binding ProteinGTargetDisplay}" TextColor="{StaticResource Muted}" />
                     </Grid>
+                    <Slider Minimum="40" Maximum="260" Value="{Binding ProteinGTarget}" />
                     <ProgressBar Progress="{Binding ProteinProgress}" />
                 </VerticalStackLayout>
             </Border>
 
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Spacing="10">
-                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="6">
+                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto" RowSpacing="6">
                         <Label Text="{local:Translate Key=goal_carbs_day}" FontAttributes="Bold" />
-                        <Label Grid.Column="1" Text="g" TextColor="{StaticResource Muted}" />
-                        <Entry Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding CarbsGTarget}" Keyboard="Numeric" Placeholder="150" />
+                        <Label Grid.Column="1" Text="{Binding CarbsGTargetDisplay}" TextColor="{StaticResource Muted}" />
                     </Grid>
+                    <Slider Minimum="60" Maximum="500" Value="{Binding CarbsGTarget}" />
                     <ProgressBar Progress="{Binding CarbsProgress}" />
                 </VerticalStackLayout>
             </Border>

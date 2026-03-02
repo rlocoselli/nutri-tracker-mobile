@@ -45,23 +45,40 @@
               Style="{StaticResource SecondaryButton}"
               Command="{Binding VerifyEmailCommand}" />
 
-            <Button Text="{local:Translate Key=forgot_password_button}"
-              Style="{StaticResource SecondaryButton}"
-              Command="{Binding SendResetCodeCommand}" />
-
-            <Entry Placeholder="{local:Translate Key=reset_code_placeholder}"
-             Text="{Binding ResetCode}"
-             Keyboard="Numeric" />
-            <Entry Placeholder="{local:Translate Key=new_password_placeholder}"
-             Text="{Binding NewPassword}"
-             IsPassword="True" />
-            <Button Text="{local:Translate Key=reset_password_button}"
-              Style="{StaticResource SecondaryButton}"
-              Command="{Binding ResetPasswordCommand}" />
+                  <Button Text="{local:Translate Key=forgot_password_button}"
+                    Style="{StaticResource SecondaryButton}"
+                    Command="{Binding OpenForgotPasswordCommand}" />
 
       <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
 
       <Label Text="{local:Translate Key=login_disclaimer}" FontSize="12" TextColor="{StaticResource Muted}" Margin="0,0,0,20" />
+
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8" Margin="0,-10,0,16">
+        <Button Grid.Column="0"
+          Text="{Binding TermsLinkText}"
+          Command="{Binding OpenTermsCommand}"
+          BackgroundColor="Transparent"
+          TextColor="{StaticResource Accent}"
+          FontSize="12"
+          Padding="0"
+          HeightRequest="34" />
+        <Button Grid.Column="1"
+          Text="{Binding PrivacyLinkText}"
+          Command="{Binding OpenPrivacyPolicyCommand}"
+          BackgroundColor="Transparent"
+          TextColor="{StaticResource Accent}"
+          FontSize="12"
+          Padding="0"
+          HeightRequest="34" />
+        <Button Grid.Column="2"
+          Text="{Binding RgpdLinkText}"
+          Command="{Binding OpenRgpdCommand}"
+          BackgroundColor="Transparent"
+          TextColor="{StaticResource Accent}"
+          FontSize="12"
+          Padding="0"
+          HeightRequest="34" />
+            </Grid>
     </VerticalStackLayout>
   </ScrollView>
 </ContentPage>

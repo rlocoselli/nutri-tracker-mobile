@@ -18,3 +18,4 @@ APP_COMPANY_NAME = os.getenv("APP_COMPANY_NAME", "NutritionTracker France")
 APP_DATA_LOCATION = os.getenv("APP_DATA_LOCATION", "France")
 
 AUTH_CODE_TTL_MINUTES = int(os.getenv("AUTH_CODE_TTL_MINUTES", "20"))
+APP_DEEP_LINK_RESET_TEMPLATE = os.getenv("APP_DEEP_LINK_RESET_TEMPLATE", "nutritiontracker://reset-password")

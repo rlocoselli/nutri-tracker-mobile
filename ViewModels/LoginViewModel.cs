@@ -1,11 +1,16 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NutritionTracker.Pages;
 using NutritionTracker.Services;
 
 namespace NutritionTracker.ViewModels;
 
 public partial class LoginViewModel : ObservableObject
 {
+    private const string TermsUrl = "https://nutritiontracker.fr/terms";
+    private const string PrivacyUrl = "https://nutritiontracker.fr/privacy";
+    private const string RgpdUrl = "https://nutritiontracker.fr/rgpd";
+
     private readonly AuthService _auth;
     private readonly EmailAuthService _emailAuth;
     private readonly BackendSyncService _sync;
@@ -16,8 +21,10 @@ public partial class LoginViewModel : ObservableObject
     [ObservableProperty] private string password = "";
     [ObservableProperty] private string displayName = "";
     [ObservableProperty] private string verificationCode = "";
-    [ObservableProperty] private string resetCode = "";
-    [ObservableProperty] private string newPassword = "";
+
+    public string TermsLinkText => LocalizationService.T("login_terms_link");
+    public string PrivacyLinkText => LocalizationService.T("login_privacy_link");
+    public string RgpdLinkText => LocalizationService.T("login_rgpd_link");
 
     public LoginViewModel(AuthService auth, EmailAuthService emailAuth, BackendSyncService sync, IServiceProvider sp)
     {
@@ -143,49 +150,45 @@ public partial class LoginViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task SendResetCode()
+    private async Task OpenForgotPassword()
     {
-        if (IsBusy) return;
-        IsBusy = true;
-        try
-        {
-            var (ok, message) = await _emailAuth.RequestPasswordResetAsync(Email);
-            await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("login_title"), message, "OK");
-            if (!ok)
-                return;
-        }
-        catch (Exception ex)
-        {
-            await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("login_title"), ex.Message, "OK");
-        }
-        finally
-        {
-            IsBusy = false;
-        }
+        await OpenForgotPasswordPageAsync(Email, null);
+    }
+
+    public async Task HandlePendingResetDeepLinkAsync()
+    {
+        var email = Preferences.Default.Get("pending_reset_email", "");
+        var code = Preferences.Default.Get("pending_reset_code", "");
+        if (string.IsNullOrWhiteSpace(email) && string.IsNullOrWhiteSpace(code))
+            return;
+
+        Preferences.Default.Remove("pending_reset_email");
+        Preferences.Default.Remove("pending_reset_code");
+        await OpenForgotPasswordPageAsync(email, code);
+    }
+
+    private async Task OpenForgotPasswordPageAsync(string? email, string? code)
+    {
+        var page = _sp.GetRequiredService<ResetPasswordPage>();
+        page.PreFill(email, code);
+        await Application.Current!.MainPage!.Navigation.PushAsync(page);
     }
 
     [RelayCommand]
-    private async Task ResetPassword()
+    private Task OpenTerms()
     {
-        if (IsBusy) return;
-        IsBusy = true;
-        try
-        {
-            var (ok, message) = await _emailAuth.ResetPasswordAsync(Email, ResetCode, NewPassword);
-            await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("login_title"), message, "OK");
-            if (ok)
-            {
-                ResetCode = "";
-                NewPassword = "";
-            }
-        }
-        catch (Exception ex)
-        {
-            await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("login_title"), ex.Message, "OK");
-        }
-        finally
-        {
-            IsBusy = false;
-        }
+        return Launcher.Default.OpenAsync(TermsUrl);
+    }
+
+    [RelayCommand]
+    private Task OpenPrivacyPolicy()
+    {
+        return Launcher.Default.OpenAsync(PrivacyUrl);
+    }
+
+    [RelayCommand]
+    private Task OpenRgpd()
+    {
+        return Launcher.Default.OpenAsync(RgpdUrl);
     }
 }

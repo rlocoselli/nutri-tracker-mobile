@@ -51,6 +51,24 @@
                     <controls:MacroDonutChart HeightRequest="180"
                                               Values="{Binding MacroChartValues}"
                                               Labels="{Binding MacroChartLabels}" />
+
+                    <Label Text="{Binding MacroLegendTitle}" Style="{StaticResource BodyMuted}" />
+                    <HorizontalStackLayout Spacing="16">
+                        <HorizontalStackLayout Spacing="6">
+                            <Border WidthRequest="10" HeightRequest="10" BackgroundColor="{StaticResource MacroProtein}" StrokeThickness="0" StrokeShape="RoundRectangle 5" VerticalOptions="Center" />
+                            <Label Text="{Binding ProteinLabelText}" FontSize="12" />
+                        </HorizontalStackLayout>
+
+                        <HorizontalStackLayout Spacing="6">
+                            <Border WidthRequest="10" HeightRequest="10" BackgroundColor="{StaticResource MacroCarbs}" StrokeThickness="0" StrokeShape="RoundRectangle 5" VerticalOptions="Center" />
+                            <Label Text="{Binding CarbsLabelText}" FontSize="12" />
+                        </HorizontalStackLayout>
+
+                        <HorizontalStackLayout Spacing="6">
+                            <Border WidthRequest="10" HeightRequest="10" BackgroundColor="{StaticResource MacroFat}" StrokeThickness="0" StrokeShape="RoundRectangle 5" VerticalOptions="Center" />
+                            <Label Text="{Binding FatLabelText}" FontSize="12" />
+                        </HorizontalStackLayout>
+                    </HorizontalStackLayout>
                 </VerticalStackLayout>
             </Border>
 
