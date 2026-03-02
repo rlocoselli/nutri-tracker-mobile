@@ -37,7 +37,19 @@ public class BackendSyncService
         var existingUserId = Preferences.Default.Get(BackendUserIdKey, "").Trim();
         var authMethod = Preferences.Default.Get("auth_method", "google");
         if (string.Equals(authMethod, "email", StringComparison.OrdinalIgnoreCase))
-            return !string.IsNullOrWhiteSpace(existingUserId);
+        {
+            if (string.IsNullOrWhiteSpace(existingUserId))
+                return false;
+
+            var storedEmailSubject = Preferences.Default.Get(BackendIdentitySubjectKey, "").Trim().ToLowerInvariant();
+            var currentEmail = Preferences.Default.Get("profile_email", "").Trim().ToLowerInvariant();
+            if (!string.IsNullOrWhiteSpace(currentEmail) && string.Equals(storedEmailSubject, currentEmail, StringComparison.Ordinal))
+                return true;
+
+            Preferences.Default.Remove(BackendUserIdKey);
+            Preferences.Default.Remove(BackendIdentitySubjectKey);
+            return false;
+        }
 
         if (string.IsNullOrWhiteSpace(idToken))
             return false;

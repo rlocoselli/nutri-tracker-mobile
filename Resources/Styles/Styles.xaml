@@ -70,6 +70,12 @@
         <Setter Property="TitleColor" Value="{StaticResource Muted}" />
     </Style>
 
+    <Style TargetType="TimePicker">
+        <Setter Property="BackgroundColor" Value="{StaticResource Card}" />
+        <Setter Property="TextColor" Value="{StaticResource Text}" />
+        <Setter Property="CharacterSpacing" Value="0.2" />
+    </Style>
+
     <!-- Cards -->
     <Style x:Key="Card" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource CardBrush}" />

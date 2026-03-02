@@ -3,6 +3,8 @@ import hashlib
 import hmac
 import os
 import secrets
+import json
+import base64
 from urllib.parse import quote
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException
@@ -58,6 +60,28 @@ def _new_code() -> str:
     return f"{secrets.randbelow(1_000_000):06d}"
 
 
+def _decode_google_id_token_claims(id_token: str) -> dict:
+    token = (id_token or "").strip()
+    if not token:
+        return {}
+
+    parts = token.split(".")
+    if len(parts) < 2:
+        return {}
+
+    payload_b64 = parts[1].replace("-", "+").replace("_", "/")
+    pad = len(payload_b64) % 4
+    if pad:
+        payload_b64 += "=" * (4 - pad)
+
+    try:
+        decoded = base64.b64decode(payload_b64)
+        parsed = json.loads(decoded.decode("utf-8"))
+        return parsed if isinstance(parsed, dict) else {}
+    except Exception:
+        return {}
+
+
 def _hash_code(code: str) -> str:
     return hashlib.sha256(code.encode("utf-8")).hexdigest()
 
@@ -97,16 +121,39 @@ def _send_reset_email(to_email: str, code: str) -> bool:
 
 @router.post("/google")
 def auth_google(payload: GoogleAuthIn, db: Session = Depends(get_db)):
-    fake_email = f"user-{payload.id_token[:8]}@example.com"
-    existing = db.query(User).filter(User.email == fake_email).first()
+    claims = _decode_google_id_token_claims(payload.id_token)
+    google_sub = (claims.get("sub") or "").strip()
+    if not google_sub:
+        raise HTTPException(status_code=400, detail="Invalid Google id_token")
+
+    email_claim = (claims.get("email") or "").strip().lower()
+    display_name_claim = (claims.get("name") or "").strip()
+    picture_claim = (claims.get("picture") or "").strip()
+    fallback_email = f"google-{google_sub}@example.com"
+    resolved_email = email_claim or fallback_email
+    resolved_display_name = display_name_claim or resolved_email.split("@")[0]
+
+    existing = db.query(User).filter(User.google_sub == google_sub).first()
+    if not existing:
+        existing = db.query(User).filter(User.email == resolved_email).first()
+
     if existing:
+        existing.google_sub = google_sub
+        existing.email = resolved_email
+        existing.display_name = resolved_display_name
+        if picture_claim:
+            existing.picture_url = picture_claim
+        existing.updated_at_utc = _utcnow()
+        db.commit()
+        db.refresh(existing)
         return {"user_id": str(existing.id), "email": existing.email, "token": "replace-with-real-jwt"}
 
     user = User(
         id=uuid.uuid4(),
-        email=fake_email,
-        google_sub=payload.id_token[:32],
-        display_name="New User",
+        email=resolved_email,
+        google_sub=google_sub,
+        display_name=resolved_display_name,
+        picture_url=picture_claim,
     )
     db.add(user)
     db.commit()
