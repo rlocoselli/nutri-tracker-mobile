@@ -173,6 +173,13 @@ public class LocalDb
         return row?.Liters ?? 0;
     }
 
+    public async Task<List<WaterIntakeEntry>> GetWaterEntriesBetweenUtcAsync(DateTime fromUtc, DateTime toUtc)
+    {
+        return await _db.Table<WaterIntakeEntry>()
+            .Where(x => x.DateUtc >= fromUtc && x.DateUtc < toUtc)
+            .ToListAsync();
+    }
+
     public Task<int> UpsertWaterLitersForDayLocalAsync(DateTime dayLocal, double liters)
     {
         var normalized = Math.Round(Math.Max(0, liters) * 2, MidpointRounding.AwayFromZero) / 2.0;

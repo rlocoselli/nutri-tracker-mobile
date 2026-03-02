@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:NutritionTracker.Controls"
+    x:Class="NutritionTracker.Pages.StatisticsPage"
+    x:Name="StatsRoot"
+    Title="{Binding TitleText}"
+    BackgroundColor="{StaticResource Background}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="14">
+            <Label Text="{Binding TitleText}" Style="{StaticResource H1}" />
+            <Label Text="{Binding SubtitleText}" Style="{StaticResource BodyMuted}" />
+
+            <Label Text="{Binding PeriodTitle}" FontAttributes="Bold" FontSize="12" />
+            <CollectionView ItemsSource="{Binding PeriodTabs}" SelectionMode="None" HeightRequest="46">
+                <CollectionView.ItemsLayout>
+                    <LinearItemsLayout Orientation="Horizontal" ItemSpacing="8" />
+                </CollectionView.ItemsLayout>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource Card}" Padding="10,6">
+                            <Border.Triggers>
+                                <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
+                                    <Setter Property="Background" Value="{StaticResource Card2Brush}" />
+                                </DataTrigger>
+                            </Border.Triggers>
+                            <Label Text="{Binding Label}" FontSize="12" FontAttributes="Bold" />
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding Source={x:Reference StatsRoot}, Path=BindingContext.SelectPeriodTabCommand}" CommandParameter="{Binding .}" />
+                            </Border.GestureRecognizers>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="10" RowDefinitions="Auto,Auto,Auto" RowSpacing="10">
+                <Border Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="{Binding AvgCaloriesTitle}" Style="{StaticResource BodyMuted}" />
+                        <Label Text="{Binding AvgCaloriesText}" FontSize="20" FontAttributes="Bold" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Column="1" Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="{Binding AvgProteinTitle}" Style="{StaticResource BodyMuted}" />
+                        <Label Text="{Binding AvgProteinText}" FontSize="20" FontAttributes="Bold" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Row="1" Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="{Binding AvgCarbsTitle}" Style="{StaticResource BodyMuted}" />
+                        <Label Text="{Binding AvgCarbsText}" FontSize="20" FontAttributes="Bold" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="{Binding AvgQualityTitle}" Style="{StaticResource BodyMuted}" />
+                        <Label Text="{Binding AvgQualityText}" FontSize="20" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Row="2" Grid.ColumnSpan="2" Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="{Binding AvgHydrationTitle}" Style="{StaticResource BodyMuted}" />
+                        <Label Text="{Binding AvgHydrationText}" FontSize="20" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="{Binding AvgCaloriesTitle}" FontAttributes="Bold" FontSize="12" />
+                    <controls:BarChart HeightRequest="220"
+                                       Values="{Binding ChartValues}"
+                                       Labels="{Binding ChartLabels}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="{Binding QualitySplitTitle}" FontAttributes="Bold" FontSize="12" />
+                    <controls:MacroDonutChart HeightRequest="180"
+                                              Values="{Binding QualityDonutValues}"
+                                              Labels="{Binding QualityDonutLabels}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="{Binding HydrationSeriesTitle}" FontAttributes="Bold" FontSize="12" />
+                    <controls:BarChart HeightRequest="220"
+                                       Values="{Binding HydrationValues}"
+                                       Labels="{Binding HydrationLabels}" />
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

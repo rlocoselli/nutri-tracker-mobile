@@ -207,6 +207,44 @@ public class BackendSyncService
         return resp.IsSuccessStatusCode;
     }
 
+    public async Task<double> GetWaterIntakeForDayLocalAsync(DateTime dayLocal)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
+            return 0;
+
+        var dayUtc = DateTime.SpecifyKind(dayLocal.Date, DateTimeKind.Local).ToUniversalTime();
+        var day = dayUtc.ToString("yyyy-MM-dd");
+
+        using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/water-intake?day={day}");
+        req.Headers.Add("X-User-Id", userId);
+        var resp = await _http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode)
+            return 0;
+
+        var parsed = await resp.Content.ReadFromJsonAsync<BackendWaterIntake>();
+        return parsed?.liters ?? 0;
+    }
+
+    public async Task<List<BackendWaterPoint>> GetWaterIntakeSeriesAsync(DateTime fromLocalInclusive, DateTime toLocalExclusive)
+    {
+        var result = new List<BackendWaterPoint>();
+        var start = fromLocalInclusive.Date;
+        var end = toLocalExclusive.Date;
+
+        for (var day = start; day < end; day = day.AddDays(1))
+        {
+            var liters = await GetWaterIntakeForDayLocalAsync(day);
+            result.Add(new BackendWaterPoint
+            {
+                DayLocal = day,
+                Liters = Math.Max(0, liters)
+            });
+        }
+
+        return result;
+    }
+
     public async Task<bool> TryInviteFriendAsync(string email)
     {
         var userId = Preferences.Default.Get("backend_user_id", "");
@@ -506,6 +544,18 @@ public class StoryLikeResultDto
 {
     public bool liked { get; set; }
     public int like_count { get; set; }
+}
+
+public class BackendWaterIntake
+{
+    public string day_key_utc { get; set; } = "";
+    public double liters { get; set; }
+}
+
+public class BackendWaterPoint
+{
+    public DateTime DayLocal { get; set; }
+    public double Liters { get; set; }
 }
 
 public class StoryCommentDto

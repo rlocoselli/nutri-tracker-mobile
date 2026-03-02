@@ -21,6 +21,7 @@ public static class MauiProgram
         // Services
         builder.Services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
         builder.Services.AddSingleton<AuthService>();
+        builder.Services.AddSingleton<EmailAuthService>();
         builder.Services.AddSingleton<SessionService>();
         builder.Services.AddSingleton<GoogleFitService>();
         builder.Services.AddSingleton<PointsService>();
@@ -28,6 +29,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<SocialNotificationService>();
         builder.Services.AddSingleton<BackendSyncService>();
         builder.Services.AddSingleton<IMealReminderService, MealReminderService>();
+        builder.Services.AddSingleton<IVoiceInputService, AndroidVoiceInputService>();
         builder.Services.AddSingleton(sp => new ApiService("https://www.nutritiontracker.fr/api", sp.GetRequiredService<SessionService>()));
 
         // ✅ DB: ne pas bloquer ici
@@ -47,6 +49,8 @@ public static class MauiProgram
         builder.Services.AddTransient<StoriesViewModel>();
         builder.Services.AddTransient<FriendsViewModel>();
         builder.Services.AddTransient<ProfileViewModel>();
+        builder.Services.AddTransient<HelpViewModel>();
+        builder.Services.AddTransient<StatisticsViewModel>();
 
         // Pages
         builder.Services.AddTransient<LoginPage>();
@@ -58,6 +62,8 @@ public static class MauiProgram
         builder.Services.AddTransient<StoriesPage>();
         builder.Services.AddTransient<FriendsPage>();
         builder.Services.AddTransient<ProfilePage>();
+        builder.Services.AddTransient<HelpPage>();
+        builder.Services.AddTransient<StatisticsPage>();
 
         // Shell + Main (loading)
         builder.Services.AddSingleton<AppShell>();

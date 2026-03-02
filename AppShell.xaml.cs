@@ -16,6 +16,8 @@ public partial class AppShell : Shell
         GoalsTab.Title = LocalizationService.T("tab_goals");
         StoriesTab.Title = LocalizationService.T("tab_stories");
         FriendsTab.Title = LocalizationService.T("tab_friends");
+        StatisticsTab.Title = LocalizationService.T("tab_statistics");
+        HelpTab.Title = LocalizationService.T("tab_help");
         ProfileTab.Title = LocalizationService.T("tab_profile");
 
         StartSocialNotifications();

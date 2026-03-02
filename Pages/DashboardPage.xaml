@@ -2,99 +2,60 @@
 <ContentPage
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:controls="clr-namespace:NutritionTracker.Controls"
     x:Class="NutritionTracker.Pages.DashboardPage"
     Title="{Binding DailySummaryText}"
     BackgroundColor="{StaticResource Background}">
 
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="16">
+        <VerticalStackLayout Padding="20" Spacing="12">
+            <Label Text="{Binding DailySummaryText}" Style="{StaticResource H1}" />
+            <Label Text="{Binding TodayOnlyHintText}" Style="{StaticResource BodyMuted}" />
 
-            <!-- Header -->
-            <Grid ColumnDefinitions="Auto,*,Auto" VerticalOptions="Start">
-                <Border WidthRequest="44" HeightRequest="44" StrokeShape="RoundRectangle 22" >
-                    <Image Source="{Binding UserPictureUrl}" Aspect="AspectFill" />
+            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="10" RowSpacing="10">
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="{Binding CaloriesLabelText}" Style="{StaticResource BodyMuted}" />
+                        <Label Text="{Binding TodayCaloriesText}" FontSize="20" FontAttributes="Bold" />
+                    </VerticalStackLayout>
                 </Border>
 
-                <VerticalStackLayout Grid.Column="1" Padding="12,0" Spacing="2" VerticalOptions="Center">
-                    <Label Text="{Binding HelloText}" FontAttributes="Bold" FontSize="14" TextColor="{StaticResource Muted}" />
-                    <Label Text="{Binding UserName}" FontSize="22" FontAttributes="Bold" />
-                </VerticalStackLayout>
+                <Border Grid.Column="1" Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="{Binding ProteinLabelText}" Style="{StaticResource BodyMuted}" />
+                        <Label Text="{Binding TodayProteinText}" FontSize="20" FontAttributes="Bold" />
+                    </VerticalStackLayout>
+                </Border>
 
-                <Button Grid.Column="2" Text="⚙" Style="{StaticResource IconButton}" Command="{Binding OpenGoalsCommand}" />
+                <Border Grid.Row="1" Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="{Binding CarbsLabelText}" Style="{StaticResource BodyMuted}" />
+                        <Label Text="{Binding TodayCarbsText}" FontSize="20" FontAttributes="Bold" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="{Binding StepsLabelText}" Style="{StaticResource BodyMuted}" />
+                        <Label Text="{Binding TodayStepsText}" FontSize="20" FontAttributes="Bold" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Row="2" Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="{Binding BurnLabelText}" Style="{StaticResource BodyMuted}" />
+                        <Label Text="{Binding TodayBurnText}" FontSize="20" FontAttributes="Bold" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="{Binding NetLabelText}" Style="{StaticResource BodyMuted}" />
+                        <Label Text="{Binding TodayNetCaloriesText}" FontSize="20" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
+                    </VerticalStackLayout>
+                </Border>
             </Grid>
 
-            <!-- Rings -->
-            <Border Style="{StaticResource Card}">
-                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
-
-                    <VerticalStackLayout Spacing="8" HorizontalOptions="Center">
-                        <controls:RingGauge Progress="{Binding CaloriesProgress}" RingColor="{StaticResource Primary}" />
-                        <Label Text="{Binding TodayCaloriesText}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
-                        <Label Text="Calories" Style="{StaticResource BodyMuted}" HorizontalTextAlignment="Center" />
-                    </VerticalStackLayout>
-
-                    <VerticalStackLayout Grid.Column="1" Spacing="8" HorizontalOptions="Center">
-                        <controls:RingGauge Progress="{Binding ProteinProgress}" RingColor="{StaticResource MacroProtein}" />
-                        <Label Text="{Binding TodayProteinText}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
-                        <Label Text="Protéines" Style="{StaticResource BodyMuted}" HorizontalTextAlignment="Center" />
-                    </VerticalStackLayout>
-
-                    <VerticalStackLayout Grid.Column="2" Spacing="8" HorizontalOptions="Center">
-                        <controls:RingGauge Progress="{Binding CarbsProgress}" RingColor="{StaticResource MacroCarbs}" />
-                        <Label Text="{Binding TodayCarbsText}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
-                        <Label Text="Glucides" Style="{StaticResource BodyMuted}" HorizontalTextAlignment="Center" />
-                    </VerticalStackLayout>
-
-                </Grid>
-            </Border>
-
-            <Border Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
-                <VerticalStackLayout Spacing="6">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                        <Label Text="{Binding StreakTitleText}" FontAttributes="Bold" VerticalOptions="Center" />
-                        <Button Grid.Column="1" Text="ℹ" Style="{StaticResource IconButton}" Command="{Binding ShowBalanceInfoCommand}" />
-                    </Grid>
-                    <Label Text="{Binding StreakText}" FontSize="24" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
-                    <Label Text="{Binding RecordingStreakTitleText}" FontAttributes="Bold" />
-                    <Label Text="{Binding RecordingStreakText}" FontSize="20" FontAttributes="Bold" />
-                    <Label Text="{Binding CoinsTitleText}" FontAttributes="Bold" />
-                    <Label Text="{Binding CoinsText}" FontSize="20" FontAttributes="Bold" />
-                    <Label Text="{Binding StreakSubtitleText}" Style="{StaticResource BodyMuted}" />
-                    <Label Text="{Binding BalanceStatusText}" FontAttributes="Bold" />
-                    <Label Text="{Binding StreakHintText}" FontSize="12" TextColor="{StaticResource Muted}" />
-                </VerticalStackLayout>
-            </Border>
-
-            <!-- Primary CTA -->
-            <Button Text="{Binding RecordMealText}" Command="{Binding AddMealCommand}" />
-
-            <!-- Quick actions -->
-            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-                <Button Text="{Binding AdviceText}" Style="{StaticResource SecondaryButton}" Command="{Binding OpenRecommendationsCommand}" />
-                <Button Grid.Column="1" Text="{Binding GoalsText}" Style="{StaticResource SecondaryButton}" Command="{Binding OpenGoalsCommand}" />
-            </Grid>
-
-            <!-- Summary hint -->
-            <Border Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
-                <VerticalStackLayout Spacing="6">
-                    <Label Text="{Binding DailySummaryText}" FontAttributes="Bold" />
-                    <Label Text="{Binding DailySummaryHintText}" Style="{StaticResource BodyMuted}" />
-                    <Label Text="{Binding FitSyncStatusText}" IsVisible="{Binding ShowGoogleFitUi}" FontSize="12" TextColor="{StaticResource Muted}" />
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,8,0,0" IsVisible="{Binding ShowGoogleFitUi}">
-                        <VerticalStackLayout>
-                            <Label Text="{Binding StepsLabelText}" FontAttributes="Bold" FontSize="12" />
-                            <Label Text="{Binding TodayStepsText}" />
-                        </VerticalStackLayout>
-                        <VerticalStackLayout Grid.Column="1">
-                            <Label Text="{Binding BurnLabelText}" FontAttributes="Bold" FontSize="12" />
-                            <Label Text="{Binding TodayBurnText}" />
-                        </VerticalStackLayout>
-                    </Grid>
-                    <Label Text="{Binding TodayNetCaloriesText}" FontAttributes="Bold" />
-                </VerticalStackLayout>
-            </Border>
-
+            <Label Text="{Binding FitSyncStatusText}" IsVisible="{Binding ShowGoogleFitUi}" FontSize="12" TextColor="{StaticResource Muted}" />
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>

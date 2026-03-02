@@ -16,6 +16,8 @@
         <Editor Text="{Binding Text}" AutoSize="TextChanges" Placeholder="{Binding EditorPlaceholder}" HeightRequest="120" />
       </Border>
 
+      <Button Text="{Binding VoiceInputText}" Style="{StaticResource SecondaryButton}" Command="{Binding VoiceInputCommand}" />
+
       <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
         <Button Text="{Binding PickPhotoText}" Style="{StaticResource SecondaryButton}" Command="{Binding PickPhotoCommand}" />
         <Button Grid.Column="1" Text="{Binding CapturePhotoText}" Style="{StaticResource SecondaryButton}" Command="{Binding CapturePhotoCommand}" />

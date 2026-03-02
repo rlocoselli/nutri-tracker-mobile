@@ -121,9 +121,9 @@
                     </CollectionView.ItemTemplate>
                 </CollectionView>
 
-                <controls:TrendChart HeightRequest="210"
-                                     Values="{Binding ChartValues}"
-                                     Labels="{Binding ChartLabels}" />
+                <controls:BarChart HeightRequest="210"
+                                   Values="{Binding ChartValues}"
+                                   Labels="{Binding ChartLabels}" />
 
                 <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                     <Border Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">

@@ -15,6 +15,14 @@ public class SessionService
 
     public bool HasValidIdToken()
     {
+        var authMethod = Preferences.Default.Get("auth_method", "google");
+        if (string.Equals(authMethod, "email", StringComparison.OrdinalIgnoreCase))
+        {
+            var active = Preferences.Default.Get("email_session_active", false);
+            var email = Preferences.Default.Get("profile_email", "");
+            return active && !string.IsNullOrWhiteSpace(email);
+        }
+
         var token = GetIdToken();
         return !string.IsNullOrWhiteSpace(token) && AuthService.IsIdTokenStillValid(token);
     }
@@ -26,6 +34,9 @@ public class SessionService
         Preferences.Default.Remove("profile_name");
         Preferences.Default.Remove("profile_email");
         Preferences.Default.Remove("profile_picture");
+        Preferences.Default.Remove("backend_user_id");
+        Preferences.Default.Remove("auth_method");
+        Preferences.Default.Remove("email_session_active");
     }
 
     public Task RedirectToLoginAsync(bool clearAuth = true)

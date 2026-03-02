@@ -10,6 +10,7 @@ public partial class StoriesViewModel : ObservableObject
 {
     private readonly BackendSyncService _sync;
     private readonly List<StoryFeedItem> _allItems = new();
+    private readonly Dictionary<string, ImageSource> _avatarByUserId = new(StringComparer.OrdinalIgnoreCase);
 
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private string searchQuery = "";
@@ -89,6 +90,23 @@ public partial class StoriesViewModel : ObservableObject
             var meUserId = Preferences.Default.Get("backend_user_id", "").Trim();
             var myProfileName = Preferences.Default.Get("profile_name", "").Trim();
             var myProfilePicture = Preferences.Default.Get("profile_picture", "").Trim();
+            var directory = await _sync.GetFriendDirectoryAsync();
+            _avatarByUserId.Clear();
+            var avatarByUserId = directory
+                .Where(x => !string.IsNullOrWhiteSpace(x.user_id))
+                .ToDictionary(
+                    x => x.user_id.Trim(),
+                    x => StoriesPhotoSourceHelper.Build(x.picture_url) ?? ImageSource.FromFile("ic_profile.svg"),
+                    StringComparer.OrdinalIgnoreCase);
+
+            foreach (var item in avatarByUserId)
+                _avatarByUserId[item.Key] = item.Value;
+
+            if (!string.IsNullOrWhiteSpace(meUserId) && !avatarByUserId.ContainsKey(meUserId))
+            {
+                avatarByUserId[meUserId] = StoriesPhotoSourceHelper.Build(myProfilePicture) ?? ImageSource.FromFile("ic_profile.svg");
+                _avatarByUserId[meUserId] = avatarByUserId[meUserId];
+            }
 
             var feed = await _sync.GetFriendsFeedAsync(days: 14, limit: 120);
             var ordered = feed
@@ -103,6 +121,11 @@ public partial class StoriesViewModel : ObservableObject
                     continue;
 
                 var avatar = ResolveAvatar(row, meUserId, myProfilePicture);
+                if (!string.IsNullOrWhiteSpace(row.user_id))
+                {
+                    avatarByUserId[row.user_id.Trim()] = avatar;
+                    _avatarByUserId[row.user_id.Trim()] = avatar;
+                }
                 var item = new StoryFeedItem
                 {
                     MealId = row.meal_id,
@@ -124,8 +147,10 @@ public partial class StoriesViewModel : ObservableObject
                 {
                     item.Comments.Add(new StoryCommentLine
                     {
+                        UserId = comment.user_id?.Trim() ?? "",
                         AuthorName = NormalizeAuthor(comment.author_name),
                         Text = comment.text?.Trim() ?? "",
+                        AvatarSource = ResolveCommentAvatar(comment.user_id),
                     });
                 }
 
@@ -173,8 +198,10 @@ public partial class StoriesViewModel : ObservableObject
         item.CommentDraft = "";
         item.Comments.Add(new StoryCommentLine
         {
+            UserId = created.user_id?.Trim() ?? "",
             AuthorName = NormalizeAuthor(created.author_name),
             Text = created.text?.Trim() ?? "",
+            AvatarSource = ResolveCommentAvatar(created.user_id),
         });
         item.CommentCount++;
         item.HasMoreComments = false;
@@ -192,8 +219,10 @@ public partial class StoriesViewModel : ObservableObject
         {
             item.Comments.Add(new StoryCommentLine
             {
+                UserId = comment.user_id?.Trim() ?? "",
                 AuthorName = NormalizeAuthor(comment.author_name),
                 Text = comment.text?.Trim() ?? "",
+                AvatarSource = ResolveCommentAvatar(comment.user_id),
             });
         }
 
@@ -337,40 +366,21 @@ public partial class StoriesViewModel : ObservableObject
         return StoriesPhotoSourceHelper.Build(story.picture_url) ?? ImageSource.FromFile("ic_profile.svg");
     }
 
+    private ImageSource ResolveCommentAvatar(string? userId)
+    {
+        var key = (userId ?? "").Trim();
+        if (!string.IsNullOrWhiteSpace(key) && _avatarByUserId.TryGetValue(key, out var avatar))
+            return avatar;
+
+        return ImageSource.FromFile("ic_profile.svg");
+    }
+
     private static string T(string key)
     {
-        var lang = Preferences.Default.Get("app_lang", "fr");
-        static string L(string lang, string fr, string en, string pt, string es) => lang switch
-        {
-            "en" => en,
-            "pt" => pt,
-            "es" => es,
-            _ => fr,
-        };
+        if (key == "saved_title")
+            return LocalizationService.T("saved_title_common");
 
-        return key switch
-        {
-            "stories_tab_title" => L(lang, "Stories", "Stories", "Stories", "Stories"),
-            "stories_header_title" => L(lang, "Stories nutrition", "Nutrition stories", "Stories de nutrição", "Stories de nutrición"),
-            "stories_header_subtitle" => L(lang, "Photos de vos repas et de vos amis, du plus récent au plus ancien.", "Your meal photos and friends' photos, newest first.", "Fotos das suas refeições e dos amigos, do mais recente ao mais antigo.", "Fotos de tus comidas y de tus amigos, de más reciente a más antigua."),
-            "stories_search_placeholder" => L(lang, "Rechercher des amis, repas, calories...", "Search friends, meals, calories...", "Buscar amigos, refeições, calorias...", "Buscar amigos, comidas, calorías..."),
-            "stories_clear_filter" => L(lang, "Effacer", "Clear", "Limpar", "Limpiar"),
-            "stories_empty" => L(lang, "Aucune story photo pour le moment.", "No photo stories yet.", "Nenhuma story com foto ainda.", "Aún no hay stories con foto."),
-            "refresh" => L(lang, "Rafraîchir", "Refresh", "Atualizar", "Actualizar"),
-            "story_default_author" => L(lang, "Utilisateur", "User", "Usuário", "Usuario"),
-            "story_meal" => L(lang, "Repas", "Meal", "Refeição", "Comida"),
-            "story_like" => L(lang, "J'aime", "Like", "Curtir", "Me gusta"),
-            "story_unlike" => L(lang, "Aimé", "Liked", "Curtido", "Te gusta"),
-            "story_comment" => L(lang, "Commenter", "Comment", "Comentar", "Comentar"),
-            "story_comment_placeholder" => L(lang, "Écrire un commentaire", "Write a comment", "Escreva um comentário", "Escribe un comentario"),
-            "story_view_messages" => L(lang, "Voir messages", "View messages", "Ver mensagens", "Ver mensajes"),
-            "story_view_all_comments" => L(lang, "Voir tous les commentaires", "View all comments", "Ver todos comentários", "Ver todos los comentarios"),
-            "story_no_messages" => L(lang, "Aucun message pour cette photo.", "No messages for this photo.", "Nenhuma mensagem para esta foto.", "No hay mensajes para esta foto."),
-            "saved_title" => L(lang, "Enregistré", "Saved", "Salvo", "Guardado"),
-            "send" => L(lang, "Envoyer", "Send", "Enviar", "Enviar"),
-            "cancel" => L(lang, "Annuler", "Cancel", "Cancelar", "Cancelar"),
-            _ => key,
-        };
+        return LocalizationService.T(key);
     }
 }
 
@@ -397,8 +407,10 @@ public class StoryFeedItem
 
 public class StoryCommentLine
 {
+    public string UserId { get; set; } = "";
     public string AuthorName { get; set; } = "";
     public string Text { get; set; } = "";
+    public ImageSource AvatarSource { get; set; } = ImageSource.FromFile("ic_profile.svg");
 }
 
 public class StoryBubbleItem
