@@ -16,6 +16,16 @@
         <Editor Text="{Binding Text}" AutoSize="TextChanges" Placeholder="{Binding EditorPlaceholder}" HeightRequest="120" />
       </Border>
 
+      <Border Style="{StaticResource Card}">
+        <VerticalStackLayout Spacing="6">
+          <Label Text="{Binding StoryVisibilityTitle}" FontAttributes="Bold" />
+          <Picker ItemsSource="{Binding StoryVisibilityOptions}"
+                  ItemDisplayBinding="{Binding Label}"
+                  SelectedItem="{Binding SelectedStoryVisibilityOption}"
+                  Title="{Binding StoryVisibilityLabel}" />
+        </VerticalStackLayout>
+      </Border>
+
       <Button Text="{Binding VoiceInputText}" Style="{StaticResource SecondaryButton}" Command="{Binding VoiceInputCommand}" />
 
       <Grid ColumnDefinitions="*,*" ColumnSpacing="12">

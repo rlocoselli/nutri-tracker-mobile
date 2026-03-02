@@ -7,7 +7,7 @@ from ..db import get_db
 from ..config import APP_COMPANY_NAME, APP_DATA_LOCATION
 from ..mailer import send_email
 from ..models import FriendInvite, Friendship, MealEntry, User, StoryLike, StoryComment, PrivateMessage
-from ..schemas import InviteIn, FriendStoryOut, StoryLikeOut, StoryCommentIn, StoryCommentOut, PrivateMessageIn, PrivateMessageOut, FriendDirectoryOut, IncomingInviteOut
+from ..schemas import InviteIn, FriendStoryOut, StoryLikeOut, StoryCommentIn, StoryCommentOut, PrivateMessageIn, PrivateMessageOut, FriendDirectoryOut, IncomingInviteOut, StoryVisibilityDefaultIn, StoryVisibilityDefaultOut
 from ..security import get_current_user_id
 
 router = APIRouter(prefix="/friends", tags=["friends"])
@@ -43,6 +43,25 @@ def _visible_user_ids(db: Session, user_id: uuid.UUID) -> set[uuid.UUID]:
             visible.add(row.user_a_id)
 
     return visible
+
+
+def _normalize_story_visibility(value: str | None, fallback: str = "friends") -> str:
+    normalized = (value or "").strip().lower()
+    if normalized in {"friends", "public", "self"}:
+        return normalized
+    return fallback if fallback in {"friends", "public", "self"} else "friends"
+
+
+def _can_view_story(meal: MealEntry, viewer_user_id: uuid.UUID, visible_user_ids: set[uuid.UUID]) -> bool:
+    if meal.user_id == viewer_user_id:
+        return True
+
+    visibility = _normalize_story_visibility(getattr(meal, "story_visibility", "friends"), "friends")
+    if visibility == "public":
+        return True
+    if visibility == "friends":
+        return meal.user_id in visible_user_ids
+    return False
 
 
 def _normalize_locale(raw_locale: str | None) -> str:
@@ -134,6 +153,7 @@ def list_incoming_invites(user_id: uuid.UUID = Depends(get_current_user_id), db:
         db.query(FriendInvite, User)
         .join(User, User.id == FriendInvite.inviter_user_id)
         .filter(func.lower(FriendInvite.invitee_email) == my_email)
+        .filter(FriendInvite.inviter_user_id != user_id)
         .filter(FriendInvite.status == "pending")
         .order_by(FriendInvite.created_at_utc.desc())
         .all()
@@ -163,6 +183,10 @@ def create_invite(payload: InviteIn, user_id: uuid.UUID = Depends(get_current_us
         raise HTTPException(status_code=400, detail="Invalid invite email")
 
     inviter = db.query(User).filter(User.id == user_id).first()
+    inviter_email = ((inviter.email if inviter else "") or "").strip().lower()
+    if inviter_email and inviter_email == invitee_email:
+        raise HTTPException(status_code=400, detail="Cannot invite yourself")
+
     inviter_name = _display_name(inviter)
 
     exists = (
@@ -318,6 +342,36 @@ def search_users(
     ]
 
 
+@router.get("/story-visibility-default", response_model=StoryVisibilityDefaultOut)
+def get_story_visibility_default(
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return StoryVisibilityDefaultOut(
+        default_story_visibility=_normalize_story_visibility(user.default_story_visibility, "friends")
+    )
+
+
+@router.put("/story-visibility-default", response_model=StoryVisibilityDefaultOut)
+def set_story_visibility_default(
+    payload: StoryVisibilityDefaultIn,
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.default_story_visibility = _normalize_story_visibility(payload.default_story_visibility, "friends")
+    db.commit()
+
+    return StoryVisibilityDefaultOut(default_story_visibility=user.default_story_visibility)
+
+
 @router.get("/feed", response_model=list[FriendStoryOut])
 def friends_feed(
     days: int = 2,
@@ -332,18 +386,22 @@ def friends_feed(
 
     cutoff = datetime.utcnow() - timedelta(days=safe_days)
 
+    candidate_limit = max(safe_limit * 8, 120)
+
     rows = (
         db.query(MealEntry, User)
         .join(User, User.id == MealEntry.user_id)
-        .filter(MealEntry.user_id.in_(list(visible_user_ids)))
         .filter(MealEntry.date_utc >= cutoff)
         .order_by(MealEntry.date_utc.desc())
-        .limit(safe_limit)
+        .limit(candidate_limit)
         .all()
     )
 
     out: list[FriendStoryOut] = []
     for meal, user in rows:
+        if not _can_view_story(meal, user_id, visible_user_ids):
+            continue
+
         like_count = db.query(StoryLike).filter(StoryLike.meal_entry_id == meal.id).count()
         comment_count = db.query(StoryComment).filter(StoryComment.meal_entry_id == meal.id).count()
         liked_by_me = (
@@ -367,11 +425,15 @@ def friends_feed(
                 total_carbs_g=float(meal.total_carbs_g or 0),
                 total_protein_g=float(meal.total_protein_g or 0),
                 quality_label=meal.quality_label or "",
+                story_visibility=_normalize_story_visibility(meal.story_visibility, "friends"),
                 like_count=like_count,
                 comment_count=comment_count,
                 liked_by_me=liked_by_me,
             )
         )
+
+        if len(out) >= safe_limit:
+            break
 
     return out
 
@@ -383,7 +445,7 @@ def toggle_story_like(meal_id: uuid.UUID, user_id: uuid.UUID = Depends(get_curre
         raise HTTPException(status_code=404, detail="Story not found")
 
     visible_user_ids = _visible_user_ids(db, user_id)
-    if meal.user_id not in visible_user_ids:
+    if not _can_view_story(meal, user_id, visible_user_ids):
         raise HTTPException(status_code=403, detail="Forbidden")
 
     existing = (
@@ -417,7 +479,7 @@ def list_story_comments(
         raise HTTPException(status_code=404, detail="Story not found")
 
     visible_user_ids = _visible_user_ids(db, user_id)
-    if meal.user_id not in visible_user_ids:
+    if not _can_view_story(meal, user_id, visible_user_ids):
         raise HTTPException(status_code=403, detail="Forbidden")
 
     safe_limit = max(1, min(limit, 120))
@@ -463,7 +525,7 @@ def add_story_comment(
         raise HTTPException(status_code=404, detail="Story not found")
 
     visible_user_ids = _visible_user_ids(db, user_id)
-    if meal.user_id not in visible_user_ids:
+    if not _can_view_story(meal, user_id, visible_user_ids):
         raise HTTPException(status_code=403, detail="Forbidden")
 
     row = StoryComment(meal_entry_id=meal_id, user_id=user_id, text=text)

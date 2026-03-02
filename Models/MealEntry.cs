@@ -17,6 +17,7 @@ public class MealEntry
     public string Description { get; set; } = "";
     public string AiNotes { get; set; } = "";
     public string PhotoPath { get; set; } = "";
+    public string StoryVisibility { get; set; } = "friends";
 
     public double TotalCalories { get; set; }
     public double TotalCarbsG { get; set; }

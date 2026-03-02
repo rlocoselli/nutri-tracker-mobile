@@ -280,6 +280,7 @@ public class BackendSyncService
             description = meal.Description,
             ai_notes = meal.AiNotes,
             photo_url = meal.PhotoPath,
+            story_visibility = NormalizeStoryVisibility(meal.StoryVisibility),
             total_calories = meal.TotalCalories,
             total_carbs_g = meal.TotalCarbsG,
             total_protein_g = meal.TotalProteinG,
@@ -601,6 +602,42 @@ public class BackendSyncService
         return parsed ?? new List<BackendStory>();
     }
 
+    public async Task<string> GetStoryVisibilityDefaultAsync()
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
+            return NormalizeStoryVisibility(Preferences.Default.Get("story_visibility_default", "friends"));
+
+        using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/friends/story-visibility-default");
+        req.Headers.Add("X-User-Id", userId);
+        var resp = await _http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode)
+            return NormalizeStoryVisibility(Preferences.Default.Get("story_visibility_default", "friends"));
+
+        var parsed = await resp.Content.ReadFromJsonAsync<StoryVisibilityDefaultDto>();
+        var resolved = NormalizeStoryVisibility(parsed?.default_story_visibility);
+        Preferences.Default.Set("story_visibility_default", resolved);
+        return resolved;
+    }
+
+    public async Task<bool> TrySetStoryVisibilityDefaultAsync(string visibility)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
+            return false;
+
+        var normalized = NormalizeStoryVisibility(visibility);
+        using var req = new HttpRequestMessage(HttpMethod.Put, $"{ApiBaseUrl}/friends/story-visibility-default");
+        req.Headers.Add("X-User-Id", userId);
+        req.Content = JsonContent.Create(new { default_story_visibility = normalized });
+        var resp = await _http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode)
+            return false;
+
+        Preferences.Default.Set("story_visibility_default", normalized);
+        return true;
+    }
+
     public async Task<(bool liked, int likeCount)> ToggleStoryLikeAsync(string mealId)
     {
         var userId = Preferences.Default.Get("backend_user_id", "");
@@ -727,6 +764,11 @@ public class BackendSyncService
         public string id { get; set; } = "";
     }
 
+    private sealed class StoryVisibilityDefaultDto
+    {
+        public string default_story_visibility { get; set; } = "friends";
+    }
+
     private static object BuildMealPayload(MealEntry meal, List<MealItem> items)
     {
         return new
@@ -736,6 +778,7 @@ public class BackendSyncService
             description = meal.Description,
             ai_notes = meal.AiNotes,
             photo_url = meal.PhotoPath,
+            story_visibility = NormalizeStoryVisibility(meal.StoryVisibility),
             total_calories = meal.TotalCalories,
             total_carbs_g = meal.TotalCarbsG,
             total_protein_g = meal.TotalProteinG,
@@ -753,6 +796,18 @@ public class BackendSyncService
                 protein_g = x.ProteinG,
                 confidence = x.Confidence
             }).ToList()
+        };
+    }
+
+    public static string NormalizeStoryVisibility(string? value)
+    {
+        var normalized = (value ?? "").Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            "friends" => "friends",
+            "public" => "public",
+            "self" => "self",
+            _ => "friends",
         };
     }
 
@@ -816,6 +871,7 @@ public class BackendMeal
     public double overall_confidence { get; set; }
     public double quality_score { get; set; }
     public string quality_label { get; set; } = "";
+    public string story_visibility { get; set; } = "friends";
     public List<BackendMealItem> items { get; set; } = new();
 }
 
@@ -854,6 +910,7 @@ public class BackendStory
     public double total_carbs_g { get; set; }
     public double total_protein_g { get; set; }
     public string quality_label { get; set; } = "";
+    public string story_visibility { get; set; } = "friends";
     public int like_count { get; set; }
     public int comment_count { get; set; }
     public bool liked_by_me { get; set; }

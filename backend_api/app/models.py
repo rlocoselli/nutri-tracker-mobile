@@ -15,6 +15,7 @@ class User(Base):
     display_name: Mapped[str] = mapped_column(String, default="")
     picture_url: Mapped[str] = mapped_column(Text, default="")
     language_code: Mapped[str] = mapped_column(String, default="fr")
+    default_story_visibility: Mapped[str] = mapped_column(String, default="friends")
     created_at_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
@@ -74,6 +75,7 @@ class MealEntry(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     ai_notes: Mapped[str] = mapped_column(Text, default="")
     photo_url: Mapped[str] = mapped_column(Text, default="")
+    story_visibility: Mapped[str] = mapped_column(String, default="friends")
     total_calories: Mapped[float] = mapped_column(Numeric(10, 2), default=0)
     total_carbs_g: Mapped[float] = mapped_column(Numeric(10, 2), default=0)
     total_protein_g: Mapped[float] = mapped_column(Numeric(10, 2), default=0)

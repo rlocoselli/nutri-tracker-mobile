@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
+using System.Linq;
 using NutritionTracker.Pages;
 using NutritionTracker.Services;
 
@@ -32,6 +33,8 @@ public partial class ProfileViewModel : ObservableObject
     [ObservableProperty] private TimeSpan lunchReminder = new(13, 0, 0);
     [ObservableProperty] private TimeSpan dinnerReminder = new(20, 0, 0);
     [ObservableProperty] private string reminderStatusText = "";
+    [ObservableProperty] private StoryVisibilityChoice? selectedDefaultStoryVisibility;
+    [ObservableProperty] private string storyPrivacyStatusText = "";
     [ObservableProperty] private string inviteEmail = "";
     [ObservableProperty] private string socialStatusText = "";
     [ObservableProperty] private bool isEmailAccount;
@@ -45,6 +48,7 @@ public partial class ProfileViewModel : ObservableObject
 
     public ObservableCollection<FriendInviteItem> Friends { get; } = new();
     public ObservableCollection<FriendRankItem> FriendRanks { get; } = new();
+    public ObservableCollection<StoryVisibilityChoice> StoryVisibilityChoices { get; } = new();
 
     public string LanguageLabel => LocalizationService.T("language");
     public string ProfileTitle => LocalizationService.T("profile_title");
@@ -60,6 +64,9 @@ public partial class ProfileViewModel : ObservableObject
     public string ReminderLunchText => LocalizationService.T("reminder_lunch");
     public string ReminderDinnerText => LocalizationService.T("reminder_dinner");
     public string SaveReminderText => LocalizationService.T("save_reminders");
+    public string StoryVisibilityTitle => LocalizationService.T("story_visibility_title");
+    public string StoryDefaultVisibilityLabel => LocalizationService.T("story_default_visibility_label");
+    public string SaveStoryPrivacyText => LocalizationService.T("save_story_privacy");
     public string FriendsTitle => LocalizationService.T("friends_title");
     public string InvitePlaceholder => LocalizationService.T("invite_email_placeholder");
     public string InviteButtonText => LocalizationService.T("invite_friend");
@@ -93,6 +100,8 @@ public partial class ProfileViewModel : ObservableObject
         _sync = sync;
         _emailAuth = emailAuth;
         _subscription = subscription;
+
+        RebuildStoryVisibilityChoices();
     }
 
     public async Task LoadAsync()
@@ -132,6 +141,9 @@ public partial class ProfileViewModel : ObservableObject
         OnPropertyChanged(nameof(ReminderLunchText));
         OnPropertyChanged(nameof(ReminderDinnerText));
         OnPropertyChanged(nameof(SaveReminderText));
+        OnPropertyChanged(nameof(StoryVisibilityTitle));
+        OnPropertyChanged(nameof(StoryDefaultVisibilityLabel));
+        OnPropertyChanged(nameof(SaveStoryPrivacyText));
         OnPropertyChanged(nameof(FriendsTitle));
         OnPropertyChanged(nameof(InvitePlaceholder));
         OnPropertyChanged(nameof(InviteButtonText));
@@ -160,10 +172,15 @@ public partial class ProfileViewModel : ObservableObject
         LunchReminder = ParseTimeOrDefault(Preferences.Default.Get("meal_reminder_lunch", "13:00"), new TimeSpan(13, 0, 0));
         DinnerReminder = ParseTimeOrDefault(Preferences.Default.Get("meal_reminder_dinner", "20:00"), new TimeSpan(20, 0, 0));
         ReminderStatusText = "";
+        StoryPrivacyStatusText = "";
         SocialStatusText = "";
         AccountActionStatusText = "";
         RefreshSubscriptionUi();
         LoadFriends();
+
+        RebuildStoryVisibilityChoices();
+        var defaultStoryVisibility = await _sync.GetStoryVisibilityDefaultAsync();
+        SelectedDefaultStoryVisibility = StoryVisibilityChoices.FirstOrDefault(x => x.Value == defaultStoryVisibility) ?? StoryVisibilityChoices.FirstOrDefault();
 
         var accessToken = Preferences.Default.Get("auth_access_token", "");
         var todaySteps = 0;
@@ -259,6 +276,12 @@ public partial class ProfileViewModel : ObservableObject
             return;
         }
 
+        if (IsCurrentUserEmail(InviteEmail))
+        {
+            SocialStatusText = LocalizationService.T("invite_self_not_allowed");
+            return;
+        }
+
         var added = _social.Invite(InviteEmail);
         if (!added)
         {
@@ -279,6 +302,12 @@ public partial class ProfileViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(InviteEmail) || !InviteEmail.Contains('@'))
         {
             SocialStatusText = LocalizationService.T("invite_invalid_email");
+            return;
+        }
+
+        if (IsCurrentUserEmail(InviteEmail))
+        {
+            SocialStatusText = LocalizationService.T("invite_self_not_allowed");
             return;
         }
 
@@ -345,6 +374,22 @@ public partial class ProfileViewModel : ObservableObject
         {
             ReminderStatusText = $"{LocalizationService.T("sync_error")}: {ex.Message}";
         }
+    }
+
+    [RelayCommand]
+    private async Task SaveStoryPrivacy()
+    {
+        var selected = SelectedDefaultStoryVisibility?.Value ?? "friends";
+        var ok = await _sync.TrySetStoryVisibilityDefaultAsync(selected);
+        if (!ok)
+        {
+            StoryPrivacyStatusText = LocalizationService.T("story_privacy_save_failed");
+            return;
+        }
+
+        var normalized = BackendSyncService.NormalizeStoryVisibility(selected);
+        Preferences.Default.Set("story_visibility_default", normalized);
+        StoryPrivacyStatusText = LocalizationService.T("story_privacy_saved");
     }
 
     [RelayCommand]
@@ -442,6 +487,21 @@ public partial class ProfileViewModel : ObservableObject
         return new TimeSpan(hours, minutes, 0);
     }
 
+    private static bool IsCurrentUserEmail(string email)
+    {
+        var mine = Preferences.Default.Get("profile_email", "").Trim().ToLowerInvariant();
+        var other = (email ?? "").Trim().ToLowerInvariant();
+        return !string.IsNullOrWhiteSpace(mine) && string.Equals(mine, other, StringComparison.Ordinal);
+    }
+
+    private void RebuildStoryVisibilityChoices()
+    {
+        StoryVisibilityChoices.Clear();
+        StoryVisibilityChoices.Add(new StoryVisibilityChoice("friends", LocalizationService.T("story_visibility_friends")));
+        StoryVisibilityChoices.Add(new StoryVisibilityChoice("public", LocalizationService.T("story_visibility_public")));
+        StoryVisibilityChoices.Add(new StoryVisibilityChoice("self", LocalizationService.T("story_visibility_self")));
+    }
+
     private void LoadFriends()
     {
         Friends.Clear();
@@ -526,4 +586,16 @@ public class FriendRankItem
     public string RankBadge { get; set; } = "";
     public string Name { get; set; } = "";
     public string Detail { get; set; } = "";
+}
+
+public class StoryVisibilityChoice
+{
+    public string Value { get; }
+    public string Label { get; }
+
+    public StoryVisibilityChoice(string value, string label)
+    {
+        Value = value;
+        Label = label;
+    }
 }

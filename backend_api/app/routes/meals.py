@@ -3,15 +3,26 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from ..db import get_db
-from ..models import MealEntry, MealItem
+from ..models import MealEntry, MealItem, User
 from ..schemas import MealCreateIn, MealOut, MealItemOut
 from ..security import get_current_user_id
 
 router = APIRouter(prefix="/meals", tags=["meals"])
 
 
+def _normalize_story_visibility(value: str | None, fallback: str = "friends") -> str:
+    normalized = (value or "").strip().lower()
+    if normalized in {"friends", "public", "self"}:
+        return normalized
+    return fallback if fallback in {"friends", "public", "self"} else "friends"
+
+
 @router.post("")
 def create_meal(payload: MealCreateIn, user_id: uuid.UUID = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    user_default = _normalize_story_visibility((user.default_story_visibility if user else "friends"), "friends")
+    story_visibility = _normalize_story_visibility(payload.story_visibility, user_default)
+
     meal = MealEntry(
         user_id=user_id,
         date_utc=payload.date_utc,
@@ -20,6 +31,7 @@ def create_meal(payload: MealCreateIn, user_id: uuid.UUID = Depends(get_current_
         description=payload.description,
         ai_notes=payload.ai_notes,
         photo_url=payload.photo_url,
+        story_visibility=story_visibility,
         total_calories=payload.total_calories,
         total_carbs_g=payload.total_carbs_g,
         total_protein_g=payload.total_protein_g,
@@ -100,6 +112,7 @@ def list_meals(
             overall_confidence=float(row.overall_confidence),
             quality_score=float(row.quality_score),
             quality_label=row.quality_label,
+            story_visibility=_normalize_story_visibility(row.story_visibility, "friends"),
             items=items_by_meal.get(row.id, []),
         ))
 
@@ -118,6 +131,7 @@ def patch_meal(meal_id: uuid.UUID, payload: MealCreateIn, user_id: uuid.UUID = D
     row.description = payload.description
     row.ai_notes = payload.ai_notes
     row.photo_url = payload.photo_url
+    row.story_visibility = _normalize_story_visibility(payload.story_visibility, row.story_visibility or "friends")
     row.total_calories = payload.total_calories
     row.total_carbs_g = payload.total_carbs_g
     row.total_protein_g = payload.total_protein_g

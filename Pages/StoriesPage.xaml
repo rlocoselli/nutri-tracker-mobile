@@ -6,51 +6,57 @@
     x:Name="StoriesRoot"
     Title="{Binding PageTitle}"
     BackgroundColor="{StaticResource Background}">
-
     <Grid>
-        <ScrollView>
-            <VerticalStackLayout Padding="20" Spacing="14">
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                    <VerticalStackLayout Spacing="2">
-                        <Label Text="{Binding HeaderTitle}" Style="{StaticResource H1}" />
-                        <Label Text="{Binding HeaderSubtitle}" Style="{StaticResource BodyMuted}" />
-                    </VerticalStackLayout>
-                    <Button Grid.Column="1" Text="↻" Style="{StaticResource IconButton}" Command="{Binding RefreshCommand}" />
-                </Grid>
+        <RefreshView IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
+            <Grid RowDefinitions="Auto,*" Padding="16,12,16,12" RowSpacing="10">
+                <VerticalStackLayout Grid.Row="0" Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="{Binding HeaderTitle}" Style="{StaticResource H1}" />
+                            <Label Text="{Binding HeaderSubtitle}" Style="{StaticResource BodyMuted}" />
+                        </VerticalStackLayout>
+                        <Button Grid.Column="1" Text="↻" Style="{StaticResource IconButton}" Command="{Binding RefreshCommand}" />
+                    </Grid>
 
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                    <Border Style="{StaticResource Card}" Padding="10,8">
-                        <Entry Text="{Binding SearchQuery}" Placeholder="{Binding SearchPlaceholder}" ClearButtonVisibility="WhileEditing" />
-                    </Border>
-                    <Button Grid.Column="1"
-                            Text="{Binding ClearFilterText}"
-                            Style="{StaticResource SecondaryButton}"
-                            Command="{Binding ClearFilterCommand}"
-                            IsVisible="{Binding HasActiveAuthorFilter}" />
-                </Grid>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <Border Style="{StaticResource Card}" Padding="10,8">
+                            <Entry Text="{Binding SearchQuery}" Placeholder="{Binding SearchPlaceholder}" ClearButtonVisibility="WhileEditing" />
+                        </Border>
+                        <Button Grid.Column="1"
+                                Text="{Binding ClearFilterText}"
+                                Style="{StaticResource SecondaryButton}"
+                                Command="{Binding ClearFilterCommand}"
+                                IsVisible="{Binding HasActiveAuthorFilter}" />
+                    </Grid>
 
-                <CollectionView ItemsSource="{Binding StoryBubbles}" SelectionMode="None" ItemsLayout="HorizontalList" IsVisible="{Binding HasBubbles}">
-                    <CollectionView.ItemTemplate>
-                        <DataTemplate>
-                            <VerticalStackLayout Spacing="4" Margin="0,0,12,0" WidthRequest="74">
-                                <Border WidthRequest="62" HeightRequest="62" StrokeShape="RoundRectangle 31">
-                                    <Border.GestureRecognizers>
-                                        <TapGestureRecognizer
-                                            Command="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.SelectBubbleCommand}"
-                                            CommandParameter="{Binding .}" />
-                                    </Border.GestureRecognizers>
-                                    <Image Source="{Binding AvatarSource}" Aspect="AspectFill" />
-                                </Border>
-                                <Label Text="{Binding Author}" FontSize="11" HorizontalTextAlignment="Center" LineBreakMode="TailTruncation" MaxLines="1" />
-                                <Label Text="●" FontSize="10" HorizontalTextAlignment="Center" TextColor="{StaticResource Primary}" IsVisible="{Binding IsActive}" />
-                            </VerticalStackLayout>
-                        </DataTemplate>
-                    </CollectionView.ItemTemplate>
-                </CollectionView>
+                    <CollectionView ItemsSource="{Binding StoryBubbles}" SelectionMode="None" ItemsLayout="HorizontalList" IsVisible="{Binding HasBubbles}">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <VerticalStackLayout Spacing="4" Margin="0,0,12,0" WidthRequest="74">
+                                    <Border WidthRequest="62" HeightRequest="62" StrokeShape="RoundRectangle 31">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer
+                                                Command="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.SelectBubbleCommand}"
+                                                CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Image Source="{Binding AvatarSource}" Aspect="AspectFill" />
+                                    </Border>
+                                    <Label Text="{Binding Author}" FontSize="11" HorizontalTextAlignment="Center" LineBreakMode="TailTruncation" MaxLines="1" />
+                                    <Label Text="●" FontSize="10" HorizontalTextAlignment="Center" TextColor="{StaticResource Primary}" IsVisible="{Binding IsActive}" />
+                                </VerticalStackLayout>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
 
-                <Label Text="{Binding EmptyText}" IsVisible="{Binding IsEmpty}" Style="{StaticResource BodyMuted}" />
+                    <Label Text="{Binding EmptyText}" IsVisible="{Binding IsEmpty}" Style="{StaticResource BodyMuted}" />
+                </VerticalStackLayout>
 
-                <CollectionView ItemsSource="{Binding Items}" SelectionMode="None" IsVisible="{Binding HasItems}">
+                <CollectionView Grid.Row="1"
+                                ItemsSource="{Binding Items}"
+                                SelectionMode="None"
+                                IsVisible="{Binding HasItems}"
+                                RemainingItemsThreshold="4"
+                                RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}">
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
                             <Border Style="{StaticResource Card}" Margin="0,0,0,12">
@@ -109,10 +115,10 @@
                                         <Entry Text="{Binding CommentDraft}"
                                                Placeholder="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.CommentPlaceholder}" />
                                         <Button Grid.Column="1"
-                                            Text="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.SendText}"
-                                            Style="{StaticResource SecondaryButton}"
-                                            Command="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.AddCommentCommand}"
-                                            CommandParameter="{Binding .}" />
+                                                Text="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.SendText}"
+                                                Style="{StaticResource SecondaryButton}"
+                                                Command="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.AddCommentCommand}"
+                                                CommandParameter="{Binding .}" />
                                     </Grid>
 
                                     <Button Text="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.ViewAllCommentsText}"
@@ -124,9 +130,14 @@
                             </Border>
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
+                    <CollectionView.Footer>
+                        <VerticalStackLayout Padding="0,8,0,16">
+                            <ActivityIndicator IsRunning="{Binding IsLoadingMore}" IsVisible="{Binding IsLoadingMore}" HorizontalOptions="Center" />
+                        </VerticalStackLayout>
+                    </CollectionView.Footer>
                 </CollectionView>
-            </VerticalStackLayout>
-        </ScrollView>
+            </Grid>
+        </RefreshView>
 
         <Grid IsVisible="{Binding IsBusy}" BackgroundColor="#70000000" InputTransparent="False">
             <Border Style="{StaticResource Card}" Padding="18" MaximumWidthRequest="240" HorizontalOptions="Center" VerticalOptions="Center">

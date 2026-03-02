@@ -13,9 +13,20 @@ CREATE TABLE IF NOT EXISTS users (
     display_name TEXT NOT NULL DEFAULT '',
     picture_url TEXT NOT NULL DEFAULT '',
     language_code TEXT NOT NULL DEFAULT 'fr',
+    default_story_visibility TEXT NOT NULL DEFAULT 'friends',
     created_at_utc TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at_utc TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS default_story_visibility TEXT NOT NULL DEFAULT 'friends';
+
+ALTER TABLE users
+    DROP CONSTRAINT IF EXISTS chk_users_default_story_visibility;
+
+ALTER TABLE users
+    ADD CONSTRAINT chk_users_default_story_visibility
+    CHECK (default_story_visibility IN ('friends', 'public', 'self'));
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
@@ -44,6 +55,7 @@ CREATE TABLE IF NOT EXISTS meal_entries (
     description TEXT NOT NULL DEFAULT '',
     ai_notes TEXT NOT NULL DEFAULT '',
     photo_url TEXT NOT NULL DEFAULT '',
+    story_visibility TEXT NOT NULL DEFAULT 'friends',
 
     total_calories NUMERIC(10,2) NOT NULL DEFAULT 0,
     total_carbs_g NUMERIC(10,2) NOT NULL DEFAULT 0,
@@ -56,6 +68,16 @@ CREATE TABLE IF NOT EXISTS meal_entries (
     created_at_utc TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at_utc TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE meal_entries
+    ADD COLUMN IF NOT EXISTS story_visibility TEXT NOT NULL DEFAULT 'friends';
+
+ALTER TABLE meal_entries
+    DROP CONSTRAINT IF EXISTS chk_meal_entries_story_visibility;
+
+ALTER TABLE meal_entries
+    ADD CONSTRAINT chk_meal_entries_story_visibility
+    CHECK (story_visibility IN ('friends', 'public', 'self'));
 
 CREATE INDEX IF NOT EXISTS idx_meal_entries_user_day ON meal_entries(user_id, day_key_utc);
 CREATE INDEX IF NOT EXISTS idx_meal_entries_user_date ON meal_entries(user_id, date_utc);

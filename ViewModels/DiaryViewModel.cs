@@ -296,7 +296,8 @@ public partial class DiaryViewModel : ObservableObject
             OverallConfidence = 1.0,
             QualityScore = 50,
             QualityLabel = "Moyen",
-            PhotoPath = ""
+            PhotoPath = "",
+            StoryVisibility = BackendSyncService.NormalizeStoryVisibility(Preferences.Default.Get("story_visibility_default", "friends"))
         };
 
         var token = Preferences.Default.Get("auth_id_token", "");
@@ -382,7 +383,8 @@ public partial class DiaryViewModel : ObservableObject
             TotalCarbsG = carbs,
             OverallConfidence = _editingMeal.OverallConfidence,
             QualityScore = quality.score,
-            QualityLabel = quality.label
+            QualityLabel = quality.label,
+            StoryVisibility = _editingMeal.StoryVisibility
         };
 
         var token = Preferences.Default.Get("auth_id_token", "");
@@ -798,6 +800,7 @@ public partial class DiaryViewModel : ObservableObject
             OverallConfidence = meal.overall_confidence,
             QualityScore = meal.quality_score,
             QualityLabel = meal.quality_label,
+            StoryVisibility = BackendSyncService.NormalizeStoryVisibility(meal.story_visibility),
         };
     }
 
@@ -897,6 +900,7 @@ public class DiaryMealItem
     public double OverallConfidence { get; set; }
     public double QualityScore { get; set; }
     public string QualityLabel { get; set; } = "";
+    public string StoryVisibility { get; set; } = "friends";
 
     public string Title { get; set; } = "";
     public string Subtitle { get; set; } = "";
@@ -953,6 +957,7 @@ public class DiaryMealItem
             OverallConfidence = e.OverallConfidence,
             QualityScore = e.QualityScore,
             QualityLabel = e.QualityLabel,
+            StoryVisibility = BackendSyncService.NormalizeStoryVisibility(e.StoryVisibility),
             Title = title,
             Subtitle = local.ToString("dddd dd MMM · HH:mm", CultureInfo.CurrentCulture),
             DescriptionText = displayDescription,

@@ -94,6 +94,12 @@ public partial class FriendsViewModel : ObservableObject
         }
 
         var email = InviteEmail.Trim();
+        if (IsCurrentUserEmail(email))
+        {
+            StatusText = T("invite_self_not_allowed");
+            return;
+        }
+
         var added = _social.Invite(email);
         if (!added)
         {
@@ -117,6 +123,12 @@ public partial class FriendsViewModel : ObservableObject
         }
 
         var email = InviteEmail.Trim();
+        if (IsCurrentUserEmail(email))
+        {
+            StatusText = T("invite_self_not_allowed");
+            return;
+        }
+
         var ok = _social.AddFriend(email);
         if (!ok)
         {
@@ -176,6 +188,12 @@ public partial class FriendsViewModel : ObservableObject
             return;
 
         var email = row.Email.Trim();
+        if (IsCurrentUserEmail(email))
+        {
+            StatusText = T("invite_self_not_allowed");
+            return;
+        }
+
         _social.Invite(email);
         var ok = await _sync.TryInviteFriendAsync(email);
         StatusText = ok ? T("invite_sent") : T("invite_send_failed");
@@ -245,15 +263,11 @@ public partial class FriendsViewModel : ObservableObject
             return;
         }
 
-        var feed = await _sync.GetFriendsFeedAsync(days: 14, limit: 120);
-        var stories = feed
-            .Where(x => !string.IsNullOrWhiteSpace(x.photo_url)
-                && string.Equals((x.author_email ?? "").Trim(), row.Email.Trim(), StringComparison.OrdinalIgnoreCase))
-            .OrderByDescending(x => x.date_utc)
-            .Take(8)
-            .ToList();
+        var otherUserId = (row.UserId ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(otherUserId))
+            otherUserId = await ResolveOtherUserIdByEmailAsync(row.Email);
 
-        if (stories.Count == 0)
+        if (string.IsNullOrWhiteSpace(otherUserId))
         {
             await Application.Current!.MainPage!.DisplayAlert(
                 string.Format(T("friend_stories_title"), row.DisplayName),
@@ -262,18 +276,14 @@ public partial class FriendsViewModel : ObservableObject
             return;
         }
 
-        var lines = stories.Select(x =>
-        {
-            var when = x.date_utc.ToLocalTime().ToString("dd/MM HH:mm");
-            var caption = string.IsNullOrWhiteSpace(x.raw_text) ? T("story_meal") : x.raw_text.Trim();
-            return $"• {when} · {Math.Round(x.total_calories)} kcal · {caption}";
-        });
+        if (_services.GetService(typeof(Pages.StoriesPage)) is not Pages.StoriesPage storiesPage)
+            return;
 
-        var body = string.Join("\n", lines);
-        await Application.Current!.MainPage!.DisplayAlert(
-                string.Format(T("friend_stories_title"), row.DisplayName),
-            body,
-            "OK");
+        if (storiesPage.BindingContext is not StoriesViewModel storiesVm)
+            return;
+
+        storiesVm.ConfigureAuthorFilter(otherUserId, row.DisplayName);
+        await Shell.Current.Navigation.PushAsync(storiesPage);
     }
 
     [RelayCommand]
@@ -484,6 +494,13 @@ public partial class FriendsViewModel : ObservableObject
             normalized = "user";
 
         return $"@{normalized}";
+    }
+
+    private static bool IsCurrentUserEmail(string email)
+    {
+        var mine = Preferences.Default.Get("profile_email", "").Trim().ToLowerInvariant();
+        var other = (email ?? "").Trim().ToLowerInvariant();
+        return !string.IsNullOrWhiteSpace(mine) && string.Equals(mine, other, StringComparison.Ordinal);
     }
 
     private static string T(string key) => LocalizationService.T(key);

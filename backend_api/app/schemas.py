@@ -1,5 +1,9 @@
 from datetime import datetime, time, date
 from pydantic import BaseModel, Field, EmailStr
+from typing import Literal
+
+
+StoryVisibility = Literal["friends", "public", "self"]
 
 
 class MealItemIn(BaseModel):
@@ -25,6 +29,7 @@ class MealCreateIn(BaseModel):
     overall_confidence: float = 0
     quality_score: float = 0
     quality_label: str = ""
+    story_visibility: StoryVisibility | None = None
     items: list[MealItemIn] = Field(default_factory=list)
 
 
@@ -55,6 +60,7 @@ class MealOut(BaseModel):
     overall_confidence: float
     quality_score: float
     quality_label: str
+    story_visibility: StoryVisibility = "friends"
     items: list[MealItemOut] = Field(default_factory=list)
 
 
@@ -153,9 +159,18 @@ class FriendStoryOut(BaseModel):
     total_carbs_g: float
     total_protein_g: float
     quality_label: str
+    story_visibility: StoryVisibility = "friends"
     like_count: int = 0
     comment_count: int = 0
     liked_by_me: bool = False
+
+
+class StoryVisibilityDefaultIn(BaseModel):
+    default_story_visibility: StoryVisibility
+
+
+class StoryVisibilityDefaultOut(BaseModel):
+    default_story_visibility: StoryVisibility
 
 
 class StoryLikeOut(BaseModel):

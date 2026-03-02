@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System.Collections.ObjectModel;
 using NutritionTracker.Services;
 
 namespace NutritionTracker.ViewModels;
@@ -16,6 +17,7 @@ public partial class AddMealViewModel : ObservableObject
     [ObservableProperty] private string photoPath = "";
     [ObservableProperty] private byte[]? photoBytes;
     [ObservableProperty] private string photoMime = "image/jpeg";
+    [ObservableProperty] private StoryVisibilityOption? selectedStoryVisibilityOption;
 
     [ObservableProperty] private bool hasResult;
     [ObservableProperty] private string resultSummary = "";
@@ -33,6 +35,10 @@ public partial class AddMealViewModel : ObservableObject
     public string AnalyzeText => T("analyze");
     public string ClearText => T("clear");
     public string ResultTitle => T("result");
+    public string StoryVisibilityTitle => T("story_visibility_title");
+    public string StoryVisibilityLabel => T("story_visibility_label");
+
+    public ObservableCollection<StoryVisibilityOption> StoryVisibilityOptions { get; } = new();
 
     public bool HasPhoto => !string.IsNullOrWhiteSpace(PhotoPath);
 
@@ -42,6 +48,10 @@ public partial class AddMealViewModel : ObservableObject
         _points = points;
         _sync = sync;
         _voiceInput = voiceInput;
+
+        RebuildStoryVisibilityOptions();
+        var defaultVisibility = BackendSyncService.NormalizeStoryVisibility(Preferences.Default.Get("story_visibility_default", "friends"));
+        SelectedStoryVisibilityOption = StoryVisibilityOptions.FirstOrDefault(x => x.Value == defaultVisibility) ?? StoryVisibilityOptions.FirstOrDefault();
     }
 
     partial void OnPhotoPathChanged(string value) => OnPropertyChanged(nameof(HasPhoto));
@@ -75,6 +85,9 @@ public partial class AddMealViewModel : ObservableObject
         ResultQuality = "";
         ResultBadge = "";
         ResultSemaphore = "";
+
+        var defaultVisibility = BackendSyncService.NormalizeStoryVisibility(Preferences.Default.Get("story_visibility_default", "friends"));
+        SelectedStoryVisibilityOption = StoryVisibilityOptions.FirstOrDefault(x => x.Value == defaultVisibility) ?? StoryVisibilityOptions.FirstOrDefault();
     }
 
     [RelayCommand]
@@ -131,6 +144,9 @@ public partial class AddMealViewModel : ObservableObject
                 entry.PhotoPath = $"data:{mime};base64,{Convert.ToBase64String(PhotoBytes)}";
             }
 
+            entry.StoryVisibility = SelectedStoryVisibilityOption?.Value
+                ?? BackendSyncService.NormalizeStoryVisibility(Preferences.Default.Get("story_visibility_default", "friends"));
+
             var identityOk = await _sync.EnsureBackendIdentityAsync(idToken);
             if (!identityOk)
                 throw new Exception(T("backend_identity_error"));
@@ -167,5 +183,25 @@ public partial class AddMealViewModel : ObservableObject
             return LocalizationService.T("saved_title_common");
 
         return LocalizationService.T(key);
+    }
+
+    private void RebuildStoryVisibilityOptions()
+    {
+        StoryVisibilityOptions.Clear();
+        StoryVisibilityOptions.Add(new StoryVisibilityOption("friends", T("story_visibility_friends")));
+        StoryVisibilityOptions.Add(new StoryVisibilityOption("public", T("story_visibility_public")));
+        StoryVisibilityOptions.Add(new StoryVisibilityOption("self", T("story_visibility_self")));
+    }
+}
+
+public sealed class StoryVisibilityOption
+{
+    public string Value { get; }
+    public string Label { get; }
+
+    public StoryVisibilityOption(string value, string label)
+    {
+        Value = value;
+        Label = label;
     }
 }

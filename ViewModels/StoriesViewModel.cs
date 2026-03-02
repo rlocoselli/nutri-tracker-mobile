@@ -8,13 +8,21 @@ namespace NutritionTracker.ViewModels;
 
 public partial class StoriesViewModel : ObservableObject
 {
+    private const int FeedPageSize = 20;
+    private const int FeedMaxLimit = 120;
+
     private readonly BackendSyncService _sync;
     private readonly List<StoryFeedItem> _allItems = new();
     private readonly Dictionary<string, ImageSource> _avatarByUserId = new(StringComparer.OrdinalIgnoreCase);
+    private int _currentFeedLimit = FeedPageSize;
+    private bool _loadedOnce;
+    private bool _hasMore = true;
 
     [ObservableProperty] private bool isBusy;
+    [ObservableProperty] private bool isLoadingMore;
     [ObservableProperty] private string searchQuery = "";
     [ObservableProperty] private string activeAuthorUserId = "";
+    [ObservableProperty] private string focusedAuthorName = "";
     public ObservableCollection<StoryFeedItem> Items { get; } = new();
     public ObservableCollection<StoryBubbleItem> StoryBubbles { get; } = new();
 
@@ -22,10 +30,13 @@ public partial class StoriesViewModel : ObservableObject
     public bool HasBubbles => StoryBubbles.Count > 0;
     public bool IsEmpty => !IsBusy && Items.Count == 0;
     public bool HasActiveAuthorFilter => !string.IsNullOrWhiteSpace(ActiveAuthorUserId);
+    public bool CanLoadMore => _hasMore && !IsBusy && !IsLoadingMore;
 
     public string PageTitle => T("stories_tab_title");
     public string HeaderTitle => T("stories_header_title");
-    public string HeaderSubtitle => T("stories_header_subtitle");
+    public string HeaderSubtitle => string.IsNullOrWhiteSpace(FocusedAuthorName)
+        ? T("stories_header_subtitle")
+        : string.Format(T("friend_stories_title"), FocusedAuthorName);
     public string RefreshText => T("refresh");
     public string SearchPlaceholder => T("stories_search_placeholder");
     public string ClearFilterText => T("stories_clear_filter");
@@ -42,6 +53,24 @@ public partial class StoriesViewModel : ObservableObject
     public StoriesViewModel(BackendSyncService sync)
     {
         _sync = sync;
+    }
+
+    public void ConfigureAuthorFilter(string authorUserId, string authorName)
+    {
+        ActiveAuthorUserId = (authorUserId ?? "").Trim();
+        FocusedAuthorName = (authorName ?? "").Trim();
+        SearchQuery = "";
+        _loadedOnce = false;
+        OnPropertyChanged(nameof(HeaderSubtitle));
+        OnPropertyChanged(nameof(HasActiveAuthorFilter));
+    }
+
+    public async Task EnsureLoadedAsync()
+    {
+        if (_loadedOnce)
+            return;
+
+        await LoadAsync();
     }
 
     public async Task LoadAsync()
@@ -63,6 +92,9 @@ public partial class StoriesViewModel : ObservableObject
         OnPropertyChanged(nameof(LoadingText));
         OnPropertyChanged(nameof(HasBubbles));
         OnPropertyChanged(nameof(HasActiveAuthorFilter));
+        OnPropertyChanged(nameof(CanLoadMore));
+        OnPropertyChanged(nameof(HeaderSubtitle));
+        _loadedOnce = true;
         await RefreshAsync();
     }
 
@@ -75,59 +107,93 @@ public partial class StoriesViewModel : ObservableObject
     private async Task RefreshAsync()
     {
         if (IsBusy) return;
-        IsBusy = true;
+        _currentFeedLimit = FeedPageSize;
+        _hasMore = true;
+        await LoadFeedAsync(reset: true);
+    }
+
+    [RelayCommand]
+    private async Task LoadMore()
+    {
+        if (IsBusy || IsLoadingMore || !_hasMore)
+            return;
+
+        _currentFeedLimit = Math.Min(FeedMaxLimit, _currentFeedLimit + FeedPageSize);
+        await LoadFeedAsync(reset: false);
+    }
+
+    private async Task LoadFeedAsync(bool reset)
+    {
+        if (reset)
+            IsBusy = true;
+        else
+            IsLoadingMore = true;
+
         OnPropertyChanged(nameof(IsEmpty));
 
         try
         {
-            Items.Clear();
-            StoryBubbles.Clear();
-            _allItems.Clear();
+            if (reset)
+            {
+                Items.Clear();
+                StoryBubbles.Clear();
+                _allItems.Clear();
+                _avatarByUserId.Clear();
+            }
 
             var token = Preferences.Default.Get("auth_id_token", "");
             var identityOk = await _sync.EnsureBackendIdentityAsync(token);
             if (!identityOk)
+            {
+                _hasMore = false;
                 return;
+            }
 
             var meUserId = Preferences.Default.Get("backend_user_id", "").Trim();
             var myProfileName = Preferences.Default.Get("profile_name", "").Trim();
             var myProfilePicture = Preferences.Default.Get("profile_picture", "").Trim();
-            var directory = await _sync.GetFriendDirectoryAsync();
-            _avatarByUserId.Clear();
-            var avatarByUserId = directory
-                .Where(x => !string.IsNullOrWhiteSpace(x.user_id))
-                .ToDictionary(
-                    x => x.user_id.Trim(),
-                    x => StoriesPhotoSourceHelper.Build(x.picture_url) ?? ImageSource.FromFile("ic_profile.svg"),
-                    StringComparer.OrdinalIgnoreCase);
 
-            foreach (var item in avatarByUserId)
-                _avatarByUserId[item.Key] = item.Value;
-
-            if (!string.IsNullOrWhiteSpace(meUserId) && !avatarByUserId.ContainsKey(meUserId))
+            if (reset)
             {
-                avatarByUserId[meUserId] = StoriesPhotoSourceHelper.Build(myProfilePicture) ?? ImageSource.FromFile("ic_profile.svg");
-                _avatarByUserId[meUserId] = avatarByUserId[meUserId];
+                var directory = await _sync.GetFriendDirectoryAsync();
+                var avatarByUserId = directory
+                    .Where(x => !string.IsNullOrWhiteSpace(x.user_id))
+                    .ToDictionary(
+                        x => x.user_id.Trim(),
+                        x => StoriesPhotoSourceHelper.Build(x.picture_url) ?? ImageSource.FromFile("ic_profile.svg"),
+                        StringComparer.OrdinalIgnoreCase);
+
+                foreach (var item in avatarByUserId)
+                    _avatarByUserId[item.Key] = item.Value;
+
+                if (!string.IsNullOrWhiteSpace(meUserId) && !_avatarByUserId.ContainsKey(meUserId))
+                    _avatarByUserId[meUserId] = StoriesPhotoSourceHelper.Build(myProfilePicture) ?? ImageSource.FromFile("ic_profile.svg");
             }
 
-            var feed = await _sync.GetFriendsFeedAsync(days: 14, limit: 120);
+            var feed = await _sync.GetFriendsFeedAsync(days: 14, limit: _currentFeedLimit);
             var ordered = feed
                 .Where(x => !string.IsNullOrWhiteSpace(x.photo_url))
                 .OrderByDescending(x => x.date_utc)
                 .ToList();
 
+            var existingIds = _allItems
+                .Select(x => x.MealId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
             foreach (var row in ordered)
             {
+                if (!reset && existingIds.Contains(row.meal_id))
+                    continue;
+
                 var photo = StoriesPhotoSourceHelper.Build(row.photo_url);
                 if (photo == null)
                     continue;
 
                 var avatar = ResolveAvatar(row, meUserId, myProfilePicture);
                 if (!string.IsNullOrWhiteSpace(row.user_id))
-                {
-                    avatarByUserId[row.user_id.Trim()] = avatar;
                     _avatarByUserId[row.user_id.Trim()] = avatar;
-                }
+
                 var item = new StoryFeedItem
                 {
                     MealId = row.meal_id,
@@ -158,16 +224,20 @@ public partial class StoriesViewModel : ObservableObject
 
                 item.HasMoreComments = row.comment_count > item.Comments.Count;
                 _allItems.Add(item);
+                existingIds.Add(row.meal_id);
             }
 
+            _hasMore = _currentFeedLimit < FeedMaxLimit && feed.Count >= _currentFeedLimit;
             ApplyFilters();
         }
         finally
         {
             IsBusy = false;
+            IsLoadingMore = false;
             OnPropertyChanged(nameof(HasItems));
             OnPropertyChanged(nameof(IsEmpty));
             OnPropertyChanged(nameof(HasBubbles));
+            OnPropertyChanged(nameof(CanLoadMore));
         }
     }
 
@@ -249,6 +319,8 @@ public partial class StoriesViewModel : ObservableObject
     {
         SearchQuery = "";
         ActiveAuthorUserId = "";
+        FocusedAuthorName = "";
+        OnPropertyChanged(nameof(HeaderSubtitle));
         ApplyFilters();
     }
 
