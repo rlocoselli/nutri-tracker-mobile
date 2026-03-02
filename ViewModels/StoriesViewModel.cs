@@ -37,6 +37,7 @@ public partial class StoriesViewModel : ObservableObject
     public string SendText => T("send");
     public string ViewMessagesText => T("story_view_messages");
     public string ViewAllCommentsText => T("story_view_all_comments");
+    public string LoadingText => LocalizationService.T("main_loading");
 
     public StoriesViewModel(BackendSyncService sync)
     {
@@ -59,6 +60,7 @@ public partial class StoriesViewModel : ObservableObject
         OnPropertyChanged(nameof(SendText));
         OnPropertyChanged(nameof(ViewMessagesText));
         OnPropertyChanged(nameof(ViewAllCommentsText));
+        OnPropertyChanged(nameof(LoadingText));
         OnPropertyChanged(nameof(HasBubbles));
         OnPropertyChanged(nameof(HasActiveAuthorFilter));
         await RefreshAsync();

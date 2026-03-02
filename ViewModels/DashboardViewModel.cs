@@ -29,10 +29,15 @@ public partial class DashboardViewModel : ObservableObject
     [ObservableProperty] private string balanceStatusText = "";
     [ObservableProperty] private string recordingStreakText = "📝 0";
     [ObservableProperty] private string coinsText = "🪙 0";
+    [ObservableProperty] private bool isLoading;
 
     [ObservableProperty] private double caloriesProgress;
     [ObservableProperty] private double proteinProgress;
     [ObservableProperty] private double carbsProgress;
+    [ObservableProperty] private IList<double> macroChartValues = Array.Empty<double>();
+    [ObservableProperty] private IList<string> macroChartLabels = Array.Empty<string>();
+    [ObservableProperty] private IList<double> goalChartValues = Array.Empty<double>();
+    [ObservableProperty] private IList<string> goalChartLabels = Array.Empty<string>();
 
     public string HelloText => LocalizationService.T("hello");
     public string RecordMealText => LocalizationService.T("record_meal_plus");
@@ -40,10 +45,14 @@ public partial class DashboardViewModel : ObservableObject
     public string GoalsText => LocalizationService.T("goals");
     public string DailySummaryText => LocalizationService.T("daily_summary");
     public string TodayOnlyHintText => LocalizationService.T("dashboard_today_only");
+    public string KpiSectionTitle => LocalizationService.T("dashboard_kpis_title");
     public string CaloriesLabelText => LocalizationService.T("metric_calories");
     public string ProteinLabelText => LocalizationService.T("metric_proteins");
     public string CarbsLabelText => LocalizationService.T("macro_carbs");
     public string NetLabelText => LocalizationService.T("net_label");
+    public string MacroChartTitle => LocalizationService.T("dashboard_macro_chart_title");
+    public string GoalChartTitle => LocalizationService.T("dashboard_goal_chart_title");
+    public string LoadingText => LocalizationService.T("main_loading");
     public string DailySummaryHintText => LocalizationService.T("daily_summary_hint");
     public string StepsLabelText => LocalizationService.T("steps");
     public string BurnLabelText => LocalizationService.T("burned_calories");
@@ -65,6 +74,13 @@ public partial class DashboardViewModel : ObservableObject
 
     public async Task LoadAsync()
     {
+        if (IsLoading)
+            return;
+
+        IsLoading = true;
+
+        try
+        {
         UserName = Preferences.Default.Get("profile_name", "");
         UserPictureUrl = Preferences.Default.Get("profile_picture", "");
 
@@ -74,10 +90,14 @@ public partial class DashboardViewModel : ObservableObject
         OnPropertyChanged(nameof(GoalsText));
         OnPropertyChanged(nameof(DailySummaryText));
         OnPropertyChanged(nameof(TodayOnlyHintText));
+        OnPropertyChanged(nameof(KpiSectionTitle));
         OnPropertyChanged(nameof(CaloriesLabelText));
         OnPropertyChanged(nameof(ProteinLabelText));
         OnPropertyChanged(nameof(CarbsLabelText));
         OnPropertyChanged(nameof(NetLabelText));
+        OnPropertyChanged(nameof(MacroChartTitle));
+        OnPropertyChanged(nameof(GoalChartTitle));
+        OnPropertyChanged(nameof(LoadingText));
         OnPropertyChanged(nameof(DailySummaryHintText));
         OnPropertyChanged(nameof(StepsLabelText));
         OnPropertyChanged(nameof(BurnLabelText));
@@ -134,6 +154,30 @@ public partial class DashboardViewModel : ObservableObject
         ProteinProgress  = goals.ProteinGTarget <= 0 ? 0 : Math.Min(1, prot / goals.ProteinGTarget);
         CarbsProgress    = goals.CarbsGTarget <= 0 ? 0 : Math.Min(1, carbs / goals.CarbsGTarget);
 
+        var proteinKcal = Math.Max(0, prot * 4);
+        var carbsKcal = Math.Max(0, carbs * 4);
+        var fatKcal = Math.Max(0, cal - proteinKcal - carbsKcal);
+        MacroChartValues = new List<double> { proteinKcal, carbsKcal, fatKcal };
+        MacroChartLabels = new List<string>
+        {
+            LocalizationService.T("macro_protein"),
+            LocalizationService.T("macro_carbs"),
+            LocalizationService.T("macro_fat")
+        };
+
+        GoalChartValues = new List<double>
+        {
+            Math.Round(CaloriesProgress * 100),
+            Math.Round(ProteinProgress * 100),
+            Math.Round(CarbsProgress * 100)
+        };
+        GoalChartLabels = new List<string>
+        {
+            LocalizationService.T("metric_calories"),
+            LocalizationService.T("metric_proteins"),
+            LocalizationService.T("macro_carbs")
+        };
+
         var balancedToday = DailyRewardService.IsBalancedDay(goals, cal, carbs, prot, exercise.burnedCalories);
         var streak = await DailyRewardService.ComputeCurrentStreakAsync(goals, async dayLocal =>
         {
@@ -163,6 +207,11 @@ public partial class DashboardViewModel : ObservableObject
         var loggingStreak = await ComputeRecordingStreakAsync();
         RecordingStreakText = $"📝 {loggingStreak} {dayWord}";
         CoinsText = $"🪙 {_points.GetBalance()}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
     private async Task<int> ComputeRecordingStreakAsync(int maxDays = 30)
@@ -216,10 +265,16 @@ public partial class DashboardViewModel : ObservableObject
         if (identityOk)
         {
             var backendMeals = await _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc);
-            return backendMeals.Select(ToMealEntry).ToList();
+            return backendMeals
+                .Select(ToMealEntry)
+                .Where(x => x.DateUtc >= fromUtc && x.DateUtc < toUtc)
+                .ToList();
         }
 
-        return await _db.GetMealsBetweenUtcAsync(fromUtc, toUtc);
+        var localMeals = await _db.GetMealsBetweenUtcAsync(fromUtc, toUtc);
+        return localMeals
+            .Where(x => x.DateUtc >= fromUtc && x.DateUtc < toUtc)
+            .ToList();
     }
 
     private static MealEntry ToMealEntry(BackendMeal meal)

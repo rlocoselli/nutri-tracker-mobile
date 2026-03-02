@@ -33,6 +33,7 @@ public partial class DiaryViewModel : ObservableObject
     public bool HasStories => StoryPosts.Count > 0;
 
     [ObservableProperty] private string dayTotalsText = "";
+    [ObservableProperty] private bool isLoading;
 
     [ObservableProperty] private bool isManualPopupVisible;
     [ObservableProperty] private string manualMealName = "";
@@ -101,6 +102,7 @@ public partial class DiaryViewModel : ObservableObject
     public string StoriesTitle => T("stories_title");
     public string NutritionSplitTitle => T("nutrition_split_title");
     public string DailyGoalTitle => T("daily_goal_title");
+    public string LoadingText => LocalizationService.T("main_loading");
 
     public DiaryViewModel(LocalDb db, PointsService points, BackendSyncService sync)
     {
@@ -172,6 +174,13 @@ public partial class DiaryViewModel : ObservableObject
 
     public async Task LoadAsync()
     {
+        if (IsLoading)
+            return;
+
+        IsLoading = true;
+
+        try
+        {
         // Called on page appearing
         OnPropertyChanged(nameof(MetricTitle));
         OnPropertyChanged(nameof(PeriodTitle));
@@ -204,6 +213,7 @@ public partial class DiaryViewModel : ObservableObject
         OnPropertyChanged(nameof(HasStories));
         OnPropertyChanged(nameof(NutritionSplitTitle));
         OnPropertyChanged(nameof(DailyGoalTitle));
+        OnPropertyChanged(nameof(LoadingText));
         RebuildMetricTabs();
         RebuildPeriodTabs();
         RebuildDayTabs();
@@ -211,6 +221,11 @@ public partial class DiaryViewModel : ObservableObject
         await LoadDayAsync(SelectedDayLocal);
         await LoadStoriesAsync();
         await LoadChartAsync();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
     [RelayCommand]

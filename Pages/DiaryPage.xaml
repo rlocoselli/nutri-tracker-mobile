@@ -329,5 +329,14 @@
             </Border>
         </Grid>
 
+        <Grid IsVisible="{Binding IsLoading}" BackgroundColor="#70000000" InputTransparent="False">
+            <Border Style="{StaticResource Card}" Padding="18" MaximumWidthRequest="240" HorizontalOptions="Center" VerticalOptions="Center">
+                <VerticalStackLayout Spacing="10" HorizontalOptions="Center">
+                    <ActivityIndicator IsRunning="{Binding IsLoading}" IsVisible="{Binding IsLoading}" />
+                    <Label Text="{Binding LoadingText}" HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Border>
+        </Grid>
+
     </Grid>
 </ContentPage>

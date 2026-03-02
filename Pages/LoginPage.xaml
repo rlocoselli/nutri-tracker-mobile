@@ -12,9 +12,37 @@
       <Image Source="logo.svg" HeightRequest="84" WidthRequest="84" HorizontalOptions="Start" />
       <Label Text="NutritionTracker" Style="{StaticResource H1}" />
       <Label Text="{local:Translate Key=login_subtitle}" Style="{StaticResource BodyMuted}" />
+
+      <Entry Placeholder="{local:Translate Key=login_email_placeholder}"
+             Text="{Binding Email}"
+             Keyboard="Email" />
+
+      <Entry Placeholder="{local:Translate Key=login_password_placeholder}"
+             Text="{Binding Password}"
+             IsPassword="True" />
+
+      <Entry Placeholder="{local:Translate Key=login_name_placeholder}"
+             Text="{Binding DisplayName}" />
+
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+        <Button Grid.Column="0"
+                Text="{local:Translate Key=login_email_button}"
+          Command="{Binding LoginEmailCommand}" />
+        <Button Grid.Column="1"
+                Text="{local:Translate Key=login_register_button}"
+          Command="{Binding RegisterEmailCommand}" />
+      </Grid>
+
+      <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
     </VerticalStackLayout>
 
-    <Button Grid.Row="1" Text="{local:Translate Key=login_google}" Command="{Binding LoginCommand}" />
+        <Button Grid.Row="1"
+          Text="{local:Translate Key=login_google}"
+          Command="{Binding LoginGoogleCommand}"
+          ImageSource="ic_google.svg"
+          ContentLayout="Left,12"
+          BackgroundColor="{StaticResource Card}"
+          TextColor="{StaticResource Text}" />
 
     <Label Grid.Row="2" Text="{local:Translate Key=login_disclaimer}" FontSize="12" TextColor="{StaticResource Muted}" />
 

@@ -129,7 +129,12 @@
         </ScrollView>
 
         <Grid IsVisible="{Binding IsBusy}" BackgroundColor="#70000000" InputTransparent="False">
-            <ActivityIndicator IsVisible="{Binding IsBusy}" IsRunning="{Binding IsBusy}" VerticalOptions="Center" HorizontalOptions="Center" />
+            <Border Style="{StaticResource Card}" Padding="18" MaximumWidthRequest="240" HorizontalOptions="Center" VerticalOptions="Center">
+                <VerticalStackLayout Spacing="10" HorizontalOptions="Center">
+                    <ActivityIndicator IsVisible="{Binding IsBusy}" IsRunning="{Binding IsBusy}" />
+                    <Label Text="{Binding LoadingText}" HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Border>
         </Grid>
     </Grid>
 </ContentPage>

@@ -2,16 +2,20 @@
 <ContentPage
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:NutritionTracker.Controls"
     x:Class="NutritionTracker.Pages.DashboardPage"
     Title="{Binding DailySummaryText}"
     BackgroundColor="{StaticResource Background}">
 
+    <Grid>
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="12">
             <Label Text="{Binding DailySummaryText}" Style="{StaticResource H1}" />
             <Label Text="{Binding TodayOnlyHintText}" Style="{StaticResource BodyMuted}" />
 
-            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="10" RowSpacing="10">
+            <Label Text="{Binding KpiSectionTitle}" FontAttributes="Bold" FontSize="12" />
+
+            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="10">
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Spacing="4">
                         <Label Text="{Binding CaloriesLabelText}" Style="{StaticResource BodyMuted}" />
@@ -33,21 +37,7 @@
                     </VerticalStackLayout>
                 </Border>
 
-                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource Card}">
-                    <VerticalStackLayout Spacing="4">
-                        <Label Text="{Binding StepsLabelText}" Style="{StaticResource BodyMuted}" />
-                        <Label Text="{Binding TodayStepsText}" FontSize="20" FontAttributes="Bold" />
-                    </VerticalStackLayout>
-                </Border>
-
-                <Border Grid.Row="2" Style="{StaticResource Card}">
-                    <VerticalStackLayout Spacing="4">
-                        <Label Text="{Binding BurnLabelText}" Style="{StaticResource BodyMuted}" />
-                        <Label Text="{Binding TodayBurnText}" FontSize="20" FontAttributes="Bold" />
-                    </VerticalStackLayout>
-                </Border>
-
-                <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
+                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
                     <VerticalStackLayout Spacing="4">
                         <Label Text="{Binding NetLabelText}" Style="{StaticResource BodyMuted}" />
                         <Label Text="{Binding TodayNetCaloriesText}" FontSize="20" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
@@ -55,7 +45,35 @@
                 </Border>
             </Grid>
 
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="{Binding MacroChartTitle}" FontAttributes="Bold" FontSize="12" />
+                    <controls:MacroDonutChart HeightRequest="180"
+                                              Values="{Binding MacroChartValues}"
+                                              Labels="{Binding MacroChartLabels}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="{Binding GoalChartTitle}" FontAttributes="Bold" FontSize="12" />
+                    <controls:BarChart HeightRequest="200"
+                                       Values="{Binding GoalChartValues}"
+                                       Labels="{Binding GoalChartLabels}" />
+                </VerticalStackLayout>
+            </Border>
+
             <Label Text="{Binding FitSyncStatusText}" IsVisible="{Binding ShowGoogleFitUi}" FontSize="12" TextColor="{StaticResource Muted}" />
         </VerticalStackLayout>
     </ScrollView>
+
+    <Grid IsVisible="{Binding IsLoading}" BackgroundColor="#70000000" InputTransparent="False">
+        <Border Style="{StaticResource Card}" Padding="18" MaximumWidthRequest="240" HorizontalOptions="Center" VerticalOptions="Center">
+            <VerticalStackLayout Spacing="10" HorizontalOptions="Center">
+                <ActivityIndicator IsRunning="{Binding IsLoading}" IsVisible="{Binding IsLoading}" />
+                <Label Text="{Binding LoadingText}" HorizontalTextAlignment="Center" />
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+    </Grid>
 </ContentPage>

@@ -26,6 +26,7 @@ public partial class StatisticsViewModel : ObservableObject
     [ObservableProperty] private string avgCarbsText = "0 g";
     [ObservableProperty] private string avgQualityText = "0/100";
     [ObservableProperty] private string avgHydrationText = "0 L";
+    [ObservableProperty] private bool isLoading;
 
     public string TitleText => LocalizationService.T("stats_title");
     public string SubtitleText => LocalizationService.T("stats_subtitle");
@@ -37,6 +38,7 @@ public partial class StatisticsViewModel : ObservableObject
     public string AvgHydrationTitle => LocalizationService.T("stats_avg_hydration");
     public string QualitySplitTitle => LocalizationService.T("stats_quality_split");
     public string HydrationSeriesTitle => LocalizationService.T("stats_hydration_series");
+    public string LoadingText => LocalizationService.T("main_loading");
 
     public StatisticsViewModel(BackendSyncService sync)
     {
@@ -62,6 +64,13 @@ public partial class StatisticsViewModel : ObservableObject
 
     public async Task LoadAsync()
     {
+        if (IsLoading)
+            return;
+
+        IsLoading = true;
+
+        try
+        {
         OnPropertyChanged(nameof(TitleText));
         OnPropertyChanged(nameof(SubtitleText));
         OnPropertyChanged(nameof(PeriodTitle));
@@ -72,8 +81,14 @@ public partial class StatisticsViewModel : ObservableObject
         OnPropertyChanged(nameof(AvgHydrationTitle));
         OnPropertyChanged(nameof(QualitySplitTitle));
         OnPropertyChanged(nameof(HydrationSeriesTitle));
+        OnPropertyChanged(nameof(LoadingText));
 
         await LoadStatsAsync();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
     private async Task LoadStatsAsync()
