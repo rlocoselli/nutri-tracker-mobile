@@ -31,7 +31,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          global-json-file: global.json
+          dotnet-version: '9.0.x'
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -68,6 +68,32 @@ jobs:
           ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
         run: |
           echo "$ANDROID_KEYSTORE_B64" | base64 -d > android-release.jks
+
+      - name: Verify signing certificate fingerprint
+        env:
+          ANDROID_SIGNING_STORE_PASS: ${{ secrets.ANDROID_SIGNING_STORE_PASS }}
+          ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
+          ANDROID_SIGNING_KEY_PASS: ${{ secrets.ANDROID_SIGNING_KEY_PASS }}
+        run: |
+          STORE_PASS="$(printf '%s' "$ANDROID_SIGNING_STORE_PASS" | tr -d '\r\n')"
+          KEY_ALIAS="$(printf '%s' "$ANDROID_SIGNING_KEY_ALIAS" | tr -d '\r\n')"
+          KEY_PASS_RAW="$(printf '%s' "$ANDROID_SIGNING_KEY_PASS" | tr -d '\r\n')"
+
+          KEYSTORE_TYPE="$(keytool -list -keystore android-release.jks -storepass "$STORE_PASS" 2>/dev/null | sed -n 's/^Keystore type: //p' | head -n1 | tr -d '\r\n')"
+          EFFECTIVE_KEY_PASS="$KEY_PASS_RAW"
+          if [[ "${KEYSTORE_TYPE^^}" == "PKCS12" ]]; then
+            EFFECTIVE_KEY_PASS="$STORE_PASS"
+          fi
+
+          if ! keytool -list -v -keystore android-release.jks -storepass "$STORE_PASS" -alias "$KEY_ALIAS" -keypass "$EFFECTIVE_KEY_PASS" > keytool-cert.txt 2>&1; then
+            echo "[ERROR] Unable to read signing cert fingerprint for alias '$KEY_ALIAS'."
+            cat keytool-cert.txt
+            exit 1
+          fi
+
+          echo "[INFO] Signing key alias: $KEY_ALIAS"
+          echo "[INFO] Certificate fingerprints:"
+          grep -E "SHA256:|SHA1:" keytool-cert.txt | sed 's/^/  /'
 
       - name: Prepare Google service account
         env:

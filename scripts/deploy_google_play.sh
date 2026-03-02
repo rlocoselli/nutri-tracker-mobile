@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECT_PATH="${PROJECT_PATH:-$ROOT_DIR/NutritionTracker.csproj}"
-ANDROID_TARGET_FRAMEWORK="${ANDROID_TARGET_FRAMEWORK:-net8.0-android}"
+ANDROID_TARGET_FRAMEWORK="${ANDROID_TARGET_FRAMEWORK:-net9.0-android}"
 PACKAGE_NAME="${GOOGLE_PLAY_PACKAGE_NAME:-com.audela.nutritiontracker}"
 TRACK="${GOOGLE_PLAY_TRACK:-internal}"
 RELEASE_STATUS="${GOOGLE_PLAY_RELEASE_STATUS:-completed}"
@@ -14,6 +14,7 @@ SERVICE_ACCOUNT_JSON="${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:-}"
 AAB_PATH="${GOOGLE_PLAY_AAB_PATH:-}"
 DRY_RUN="${GOOGLE_PLAY_DRY_RUN:-false}"
 VALIDATE_ONLY="${GOOGLE_PLAY_VALIDATE_ONLY:-false}"
+MIN_TARGET_SDK="${GOOGLE_PLAY_MIN_TARGET_SDK:-35}"
 DEFAULT_LANGUAGE="${GOOGLE_PLAY_DEFAULT_LANGUAGE:-en-US}"
 ADDITIONAL_LANGUAGES_RAW="${GOOGLE_PLAY_ADDITIONAL_LANGUAGES:-fr-FR}"
 EFFECTIVE_ADDITIONAL_LANGUAGES="$ADDITIONAL_LANGUAGES_RAW"
@@ -28,6 +29,53 @@ PLAY_ASSETS_DIR="${GOOGLE_PLAY_ASSETS_DIR:-$ROOT_DIR/play_assets/generated}"
 PLAY_ASSETS_APP_TITLE="${GOOGLE_PLAY_ASSETS_APP_TITLE:-NutritionTracker}"
 PLAY_ASSETS_SUBTITLE="${GOOGLE_PLAY_ASSETS_SUBTITLE:-Nutrition and activity tracking}"
 PLAY_ASSETS_STYLE="${GOOGLE_PLAY_ASSETS_STYLE:-marketing}"
+
+tfm_major_version() {
+  local tfm="$1"
+  if [[ "$tfm" =~ ^net([0-9]+)\. ]]; then
+    echo "${BASH_REMATCH[1]}"
+    return
+  fi
+  echo "0"
+}
+
+verify_target_sdk_guard() {
+  local artifact_path="$1"
+  local min_required="$2"
+
+  if ! [[ "$min_required" =~ ^[0-9]+$ ]]; then
+    echo "[ERROR] GOOGLE_PLAY_MIN_TARGET_SDK must be an integer (got '$min_required')."
+    exit 1
+  fi
+
+  if [[ "$artifact_path" == *.apk ]]; then
+    if command -v apkanalyzer >/dev/null 2>&1; then
+      local target_sdk
+      target_sdk="$(apkanalyzer manifest target-sdk "$artifact_path" 2>/dev/null || true)"
+      target_sdk="$(printf '%s' "$target_sdk" | tr -d '\r\n')"
+      if [[ -n "$target_sdk" && "$target_sdk" =~ ^[0-9]+$ ]]; then
+        echo "[INFO] Artifact target SDK detected: $target_sdk"
+        if (( target_sdk < min_required )); then
+          echo "[ERROR] Artifact target SDK ($target_sdk) is lower than required minimum ($min_required)."
+          exit 1
+        fi
+        return
+      fi
+    fi
+
+    echo "[WARN] Could not read target SDK from APK with apkanalyzer; using framework guard fallback."
+  fi
+
+  local tfm_major
+  tfm_major="$(tfm_major_version "$ANDROID_TARGET_FRAMEWORK")"
+  if [[ "$tfm_major" =~ ^[0-9]+$ ]] && (( tfm_major > 0 )) && (( min_required >= 35 )) && (( tfm_major < 9 )); then
+    echo "[ERROR] Target framework '$ANDROID_TARGET_FRAMEWORK' cannot satisfy target SDK >= $min_required for Google Play."
+    echo "        Use net9.0-android (or newer) for compliant bundles."
+    exit 1
+  fi
+
+  echo "[INFO] Target SDK guard passed (framework=$ANDROID_TARGET_FRAMEWORK, min_required=$min_required)."
+}
 
 if [[ -z "$APPLICATION_VERSION" && "$AUTO_BUMP_VERSION" == "true" ]]; then
   # Epoch seconds => monotonic numeric Android versionCode in CI.
@@ -275,6 +323,8 @@ if [[ "$DRY_RUN" != "true" ]]; then
     echo "[ERROR] AAB not found: $AAB_PATH"
     exit 1
   fi
+
+  verify_target_sdk_guard "$AAB_PATH" "$MIN_TARGET_SDK"
 fi
 
 echo "[INFO] Uploading to Google Play..."
