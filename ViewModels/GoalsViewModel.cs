@@ -7,7 +7,6 @@ namespace NutritionTracker.ViewModels;
 
 public partial class GoalsViewModel : ObservableObject
 {
-    private readonly LocalDb _db;
     private readonly PointsService _points;
     private readonly BackendSyncService _sync;
 
@@ -19,9 +18,8 @@ public partial class GoalsViewModel : ObservableObject
     [ObservableProperty] private double proteinProgress;
     [ObservableProperty] private double carbsProgress;
 
-    public GoalsViewModel(LocalDb db, PointsService points, BackendSyncService sync)
+    public GoalsViewModel(PointsService points, BackendSyncService sync)
     {
-        _db = db;
         _points = points;
         _sync = sync;
     }
@@ -32,12 +30,22 @@ public partial class GoalsViewModel : ObservableObject
 
     public async Task LoadAsync()
     {
-        var g = await _db.GetGoalsAsync();
+        var token = Preferences.Default.Get("auth_id_token", "");
+        _ = await _sync.EnsureBackendIdentityAsync(token);
+
+        var g = await _sync.GetGoalsAsync();
         CaloriesTarget = g.CaloriesTarget;
         ProteinGTarget = g.ProteinGTarget;
         CarbsGTarget = g.CarbsGTarget;
 
-        var (cal, carbs, prot) = await _db.GetTotalsForDayUtcAsync(DateTime.UtcNow.Date);
+        var todayLocal = DateTime.Now.Date;
+        var fromUtc = DateTime.SpecifyKind(todayLocal, DateTimeKind.Local).ToUniversalTime();
+        var toUtc = DateTime.SpecifyKind(todayLocal.AddDays(1), DateTimeKind.Local).ToUniversalTime();
+        var meals = await _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc);
+        var cal = meals.Sum(x => x.total_calories);
+        var carbs = meals.Sum(x => x.total_carbs_g);
+        var prot = meals.Sum(x => x.total_protein_g);
+
         CaloriesProgress = g.CaloriesTarget <= 0 ? 0 : Math.Min(1, cal / g.CaloriesTarget);
         ProteinProgress = g.ProteinGTarget <= 0 ? 0 : Math.Min(1, prot / g.ProteinGTarget);
         CarbsProgress = g.CarbsGTarget <= 0 ? 0 : Math.Min(1, carbs / g.CarbsGTarget);
@@ -58,10 +66,21 @@ public partial class GoalsViewModel : ObservableObject
             CarbsGTarget = carbs,
         };
 
-        await _db.SaveGoalsAsync(g);
         var token = Preferences.Default.Get("auth_id_token", "");
-        _ = await _sync.EnsureBackendIdentityAsync(token);
-        _ = await _sync.TryPushGoalsAsync(g);
+        var identityOk = await _sync.EnsureBackendIdentityAsync(token);
+        if (!identityOk)
+        {
+            await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("error_title"), LocalizationService.T("backend_identity_error"), "OK");
+            return;
+        }
+
+        var pushed = await _sync.TryPushGoalsAsync(g);
+        if (!pushed)
+        {
+            await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("error_title"), LocalizationService.T("backend_save_error"), "OK");
+            return;
+        }
+
         var balance = _points.Award(5);
         var title = LocalizationService.T("saved_title_common");
         var message = string.Format(LocalizationService.T("goals_saved_message"), balance);

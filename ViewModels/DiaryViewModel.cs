@@ -10,7 +10,6 @@ namespace NutritionTracker.ViewModels;
 
 public partial class DiaryViewModel : ObservableObject
 {
-    private readonly LocalDb _db;
     private readonly PointsService _points;
     private readonly BackendSyncService _sync;
 
@@ -104,9 +103,8 @@ public partial class DiaryViewModel : ObservableObject
     public string DailyGoalTitle => T("daily_goal_title");
     public string LoadingText => LocalizationService.T("main_loading");
 
-    public DiaryViewModel(LocalDb db, PointsService points, BackendSyncService sync)
+    public DiaryViewModel(PointsService points, BackendSyncService sync)
     {
-        _db = db;
         _points = points;
         _sync = sync;
         UpdateSelectedDayText();
@@ -316,19 +314,6 @@ public partial class DiaryViewModel : ObservableObject
             return;
         }
 
-        if (minutes > 0 || burned > 0)
-        {
-            await _db.SaveExerciseAsync(new ExerciseEntry
-            {
-                DateUtc = dateUtc,
-                DayKeyUtc = dateUtc.ToString("yyyy-MM-dd"),
-                GoogleFitSteps = 0,
-                ExerciseMinutes = minutes,
-                BurnedCalories = burned,
-                Notes = T("exercise_note")
-            });
-        }
-
         IsManualPopupVisible = false;
         var manualBalance = _points.Award(8);
         await Application.Current!.MainPage!.DisplayAlert(T("saved_title"), string.Format(T("earned_points"), 8, manualBalance), "OK");
@@ -496,7 +481,7 @@ public partial class DiaryViewModel : ObservableObject
             .ToList();
 
         var entries = backendMeals.Select(ToMealEntry).ToList();
-        var exercise = await _db.GetExerciseTotalsBetweenUtcAsync(fromUtc, toUtc);
+        var exerciseBurned = 0d;
         foreach (var backendMeal in backendMeals.OrderByDescending(x => x.date_utc))
         {
             var e = ToMealEntry(backendMeal);
@@ -508,10 +493,10 @@ public partial class DiaryViewModel : ObservableObject
         var carbs = entries.Sum(x => x.TotalCarbsG);
         var prot = entries.Sum(x => x.TotalProteinG);
 
-        var netCalories = cal - exercise.burnedCalories;
-        DayTotalsText = $"{T("total")}: {Math.Round(cal)} kcal · C {Math.Round(carbs)}g · P {Math.Round(prot)}g · {T("burn")}: {Math.Round(exercise.burnedCalories)} · {T("net")}: {Math.Round(netCalories)}";
+        var netCalories = cal - exerciseBurned;
+        DayTotalsText = $"{T("total")}: {Math.Round(cal)} kcal · C {Math.Round(carbs)}g · P {Math.Round(prot)}g · {T("burn")}: {Math.Round(exerciseBurned)} · {T("net")}: {Math.Round(netCalories)}";
 
-        var goals = await _db.GetGoalsAsync();
+        var goals = await _sync.GetGoalsAsync();
         var targetCalories = Math.Max(1, goals.CaloriesTarget);
         DailyGoalProgress = Math.Clamp(cal / targetCalories, 0, 1);
         DailyGoalText = $"{Math.Round(cal)} / {Math.Round(targetCalories)} kcal";
@@ -531,7 +516,7 @@ public partial class DiaryViewModel : ObservableObject
         MacroCarbsText = $"{T("macro_carbs")}: {Math.Round(carbs)} g";
         MacroFatText = $"{T("macro_fat")}: {Math.Round(fatGrams)} g";
 
-        var liters = await _db.GetWaterLitersForDayLocalAsync(dayLocal);
+        var liters = await _sync.GetWaterIntakeForDayLocalAsync(dayLocal);
         UpdateWaterUi(liters);
     }
 
@@ -589,7 +574,6 @@ public partial class DiaryViewModel : ObservableObject
 
     private async Task SetWaterLitersAsync(double liters)
     {
-        await _db.UpsertWaterLitersForDayLocalAsync(SelectedDayLocal, liters);
         var rounded = Math.Round(Math.Max(0, liters) * 2, MidpointRounding.AwayFromZero) / 2.0;
         UpdateWaterUi(rounded);
         _ = await _sync.TryPushWaterIntakeAsync(SelectedDayLocal, rounded);
@@ -652,7 +636,7 @@ public partial class DiaryViewModel : ObservableObject
             : new List<BackendMeal>();
 
         var entries = backendMeals.Select(ToMealEntry).ToList();
-        var exercises = await _db.GetExercisesBetweenUtcAsync(fromUtc, toUtc);
+        var exercises = new List<ExerciseEntry>();
         // Build a continuous series (fills missing days/weeks/months with zeros)
         var points = BuildSeries(entries, exercises, fromLocal.Date, toLocalExclusive);
 

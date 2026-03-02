@@ -132,7 +132,7 @@ SMTP environment variables required for real emails:
 - `GET /api/reminders`
 - `PUT /api/reminders`
 - `GET /api/friends/invites`
-- `POST /api/friends/invites`
+- `POST /api/friends/invites` (body: `invitee_email`, optional `locale` = `fr|en|pt|es` for invitation email language)
 - `POST /api/friends/invites/{inviteId}/accept`
 - `DELETE /api/friends/invites/{inviteId}`
 - `GET /api/friends`
@@ -140,6 +140,7 @@ SMTP environment variables required for real emails:
 ## 5) Notes
 
 - Tables are auto-created on startup from SQLAlchemy models.
+- PostgreSQL bootstrap also runs `docs/postgresql_schema.sql` at startup (objects created with `IF NOT EXISTS`).
 - For production, replace with Alembic migrations and real JWT auth.
 - You can also initialize DB from `docs/postgresql_schema.sql`.
 - Production domain target: `https://api.nutritiontracker.fr`.

@@ -7,7 +7,6 @@ namespace NutritionTracker.ViewModels;
 
 public partial class DashboardViewModel : ObservableObject
 {
-    private readonly LocalDb _db;
     private readonly GoogleFitService _googleFit;
     private readonly IServiceProvider _sp;
     private readonly PointsService _points;
@@ -65,9 +64,8 @@ public partial class DashboardViewModel : ObservableObject
     public string CoinsTitleText => LocalizationService.T("coins_balance");
     public bool ShowGoogleFitUi => FeatureFlags.EnableGoogleFit;
 
-    public DashboardViewModel(LocalDb db, GoogleFitService googleFit, IServiceProvider sp, PointsService points, BackendSyncService sync)
+    public DashboardViewModel(GoogleFitService googleFit, IServiceProvider sp, PointsService points, BackendSyncService sync)
     {
-        _db = db;
         _googleFit = googleFit;
         _sp = sp;
         _points = points;
@@ -113,6 +111,8 @@ public partial class DashboardViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowGoogleFitUi));
 
         var accessToken = Preferences.Default.Get("auth_access_token", "");
+        var todaySteps = 0;
+        var todayBurnedCalories = 0d;
         if (!GoogleFitService.Enabled)
         {
             FitSyncStatusText = "";
@@ -122,7 +122,8 @@ public partial class DashboardViewModel : ObservableObject
             try
             {
                 var fit = await _googleFit.GetTodaySummaryAsync(accessToken);
-                await _db.UpsertGoogleFitDailyAsync(DateTime.Now.Date, fit.steps, fit.burnedCalories);
+                todaySteps = fit.steps;
+                todayBurnedCalories = fit.burnedCalories;
                 FitSyncStatusText = LocalizationService.T("sync_ok");
             }
             catch (Exception ex)
@@ -139,20 +140,20 @@ public partial class DashboardViewModel : ObservableObject
         var fromUtc = DateTime.SpecifyKind(todayLocal, DateTimeKind.Local).ToUniversalTime();
         var toUtc = DateTime.SpecifyKind(todayLocal.AddDays(1), DateTimeKind.Local).ToUniversalTime();
 
-        var goals = await _db.GetGoalsAsync();
+        var token = Preferences.Default.Get("auth_id_token", "");
+        _ = await _sync.EnsureBackendIdentityAsync(token);
+        var goals = await _sync.GetGoalsAsync();
         var mealsToday = await GetMealsForRangeAsync(fromUtc, toUtc);
         var cal = mealsToday.Sum(m => m.TotalCalories);
         var carbs = mealsToday.Sum(m => m.TotalCarbsG);
         var prot = mealsToday.Sum(m => m.TotalProteinG);
 
-        var exercise = await _db.GetExerciseTotalsBetweenUtcAsync(fromUtc, toUtc);
-
         TodayCaloriesText = $"{Math.Round(cal)} / {Math.Round(goals.CaloriesTarget)}";
         TodayProteinText  = $"{Math.Round(prot)} / {Math.Round(goals.ProteinGTarget)} g";
         TodayCarbsText    = $"{Math.Round(carbs)} / {Math.Round(goals.CarbsGTarget)} g";
-        TodayStepsText = exercise.steps.ToString();
-        TodayBurnText = $"{Math.Round(exercise.burnedCalories)} kcal";
-        TodayNetCaloriesText = string.Format(LocalizationService.T("net_calories"), $"{Math.Round(cal - exercise.burnedCalories)} kcal");
+        TodayStepsText = todaySteps.ToString();
+        TodayBurnText = $"{Math.Round(todayBurnedCalories)} kcal";
+        TodayNetCaloriesText = string.Format(LocalizationService.T("net_calories"), $"{Math.Round(cal - todayBurnedCalories)} kcal");
 
         CaloriesProgress = goals.CaloriesTarget <= 0 ? 0 : Math.Min(1, cal / goals.CaloriesTarget);
         ProteinProgress  = goals.ProteinGTarget <= 0 ? 0 : Math.Min(1, prot / goals.ProteinGTarget);
@@ -182,15 +183,14 @@ public partial class DashboardViewModel : ObservableObject
             LocalizationService.T("macro_carbs")
         };
 
-        var balancedToday = DailyRewardService.IsBalancedDay(goals, cal, carbs, prot, exercise.burnedCalories);
+        var balancedToday = DailyRewardService.IsBalancedDay(goals, cal, carbs, prot, todayBurnedCalories);
         var streak = await DailyRewardService.ComputeCurrentStreakAsync(goals, async dayLocal =>
         {
             var start = DateTime.SpecifyKind(dayLocal.Date, DateTimeKind.Local).ToUniversalTime();
             var end = DateTime.SpecifyKind(dayLocal.Date.AddDays(1), DateTimeKind.Local).ToUniversalTime();
 
             var meals = await GetMealsForRangeAsync(start, end);
-            var ex = await _db.GetExerciseTotalsBetweenUtcAsync(start, end);
-            return (meals.Sum(x => x.TotalCalories), meals.Sum(x => x.TotalCarbsG), meals.Sum(x => x.TotalProteinG), ex.burnedCalories);
+            return (meals.Sum(x => x.TotalCalories), meals.Sum(x => x.TotalCarbsG), meals.Sum(x => x.TotalProteinG), 0d);
         });
 
         var dayWord = Preferences.Default.Get("app_lang", "fr") switch
@@ -266,17 +266,12 @@ public partial class DashboardViewModel : ObservableObject
     {
         var token = Preferences.Default.Get("auth_id_token", "");
         var identityOk = await _sync.EnsureBackendIdentityAsync(token);
-        if (identityOk)
-        {
-            var backendMeals = await _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc);
-            return backendMeals
-                .Select(ToMealEntry)
-                .Where(x => x.DateUtc >= fromUtc && x.DateUtc < toUtc)
-                .ToList();
-        }
+        if (!identityOk)
+            return new List<MealEntry>();
 
-        var localMeals = await _db.GetMealsBetweenUtcAsync(fromUtc, toUtc);
-        return localMeals
+        var backendMeals = await _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc);
+        return backendMeals
+            .Select(ToMealEntry)
             .Where(x => x.DateUtc >= fromUtc && x.DateUtc < toUtc)
             .ToList();
     }

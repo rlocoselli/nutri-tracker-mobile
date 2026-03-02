@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
-from .db import Base, engine
+from .db import Base, engine, ensure_postgres_objects
 from .routes import auth, meals, goals, points, reminders, friends, water
 
 
@@ -15,6 +15,7 @@ app = FastAPI(
 
 @app.on_event("startup")
 def startup_event():
+    ensure_postgres_objects()
     Base.metadata.create_all(bind=engine)
 
 

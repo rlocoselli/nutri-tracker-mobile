@@ -9,7 +9,6 @@ namespace NutritionTracker.ViewModels;
 public partial class ProfileViewModel : ObservableObject
 {
     private readonly IServiceProvider _sp;
-    private readonly Services.LocalDb _db;
     private readonly Services.GoogleFitService _googleFit;
     private readonly IMealReminderService _mealReminderService;
     private readonly PointsService _points;
@@ -29,9 +28,9 @@ public partial class ProfileViewModel : ObservableObject
     [ObservableProperty] private string todayBurnText = "0 kcal";
     [ObservableProperty] private string fitSyncStatusText = "";
     [ObservableProperty] private bool remindersEnabled;
-    [ObservableProperty] private string breakfastReminderTime = "08:00";
-    [ObservableProperty] private string lunchReminderTime = "13:00";
-    [ObservableProperty] private string dinnerReminderTime = "20:00";
+    [ObservableProperty] private TimeSpan breakfastReminder = new(8, 0, 0);
+    [ObservableProperty] private TimeSpan lunchReminder = new(13, 0, 0);
+    [ObservableProperty] private TimeSpan dinnerReminder = new(20, 0, 0);
     [ObservableProperty] private string reminderStatusText = "";
     [ObservableProperty] private string inviteEmail = "";
     [ObservableProperty] private string socialStatusText = "";
@@ -84,10 +83,9 @@ public partial class ProfileViewModel : ObservableObject
     public bool ShowSubscriptionUi => FeatureFlags.EnableSubscriptions;
     public bool ShowGoogleFitUi => FeatureFlags.EnableGoogleFit;
 
-    public ProfileViewModel(IServiceProvider sp, Services.LocalDb db, Services.GoogleFitService googleFit, IMealReminderService mealReminderService, PointsService points, SocialService social, BackendSyncService sync, EmailAuthService emailAuth, SubscriptionService subscription)
+    public ProfileViewModel(IServiceProvider sp, Services.GoogleFitService googleFit, IMealReminderService mealReminderService, PointsService points, SocialService social, BackendSyncService sync, EmailAuthService emailAuth, SubscriptionService subscription)
     {
         _sp = sp;
-        _db = db;
         _googleFit = googleFit;
         _mealReminderService = mealReminderService;
         _points = points;
@@ -158,9 +156,9 @@ public partial class ProfileViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowGoogleFitUi));
 
         RemindersEnabled = Preferences.Default.Get("meal_reminders_enabled", false);
-        BreakfastReminderTime = Preferences.Default.Get("meal_reminder_breakfast", "08:00");
-        LunchReminderTime = Preferences.Default.Get("meal_reminder_lunch", "13:00");
-        DinnerReminderTime = Preferences.Default.Get("meal_reminder_dinner", "20:00");
+        BreakfastReminder = ParseTimeOrDefault(Preferences.Default.Get("meal_reminder_breakfast", "08:00"), new TimeSpan(8, 0, 0));
+        LunchReminder = ParseTimeOrDefault(Preferences.Default.Get("meal_reminder_lunch", "13:00"), new TimeSpan(13, 0, 0));
+        DinnerReminder = ParseTimeOrDefault(Preferences.Default.Get("meal_reminder_dinner", "20:00"), new TimeSpan(20, 0, 0));
         ReminderStatusText = "";
         SocialStatusText = "";
         AccountActionStatusText = "";
@@ -168,6 +166,8 @@ public partial class ProfileViewModel : ObservableObject
         LoadFriends();
 
         var accessToken = Preferences.Default.Get("auth_access_token", "");
+        var todaySteps = 0;
+        var todayBurnedCalories = 0d;
         if (!GoogleFitService.Enabled)
         {
             FitSyncStatusText = "";
@@ -177,7 +177,8 @@ public partial class ProfileViewModel : ObservableObject
             try
             {
                 var fit = await _googleFit.GetTodaySummaryAsync(accessToken);
-                await _db.UpsertGoogleFitDailyAsync(DateTime.Now.Date, fit.steps, fit.burnedCalories);
+                todaySteps = fit.steps;
+                todayBurnedCalories = fit.burnedCalories;
                 FitSyncStatusText = LocalizationService.T("sync_ok");
             }
             catch (Exception ex)
@@ -190,13 +191,8 @@ public partial class ProfileViewModel : ObservableObject
             FitSyncStatusText = LocalizationService.T("sync_no_token");
         }
 
-        var todayLocal = DateTime.Now.Date;
-        var fromUtc = DateTime.SpecifyKind(todayLocal, DateTimeKind.Local).ToUniversalTime();
-        var toUtc = DateTime.SpecifyKind(todayLocal.AddDays(1), DateTimeKind.Local).ToUniversalTime();
-        var totals = await _db.GetExerciseTotalsBetweenUtcAsync(fromUtc, toUtc);
-
-        TodayStepsText = totals.steps.ToString();
-        TodayBurnText = $"{Math.Round(totals.burnedCalories)} kcal";
+        TodayStepsText = todaySteps.ToString();
+        TodayBurnText = $"{Math.Round(todayBurnedCalories)} kcal";
     }
 
     partial void OnSelectedLanguageChanged(string value)
@@ -323,23 +319,9 @@ public partial class ProfileViewModel : ObservableObject
     [RelayCommand]
     private async Task SaveReminders()
     {
-        if (!TryParseTime(BreakfastReminderTime, out var breakfast))
-        {
-            await Application.Current!.MainPage!.DisplayAlert("Erreur", "Heure petit-déjeuner invalide (HH:mm)", "OK");
-            return;
-        }
-
-        if (!TryParseTime(LunchReminderTime, out var lunch))
-        {
-            await Application.Current!.MainPage!.DisplayAlert("Erreur", "Heure déjeuner invalide (HH:mm)", "OK");
-            return;
-        }
-
-        if (!TryParseTime(DinnerReminderTime, out var dinner))
-        {
-            await Application.Current!.MainPage!.DisplayAlert("Erreur", "Heure dîner invalide (HH:mm)", "OK");
-            return;
-        }
+        var breakfast = NormalizeHourMinute(BreakfastReminder);
+        var lunch = NormalizeHourMinute(LunchReminder);
+        var dinner = NormalizeHourMinute(DinnerReminder);
 
         try
         {
@@ -351,9 +333,9 @@ public partial class ProfileViewModel : ObservableObject
             }
 
             Preferences.Default.Set("meal_reminders_enabled", RemindersEnabled);
-            Preferences.Default.Set("meal_reminder_breakfast", BreakfastReminderTime.Trim());
-            Preferences.Default.Set("meal_reminder_lunch", LunchReminderTime.Trim());
-            Preferences.Default.Set("meal_reminder_dinner", DinnerReminderTime.Trim());
+            Preferences.Default.Set("meal_reminder_breakfast", breakfast.ToString(@"hh\:mm"));
+            Preferences.Default.Set("meal_reminder_lunch", lunch.ToString(@"hh\:mm"));
+            Preferences.Default.Set("meal_reminder_dinner", dinner.ToString(@"hh\:mm"));
 
             _ = await _sync.TryPushRemindersAsync(RemindersEnabled, breakfast, lunch, dinner);
             var balance = _points.Award(3);
@@ -373,6 +355,8 @@ public partial class ProfileViewModel : ObservableObject
         Preferences.Default.Remove("profile_name");
         Preferences.Default.Remove("profile_email");
         Preferences.Default.Remove("profile_picture");
+        Preferences.Default.Remove("backend_user_id");
+        Preferences.Default.Remove("backend_identity_subject");
 
         // Return to login screen
         var login = _sp.GetRequiredService<LoginPage>();
@@ -422,6 +406,7 @@ public partial class ProfileViewModel : ObservableObject
         Preferences.Default.Remove("profile_email");
         Preferences.Default.Remove("profile_picture");
         Preferences.Default.Remove("backend_user_id");
+        Preferences.Default.Remove("backend_identity_subject");
         Preferences.Default.Remove("auth_method");
         Preferences.Default.Remove("email_session_active");
 
@@ -440,6 +425,21 @@ public partial class ProfileViewModel : ObservableObject
             return true;
 
         return TimeSpan.TryParseExact(trimmed, @"hh\:mm", null, out time);
+    }
+
+    private static TimeSpan ParseTimeOrDefault(string input, TimeSpan fallback)
+    {
+        if (TryParseTime(input, out var parsed))
+            return NormalizeHourMinute(parsed);
+
+        return fallback;
+    }
+
+    private static TimeSpan NormalizeHourMinute(TimeSpan value)
+    {
+        var hours = Math.Clamp(value.Hours, 0, 23);
+        var minutes = Math.Clamp(value.Minutes, 0, 59);
+        return new TimeSpan(hours, minutes, 0);
     }
 
     private void LoadFriends()

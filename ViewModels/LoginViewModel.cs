@@ -40,6 +40,9 @@ public partial class LoginViewModel : ObservableObject
         IsBusy = true;
         try
         {
+            Preferences.Default.Remove("backend_user_id");
+            Preferences.Default.Remove("backend_identity_subject");
+
             var result = await _auth.LoginAsync();
 
             // Persist auth + profile
@@ -73,6 +76,9 @@ public partial class LoginViewModel : ObservableObject
         IsBusy = true;
         try
         {
+            Preferences.Default.Remove("backend_user_id");
+            Preferences.Default.Remove("backend_identity_subject");
+
             var (ok, message, name) = await _emailAuth.LoginAsync(Email, Password);
             if (!ok)
             {

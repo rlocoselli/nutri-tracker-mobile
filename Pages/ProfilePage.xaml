@@ -58,13 +58,13 @@
 
                     <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="8" ColumnSpacing="10">
                         <Label Text="{Binding ReminderBreakfastText}" />
-                        <Entry Grid.Column="1" Text="{Binding BreakfastReminderTime}" Placeholder="08:00" Keyboard="Text" />
+                        <TimePicker Grid.Column="1" Time="{Binding BreakfastReminder}" Format="HH:mm" />
 
                         <Label Grid.Row="1" Text="{Binding ReminderLunchText}" />
-                        <Entry Grid.Row="1" Grid.Column="1" Text="{Binding LunchReminderTime}" Placeholder="13:00" Keyboard="Text" />
+                        <TimePicker Grid.Row="1" Grid.Column="1" Time="{Binding LunchReminder}" Format="HH:mm" />
 
                         <Label Grid.Row="2" Text="{Binding ReminderDinnerText}" />
-                        <Entry Grid.Row="2" Grid.Column="1" Text="{Binding DinnerReminderTime}" Placeholder="20:00" Keyboard="Text" />
+                        <TimePicker Grid.Row="2" Grid.Column="1" Time="{Binding DinnerReminder}" Format="HH:mm" />
                     </Grid>
 
                     <Button Text="{Binding SaveReminderText}" Style="{StaticResource SecondaryButton}" Command="{Binding SaveRemindersCommand}" />

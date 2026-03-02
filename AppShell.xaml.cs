@@ -12,6 +12,7 @@ public partial class AppShell : Shell
         _socialNotifications = socialNotifications;
         InitializeComponent();
         Routing.RegisterRoute(nameof(ResetPasswordPage), typeof(ResetPasswordPage));
+        Routing.RegisterRoute(nameof(FriendChatPage), typeof(FriendChatPage));
         DashboardTab.Title = LocalizationService.T("tab_dashboard");
         DiaryTab.Title = LocalizationService.T("tab_diary");
         AddTab.Title = LocalizationService.T("tab_add");

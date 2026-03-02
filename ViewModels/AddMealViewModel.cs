@@ -7,7 +7,6 @@ namespace NutritionTracker.ViewModels;
 public partial class AddMealViewModel : ObservableObject
 {
     private readonly ApiService _api;
-    private readonly LocalDb _db;
     private readonly PointsService _points;
     private readonly BackendSyncService _sync;
     private readonly IVoiceInputService _voiceInput;
@@ -37,10 +36,9 @@ public partial class AddMealViewModel : ObservableObject
 
     public bool HasPhoto => !string.IsNullOrWhiteSpace(PhotoPath);
 
-    public AddMealViewModel(ApiService api, LocalDb db, PointsService points, BackendSyncService sync, IVoiceInputService voiceInput)
+    public AddMealViewModel(ApiService api, PointsService points, BackendSyncService sync, IVoiceInputService voiceInput)
     {
         _api = api;
-        _db = db;
         _points = points;
         _sync = sync;
         _voiceInput = voiceInput;

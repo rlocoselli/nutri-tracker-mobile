@@ -9,7 +9,7 @@ namespace NutritionTracker.ViewModels;
 public partial class RecommendationsViewModel : ObservableObject
 {
     private readonly ApiService _api;
-    private readonly LocalDb _db;
+    private readonly BackendSyncService _sync;
 
     public string TitleText => T("reco_title");
     public string SubtitleText => T("reco_subtitle");
@@ -23,10 +23,10 @@ public partial class RecommendationsViewModel : ObservableObject
     [ObservableProperty] private string insightsText = "";
     [ObservableProperty] private string warningsText = "";
 
-    public RecommendationsViewModel(ApiService api, LocalDb db)
+    public RecommendationsViewModel(ApiService api, BackendSyncService sync)
     {
         _api = api;
-        _db = db;
+        _sync = sync;
     }
 
     [RelayCommand]
@@ -43,9 +43,15 @@ public partial class RecommendationsViewModel : ObservableObject
             if (string.IsNullOrWhiteSpace(idToken))
                 throw new Exception("Not logged in.");
 
-            var goals = await _db.GetGoalsAsync();
-            var meals = await _db.GetMealsLastDaysAsync(14);
-            var exercises = await _db.GetExercisesLastDaysAsync(14);
+            var identityOk = await _sync.EnsureBackendIdentityAsync(idToken);
+            if (!identityOk)
+                throw new Exception(T("backend_identity_error"));
+
+            var goals = await _sync.GetGoalsAsync();
+            var toUtc = DateTime.UtcNow.AddDays(1);
+            var fromUtc = toUtc.AddDays(-14);
+            var meals = (await _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc)).Select(ToMealEntry).ToList();
+            var exercises = new List<Models.ExerciseEntry>();
             var lang = Preferences.Default.Get("app_lang", "fr");
 
             // Aggregate by day
@@ -111,22 +117,8 @@ public partial class RecommendationsViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            var goals = await _db.GetGoalsAsync();
-            var meals = await _db.GetMealsLastDaysAsync(7);
-            var avgCal = meals.Count == 0 ? 0 : meals.Average(x => x.TotalCalories);
-            var avgCarbs = meals.Count == 0 ? 0 : meals.Average(x => x.TotalCarbsG);
-            var avgProt = meals.Count == 0 ? 0 : meals.Average(x => x.TotalProteinG);
-            var lang = Preferences.Default.Get("app_lang", "fr");
-
-            InsightsText = lang == "en"
-                ? $"Local fallback: Avg calories {Math.Round(avgCal)}, carbs {Math.Round(avgCarbs)}g, protein {Math.Round(avgProt)}g"
-                : $"Fallback local : calories moy. {Math.Round(avgCal)}, glucides {Math.Round(avgCarbs)}g, protéines {Math.Round(avgProt)}g";
             WarningsText = ex.Message;
-
-            foreach (var item in BuildFallbackRecommendations(lang, avgCal, avgCarbs, avgProt, goals))
-                Items.Add(item);
-
-            HasResult = true;
+            HasResult = false;
         }
         finally
         {
@@ -138,6 +130,30 @@ public partial class RecommendationsViewModel : ObservableObject
     {
         if (value > 0) return $"+{value:0}";
         return $"{value:0}";
+    }
+
+    private static Models.MealEntry ToMealEntry(BackendMeal meal)
+    {
+        var dateUtc = meal.date_utc.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(meal.date_utc, DateTimeKind.Utc)
+            : meal.date_utc.ToUniversalTime();
+
+        return new Models.MealEntry
+        {
+            Id = meal.id,
+            DateUtc = dateUtc,
+            DayKeyUtc = string.IsNullOrWhiteSpace(meal.day_key_utc) ? dateUtc.ToString("yyyy-MM-dd") : meal.day_key_utc,
+            RawText = meal.raw_text,
+            Description = meal.description,
+            AiNotes = meal.ai_notes,
+            PhotoPath = meal.photo_url,
+            TotalCalories = meal.total_calories,
+            TotalCarbsG = meal.total_carbs_g,
+            TotalProteinG = meal.total_protein_g,
+            OverallConfidence = meal.overall_confidence,
+            QualityScore = meal.quality_score,
+            QualityLabel = meal.quality_label,
+        };
     }
 
     private static List<RecommendationItem> BuildFallbackRecommendations(string lang, double avgCal, double avgCarbs, double avgProt, Models.UserGoals goals)
@@ -204,6 +220,7 @@ public partial class RecommendationsViewModel : ObservableObject
             "reco_subtitle" => lang == "en" ? "Generated from your recent meal history and goals." : "Générées depuis votre historique récent et vos objectifs.",
             "generate" => lang == "en" ? "Generate" : "Générer",
             "analysis" => lang == "en" ? "Analysis" : "Analyse",
+            "backend_identity_error" => LocalizationService.T("backend_identity_error"),
             _ => key,
         };
     }

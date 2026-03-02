@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="NutritionTracker.Pages.FriendChatPage"
+    BackgroundColor="{StaticResource Background}"
+    Title="{Binding PageTitle}">
+
+    <Grid RowDefinitions="Auto,*,Auto" Padding="16" RowSpacing="10">
+        <Border Grid.Row="0" Style="{StaticResource Card}">
+            <VerticalStackLayout Spacing="2">
+                <Label Text="{Binding PageTitle}" FontAttributes="Bold" FontSize="18" />
+                <Label Text="{Binding SubtitleText}" Style="{StaticResource BodyMuted}" />
+            </VerticalStackLayout>
+        </Border>
+
+        <CollectionView Grid.Row="1" ItemsSource="{Binding Messages}" SelectionMode="None">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Grid Margin="0,3">
+                        <Border Style="{StaticResource Card}"
+                                Padding="10"
+                                HorizontalOptions="End"
+                                Background="{StaticResource Card2Brush}"
+                                Stroke="{StaticResource Primary}"
+                                MaximumWidthRequest="320"
+                                IsVisible="{Binding MineVisible}">
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="{Binding Text}" LineBreakMode="WordWrap" />
+                                <Label Text="{Binding TimeText}" FontSize="11" HorizontalTextAlignment="End" Opacity="0.7" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}"
+                                Padding="10"
+                                HorizontalOptions="Start"
+                                MaximumWidthRequest="320"
+                                IsVisible="{Binding OtherVisible}">
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="{Binding SenderText}" FontAttributes="Bold" FontSize="12" />
+                                <Label Text="{Binding Text}" LineBreakMode="WordWrap" />
+                                <Label Text="{Binding TimeText}" FontSize="11" HorizontalTextAlignment="End" Opacity="0.7" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <VerticalStackLayout Grid.Row="2" Spacing="8">
+            <Label Text="{Binding StatusText}" Style="{StaticResource BodyMuted}" />
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <Entry Text="{Binding MessageText}" Placeholder="{Binding InputPlaceholder}" ReturnType="Send" />
+                <Button Grid.Column="1" Text="{Binding RefreshText}" Style="{StaticResource SecondaryButton}" Command="{Binding RefreshCommand}" />
+                <Button Grid.Column="2" Text="{Binding SendText}" Style="{StaticResource SecondaryButton}" Command="{Binding SendCommand}" />
+            </Grid>
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>

@@ -35,6 +35,7 @@ public class SessionService
         Preferences.Default.Remove("profile_email");
         Preferences.Default.Remove("profile_picture");
         Preferences.Default.Remove("backend_user_id");
+        Preferences.Default.Remove("backend_identity_subject");
         Preferences.Default.Remove("auth_method");
         Preferences.Default.Remove("email_session_active");
     }

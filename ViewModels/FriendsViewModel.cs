@@ -11,6 +11,7 @@ public partial class FriendsViewModel : ObservableObject
     private readonly SocialService _social;
     private readonly BackendSyncService _sync;
     private readonly PointsService _points;
+    private readonly IServiceProvider _services;
 
     [ObservableProperty] private string inviteEmail = "";
     [ObservableProperty] private string searchQuery = "";
@@ -23,6 +24,10 @@ public partial class FriendsViewModel : ObservableObject
 
     public string TitleText => T("friends_title");
     public string InvitePlaceholder => T("invite_email_placeholder");
+    public string InviteSectionTitleText => T("friends_invite_section_title");
+    public string FriendsSectionTitleText => T("friends_contacts_section_title");
+    public string SearchSectionTitleText => T("friends_search_section_title");
+    public string EmptyFriendsText => T("friends_empty");
     public string SearchPlaceholder => T("friend_search_placeholder");
     public string InviteText => T("invite_friend");
     public string AddBuddyText => T("add_buddy");
@@ -37,18 +42,24 @@ public partial class FriendsViewModel : ObservableObject
     public string StoriesText => T("friend_stories");
     public string MessageText => T("friend_message");
     public string ViewMessagesText => T("story_view_messages");
+    public string ChatText => T("friend_chat_open");
 
-    public FriendsViewModel(SocialService social, BackendSyncService sync, PointsService points)
+    public FriendsViewModel(SocialService social, BackendSyncService sync, PointsService points, IServiceProvider services)
     {
         _social = social;
         _sync = sync;
         _points = points;
+        _services = services;
     }
 
     public async Task LoadAsync()
     {
         OnPropertyChanged(nameof(TitleText));
         OnPropertyChanged(nameof(InvitePlaceholder));
+        OnPropertyChanged(nameof(InviteSectionTitleText));
+        OnPropertyChanged(nameof(FriendsSectionTitleText));
+        OnPropertyChanged(nameof(SearchSectionTitleText));
+        OnPropertyChanged(nameof(EmptyFriendsText));
         OnPropertyChanged(nameof(SearchPlaceholder));
         OnPropertyChanged(nameof(InviteText));
         OnPropertyChanged(nameof(AddBuddyText));
@@ -63,6 +74,7 @@ public partial class FriendsViewModel : ObservableObject
         OnPropertyChanged(nameof(StoriesText));
         OnPropertyChanged(nameof(MessageText));
         OnPropertyChanged(nameof(ViewMessagesText));
+        OnPropertyChanged(nameof(ChatText));
         await ReloadAsync();
     }
 
@@ -73,7 +85,7 @@ public partial class FriendsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void Invite()
+    private async Task Invite()
     {
         if (string.IsNullOrWhiteSpace(InviteEmail) || !InviteEmail.Contains('@'))
         {
@@ -89,14 +101,14 @@ public partial class FriendsViewModel : ObservableObject
             return;
         }
 
-        _ = _sync.TryInviteFriendAsync(email);
+        var backendOk = await _sync.TryInviteFriendAsync(email);
         InviteEmail = "";
-        StatusText = T("invite_sent");
-        _ = ReloadAsync();
+        StatusText = backendOk ? T("invite_sent") : T("invite_send_failed");
+        await ReloadAsync();
     }
 
     [RelayCommand]
-    private void AddBuddy()
+    private async Task AddBuddy()
     {
         if (string.IsNullOrWhiteSpace(InviteEmail) || !InviteEmail.Contains('@'))
         {
@@ -112,10 +124,10 @@ public partial class FriendsViewModel : ObservableObject
             return;
         }
 
-        _ = _sync.TryInviteFriendAsync(email);
+        _ = await _sync.TryInviteFriendAsync(email);
         InviteEmail = "";
         StatusText = T("buddy_added");
-        _ = ReloadAsync();
+        await ReloadAsync();
     }
 
     [RelayCommand]
@@ -150,6 +162,7 @@ public partial class FriendsViewModel : ObservableObject
                 UserId = (user.user_id ?? "").Trim(),
                 Email = email,
                 DisplayName = string.IsNullOrWhiteSpace(user.display_name) ? email.Split('@')[0] : user.display_name,
+                Handle = BuildHandle(string.IsNullOrWhiteSpace(user.display_name) ? email.Split('@')[0] : user.display_name),
             });
         }
 
@@ -165,7 +178,7 @@ public partial class FriendsViewModel : ObservableObject
         var email = row.Email.Trim();
         _social.Invite(email);
         var ok = await _sync.TryInviteFriendAsync(email);
-        StatusText = ok ? T("invite_sent") : T("invite_already_exists");
+        StatusText = ok ? T("invite_sent") : T("invite_send_failed");
         await ReloadAsync();
     }
 
@@ -243,7 +256,7 @@ public partial class FriendsViewModel : ObservableObject
         if (stories.Count == 0)
         {
             await Application.Current!.MainPage!.DisplayAlert(
-                string.Format(T("friend_stories_title"), row.Email),
+                string.Format(T("friend_stories_title"), row.DisplayName),
                 T("friend_no_stories"),
                 "OK");
             return;
@@ -258,7 +271,7 @@ public partial class FriendsViewModel : ObservableObject
 
         var body = string.Join("\n", lines);
         await Application.Current!.MainPage!.DisplayAlert(
-            string.Format(T("friend_stories_title"), row.Email),
+                string.Format(T("friend_stories_title"), row.DisplayName),
             body,
             "OK");
     }
@@ -266,47 +279,17 @@ public partial class FriendsViewModel : ObservableObject
     [RelayCommand]
     private async Task SendMessage(FriendsInviteRow? row)
     {
-        if (row == null || row.IsPending || string.IsNullOrWhiteSpace(row.Email))
-            return;
-
-        var token = Preferences.Default.Get("auth_id_token", "");
-        var identityOk = await _sync.EnsureBackendIdentityAsync(token);
-        if (!identityOk)
-        {
-            await Application.Current!.MainPage!.DisplayAlert(T("friends_title"), T("friend_action_signin_needed"), "OK");
-            return;
-        }
-
-        var otherUserId = await ResolveOtherUserIdByEmailAsync(row.Email);
-
-        if (string.IsNullOrWhiteSpace(otherUserId))
-        {
-            await Application.Current!.MainPage!.DisplayAlert(T("friend_message"), T("friend_message_unavailable"), "OK");
-            return;
-        }
-
-        var message = await Application.Current!.MainPage!.DisplayPromptAsync(
-            T("friend_message"),
-            string.Format(T("friend_message_to"), row.Email),
-            T("send"),
-            T("cancel"),
-            T("story_message_placeholder"));
-
-        if (string.IsNullOrWhiteSpace(message))
-            return;
-
-        var ok = await _sync.SendPrivateMessageAsync(otherUserId, message.Trim());
-        if (!ok)
-        {
-            await Application.Current!.MainPage!.DisplayAlert(T("friend_message"), T("friend_message_failed"), "OK");
-            return;
-        }
-
-        await ShowConversationAsync(otherUserId, row.Email);
+        await OpenChat(row);
     }
 
     [RelayCommand]
     private async Task ViewMessages(FriendsInviteRow? row)
+    {
+        await OpenChat(row);
+    }
+
+    [RelayCommand]
+    private async Task OpenChat(FriendsInviteRow? row)
     {
         if (row == null || row.IsPending || string.IsNullOrWhiteSpace(row.Email))
             return;
@@ -319,14 +302,24 @@ public partial class FriendsViewModel : ObservableObject
             return;
         }
 
-        var otherUserId = await ResolveOtherUserIdByEmailAsync(row.Email);
+        var otherUserId = (row.UserId ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(otherUserId))
+            otherUserId = await ResolveOtherUserIdByEmailAsync(row.Email);
+
         if (string.IsNullOrWhiteSpace(otherUserId))
         {
             await Application.Current!.MainPage!.DisplayAlert(T("friend_message"), T("friend_message_unavailable"), "OK");
             return;
         }
 
-        await ShowConversationAsync(otherUserId, row.Email);
+        if (_services.GetService(typeof(Pages.FriendChatPage)) is not Pages.FriendChatPage chatPage)
+            return;
+
+        if (chatPage.BindingContext is not FriendChatViewModel chatVm)
+            return;
+
+        await chatVm.InitializeAsync(otherUserId, row.DisplayName, row.Email);
+        await Shell.Current.Navigation.PushAsync(chatPage);
     }
 
     private async Task<string> ResolveOtherUserIdByEmailAsync(string email)
@@ -344,56 +337,73 @@ public partial class FriendsViewModel : ObservableObject
         if (!string.IsNullOrWhiteSpace(userId))
             return userId;
 
-        var feed = await _sync.GetFriendsFeedAsync(days: 30, limit: 120);
-        return feed
-            .Where(x => string.Equals((x.author_email ?? "").Trim(), normalized, StringComparison.OrdinalIgnoreCase))
-            .Select(x => (x.user_id ?? "").Trim())
-            .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? "";
-    }
-
-    private async Task ShowConversationAsync(string otherUserId, string otherEmail)
-    {
-        var messages = await _sync.GetPrivateMessagesAsync(otherUserId, limit: 40);
-        if (messages.Count == 0)
-        {
-            await Application.Current!.MainPage!.DisplayAlert(T("friend_message"), T("story_no_messages"), "OK");
-            return;
-        }
-
-        var meUserId = Preferences.Default.Get("backend_user_id", "").Trim();
-        var lines = messages
-            .TakeLast(20)
-            .Select(x =>
-            {
-                var author = string.Equals(x.sender_user_id?.Trim(), meUserId, StringComparison.OrdinalIgnoreCase)
-                    ? T("you")
-                    : otherEmail;
-                var time = x.created_at_utc.ToLocalTime().ToString("dd/MM HH:mm");
-                return $"[{time}] {author}: {x.text}";
-            })
-            .ToList();
-
-        await Application.Current!.MainPage!.DisplayAlert(T("friend_message"), string.Join("\n", lines), "OK");
+        return "";
     }
 
     private async Task ReloadAsync()
     {
+        var displayByEmail = new Dictionary<string, (string Name, string UserId)>(StringComparer.OrdinalIgnoreCase);
+        var token = Preferences.Default.Get("auth_id_token", "");
+        var identityOk = await _sync.EnsureBackendIdentityAsync(token);
+        if (identityOk)
+        {
+            var directory = await _sync.GetFriendDirectoryAsync();
+            foreach (var user in directory)
+            {
+                var email = (user.email ?? "").Trim().ToLowerInvariant();
+                if (string.IsNullOrWhiteSpace(email))
+                    continue;
+
+                var name = (user.display_name ?? "").Trim();
+                if (string.IsNullOrWhiteSpace(name))
+                    name = DisplayNameFromEmail(email);
+
+                displayByEmail[email] = (name, (user.user_id ?? "").Trim());
+            }
+        }
+
         Friends.Clear();
+        var knownEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var item in _social.GetInvites())
         {
             var pending = string.Equals(item.Status, "pending", StringComparison.OrdinalIgnoreCase);
+            var email = (item.Email ?? "").Trim().ToLowerInvariant();
+            knownEmails.Add(email);
+
+            var displayName = displayByEmail.TryGetValue(email, out var mapped)
+                ? mapped.Name
+                : DisplayNameFromEmail(email);
+
             Friends.Add(new FriendsInviteRow
             {
-                Email = item.Email,
+                Email = email,
+                DisplayName = displayName,
+                Handle = BuildHandle(displayName),
+                UserId = displayByEmail.TryGetValue(email, out var info) ? info.UserId : "",
                 Status = pending ? T("status_pending") : T("status_friend"),
                 Badge = pending ? "🟡" : "🟢",
                 IsPending = pending,
             });
         }
 
+        foreach (var kv in displayByEmail)
+        {
+            if (knownEmails.Contains(kv.Key))
+                continue;
+
+            Friends.Add(new FriendsInviteRow
+            {
+                Email = kv.Key,
+                DisplayName = kv.Value.Name,
+                Handle = BuildHandle(kv.Value.Name),
+                UserId = kv.Value.UserId,
+                Status = T("status_friend"),
+                Badge = "🟢",
+                IsPending = false,
+            });
+        }
+
         IncomingInvites.Clear();
-        var token = Preferences.Default.Get("auth_id_token", "");
-        var identityOk = await _sync.EnsureBackendIdentityAsync(token);
         if (identityOk)
         {
             var incoming = await _sync.GetIncomingInvitesAsync();
@@ -410,6 +420,7 @@ public partial class FriendsViewModel : ObservableObject
                     InviterUserId = invite.inviter_user_id,
                     InviterEmail = email,
                     InviterDisplay = display,
+                    InviterHandle = BuildHandle(display),
                 });
             }
         }
@@ -441,11 +452,48 @@ public partial class FriendsViewModel : ObservableObject
         }
     }
 
+    private static string DisplayNameFromEmail(string email)
+    {
+        var normalized = (email ?? "").Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(normalized) || !normalized.Contains('@'))
+            return "User";
+
+        var local = normalized.Split('@')[0].Trim();
+        if (string.IsNullOrWhiteSpace(local))
+            return "User";
+
+        var compact = local.Replace('.', ' ').Replace('_', ' ').Replace('-', ' ').Trim();
+        if (string.IsNullOrWhiteSpace(compact))
+            compact = local;
+
+        return char.ToUpper(compact[0]) + compact[1..];
+    }
+
+    private static string BuildHandle(string displayName)
+    {
+        var source = (displayName ?? "").Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(source))
+            return "@user";
+
+        var chars = source
+            .Where(ch => char.IsLetterOrDigit(ch) || ch == '.' || ch == '_')
+            .ToArray();
+
+        var normalized = new string(chars).Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+            normalized = "user";
+
+        return $"@{normalized}";
+    }
+
     private static string T(string key) => LocalizationService.T(key);
 }
 
 public class FriendsInviteRow
 {
+    public string UserId { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public string Handle { get; set; } = "@user";
     public string Email { get; set; } = "";
     public string Status { get; set; } = "";
     public string Badge { get; set; } = "";
@@ -465,6 +513,7 @@ public class FriendSearchRow
     public string UserId { get; set; } = "";
     public string Email { get; set; } = "";
     public string DisplayName { get; set; } = "";
+    public string Handle { get; set; } = "@user";
 }
 
 public class IncomingInviteRow
@@ -473,4 +522,5 @@ public class IncomingInviteRow
     public string InviterUserId { get; set; } = "";
     public string InviterEmail { get; set; } = "";
     public string InviterDisplay { get; set; } = "";
+    public string InviterHandle { get; set; } = "@user";
 }

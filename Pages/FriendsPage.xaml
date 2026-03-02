@@ -11,18 +11,27 @@
         <VerticalStackLayout Padding="20" Spacing="14">
             <Label Text="{Binding TitleText}" Style="{StaticResource H1}" />
 
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                <Entry Text="{Binding InviteEmail}" Placeholder="{Binding InvitePlaceholder}" Keyboard="Email" />
-                <Button Grid.Column="1" Text="{Binding InviteText}" Style="{StaticResource SecondaryButton}" Command="{Binding InviteCommand}" />
-            </Grid>
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="{Binding InviteSectionTitleText}" FontAttributes="Bold" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <Entry Text="{Binding InviteEmail}" Placeholder="{Binding InvitePlaceholder}" Keyboard="Email" />
+                        <Button Grid.Column="1" Text="{Binding InviteText}" Style="{StaticResource SecondaryButton}" Command="{Binding InviteCommand}" />
+                    </Grid>
+                    <Button Text="{Binding AddBuddyText}" Style="{StaticResource SecondaryButton}" Command="{Binding AddBuddyCommand}" />
+                </VerticalStackLayout>
+            </Border>
 
-            <Button Text="{Binding AddBuddyText}" Style="{StaticResource SecondaryButton}" Command="{Binding AddBuddyCommand}" />
-
-            <Label Text="{Binding SearchResultsTitleText}" FontAttributes="Bold" Margin="0,8,0,0" />
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                <Entry Text="{Binding SearchQuery}" Placeholder="{Binding SearchPlaceholder}" />
-                <Button Grid.Column="1" Text="{Binding SearchText}" Style="{StaticResource SecondaryButton}" Command="{Binding SearchUsersCommand}" />
-            </Grid>
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="{Binding SearchSectionTitleText}" FontAttributes="Bold" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <Entry Text="{Binding SearchQuery}" Placeholder="{Binding SearchPlaceholder}" />
+                        <Button Grid.Column="1" Text="{Binding SearchText}" Style="{StaticResource SecondaryButton}" Command="{Binding SearchUsersCommand}" />
+                    </Grid>
+                    <Label Text="{Binding SearchResultsTitleText}" Style="{StaticResource BodyMuted}" />
+                </VerticalStackLayout>
+            </Border>
 
             <CollectionView ItemsSource="{Binding SearchResults}" SelectionMode="None">
                 <CollectionView.ItemTemplate>
@@ -31,7 +40,7 @@
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" VerticalOptions="Center">
                                 <VerticalStackLayout Spacing="2">
                                     <Label Text="{Binding DisplayName}" FontAttributes="Bold" />
-                                    <Label Text="{Binding Email}" Style="{StaticResource BodyMuted}" />
+                                    <Label Text="{Binding Handle}" Style="{StaticResource BodyMuted}" />
                                 </VerticalStackLayout>
                                 <Button Grid.Column="1"
                                         Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.InviteText}"
@@ -52,7 +61,7 @@
                             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" VerticalOptions="Center">
                                 <VerticalStackLayout Spacing="2">
                                     <Label Text="{Binding InviterDisplay}" FontAttributes="Bold" />
-                                    <Label Text="{Binding InviterEmail}" Style="{StaticResource BodyMuted}" />
+                                    <Label Text="{Binding InviterHandle}" Style="{StaticResource BodyMuted}" />
                                 </VerticalStackLayout>
                                 <Button Grid.Column="1"
                                         Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.AcceptText}"
@@ -74,6 +83,15 @@
 
             <Button Text="{Binding RefreshText}" Style="{StaticResource SecondaryButton}" Command="{Binding RefreshCommand}" />
 
+            <Label Text="{Binding FriendsSectionTitleText}" FontAttributes="Bold" Margin="0,6,0,0" />
+            <Label Text="{Binding EmptyFriendsText}" Style="{StaticResource BodyMuted}" IsVisible="False">
+                <Label.Triggers>
+                    <DataTrigger TargetType="Label" Binding="{Binding Friends.Count}" Value="0">
+                        <Setter Property="IsVisible" Value="True" />
+                    </DataTrigger>
+                </Label.Triggers>
+            </Label>
+
             <CollectionView ItemsSource="{Binding Friends}" SelectionMode="None">
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
@@ -82,7 +100,8 @@
                                 <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
                                     <Label Text="{Binding Badge}" FontSize="18" VerticalOptions="Center" />
                                     <VerticalStackLayout Grid.Column="1" Spacing="2">
-                                        <Label Text="{Binding Email}" FontAttributes="Bold" />
+                                        <Label Text="{Binding DisplayName}" FontAttributes="Bold" />
+                                        <Label Text="{Binding Handle}" Style="{StaticResource BodyMuted}" />
                                         <Label Text="{Binding Status}" Style="{StaticResource BodyMuted}" />
                                     </VerticalStackLayout>
                                     <Button Grid.Column="2"
@@ -98,21 +117,16 @@
                                             CommandParameter="{Binding .}" />
                                 </Grid>
 
-                                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8" IsVisible="{Binding IsFriend}">
-                                    <Button Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.StoriesText}"
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="8" IsVisible="{Binding IsFriend}">
+                                    <Button Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.ChatText}"
                                             Style="{StaticResource SecondaryButton}"
-                                            Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.ViewStoriesCommand}"
+                                        Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.OpenChatCommand}"
                                             CommandParameter="{Binding .}" />
                                     <Button Grid.Column="1"
-                                            Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.MessageText}"
+                                        Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.StoriesText}"
                                             Style="{StaticResource SecondaryButton}"
-                                            Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.SendMessageCommand}"
+                                        Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.ViewStoriesCommand}"
                                             CommandParameter="{Binding .}" />
-                                    <Button Grid.Column="2"
-                                        Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.ViewMessagesText}"
-                                        Style="{StaticResource SecondaryButton}"
-                                        Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.ViewMessagesCommand}"
-                                        CommandParameter="{Binding .}" />
                                 </Grid>
                             </VerticalStackLayout>
                         </Border>

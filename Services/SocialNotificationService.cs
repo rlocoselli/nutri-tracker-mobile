@@ -5,6 +5,8 @@ namespace NutritionTracker.Services;
 public class SocialNotificationService
 {
     private const string SnapshotKey = "social_activity_snapshot_v1";
+    private const string IncomingInviteSnapshotKey = "social_incoming_invites_snapshot_v1";
+    private const string IncomingInviteSnapshotInitializedKey = "social_incoming_invites_snapshot_initialized_v1";
     private readonly BackendSyncService _sync;
     private bool _isPolling;
     private bool _isShowing;
@@ -32,6 +34,7 @@ public class SocialNotificationService
                 return;
 
             var feed = await _sync.GetFriendsFeedAsync(days: 14, limit: 120);
+            var incomingInvites = await _sync.GetIncomingInvitesAsync();
             var mine = feed
                 .Where(x => string.Equals((x.user_id ?? "").Trim(), meUserId, StringComparison.OrdinalIgnoreCase))
                 .ToList();
@@ -72,6 +75,33 @@ public class SocialNotificationService
             }
 
             SaveSnapshot(snapshot);
+
+            var inviteSnapshot = LoadInviteSnapshot();
+            var hadInviteSnapshot = Preferences.Default.Get(IncomingInviteSnapshotInitializedKey, false);
+            var currentInviteIds = incomingInvites
+                .Select(x => (x.id ?? "").Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var newInvites = incomingInvites
+                .Where(x => !inviteSnapshot.Contains((x.id ?? "").Trim()))
+                .Take(3)
+                .ToList();
+
+            if (hadInviteSnapshot && newInvites.Count > 0)
+            {
+                foreach (var invite in newInvites)
+                {
+                    var who = (invite.inviter_display_name ?? "").Trim();
+                    if (string.IsNullOrWhiteSpace(who))
+                        who = LocalizationService.T("friend_message");
+
+                    notifications.Add(string.Format(LocalizationService.T("friend_invite_notification"), who));
+                }
+            }
+
+            SaveInviteSnapshot(currentInviteIds);
+            Preferences.Default.Set(IncomingInviteSnapshotInitializedKey, true);
 
             if (notifications.Count == 0 || _isShowing)
                 return;
@@ -119,6 +149,31 @@ public class SocialNotificationService
     {
         var json = JsonSerializer.Serialize(snapshot);
         Preferences.Default.Set(SnapshotKey, json);
+    }
+
+    private static HashSet<string> LoadInviteSnapshot()
+    {
+        var json = Preferences.Default.Get(IncomingInviteSnapshotKey, "");
+        if (string.IsNullOrWhiteSpace(json))
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<List<string>>(json) ?? new List<string>();
+            return parsed
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private static void SaveInviteSnapshot(HashSet<string> inviteIds)
+    {
+        var json = JsonSerializer.Serialize(inviteIds.ToList());
+        Preferences.Default.Set(IncomingInviteSnapshotKey, json);
     }
 
     private sealed class SocialCountState

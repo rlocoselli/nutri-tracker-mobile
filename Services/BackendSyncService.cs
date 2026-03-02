@@ -1,11 +1,14 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using NutritionTracker.Models;
 
 namespace NutritionTracker.Services;
 
 public class BackendSyncService
 {
+    private const string BackendUserIdKey = "backend_user_id";
+    private const string BackendIdentitySubjectKey = "backend_identity_subject";
     private readonly HttpClient _http = new();
 
     public string BackendBaseUrl => "https://api.nutritiontracker.fr/api";
@@ -31,12 +34,28 @@ public class BackendSyncService
         if (!IsConfigured)
             return false;
 
-        var existingUserId = Preferences.Default.Get("backend_user_id", "");
-        if (!string.IsNullOrWhiteSpace(existingUserId))
-            return true;
+        var existingUserId = Preferences.Default.Get(BackendUserIdKey, "").Trim();
+        var authMethod = Preferences.Default.Get("auth_method", "google");
+        if (string.Equals(authMethod, "email", StringComparison.OrdinalIgnoreCase))
+            return !string.IsNullOrWhiteSpace(existingUserId);
 
         if (string.IsNullOrWhiteSpace(idToken))
             return false;
+
+        var incomingSubject = ExtractJwtSubject(idToken);
+        var storedSubject = Preferences.Default.Get(BackendIdentitySubjectKey, "").Trim();
+
+        if (!string.IsNullOrWhiteSpace(existingUserId))
+        {
+            if (!string.IsNullOrWhiteSpace(incomingSubject) &&
+                string.Equals(storedSubject, incomingSubject, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            Preferences.Default.Remove(BackendUserIdKey);
+            Preferences.Default.Remove(BackendIdentitySubjectKey);
+        }
 
         var payload = new { id_token = idToken };
         var resp = await _http.PostAsJsonAsync($"{ApiBaseUrl}/auth/google", payload);
@@ -47,7 +66,9 @@ public class BackendSyncService
         if (parsed == null || string.IsNullOrWhiteSpace(parsed.user_id))
             return false;
 
-        Preferences.Default.Set("backend_user_id", parsed.user_id);
+        Preferences.Default.Set(BackendUserIdKey, parsed.user_id);
+        if (!string.IsNullOrWhiteSpace(incomingSubject))
+            Preferences.Default.Set(BackendIdentitySubjectKey, incomingSubject);
         return true;
     }
 
@@ -130,7 +151,8 @@ public class BackendSyncService
             if (string.IsNullOrWhiteSpace(parsed.user_id))
                 return (false, LocalizationService.T("login_failed"), "", "");
 
-            Preferences.Default.Set("backend_user_id", parsed.user_id);
+            Preferences.Default.Set(BackendUserIdKey, parsed.user_id);
+            Preferences.Default.Set(BackendIdentitySubjectKey, (email ?? "").Trim().ToLowerInvariant());
             return (true, parsed.message ?? LocalizationService.T("login_success"), parsed.user_id, parsed.name ?? "");
         }
         catch (Exception ex)
@@ -350,6 +372,31 @@ public class BackendSyncService
 
         var resp = await _http.SendAsync(req);
         return resp.IsSuccessStatusCode;
+    }
+
+    public async Task<UserGoals> GetGoalsAsync()
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
+            return CreateDefaultGoals();
+
+        using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/goals");
+        req.Headers.Add("X-User-Id", userId);
+        var resp = await _http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode)
+            return CreateDefaultGoals();
+
+        var parsed = await resp.Content.ReadFromJsonAsync<BackendGoalsDto>();
+        if (parsed == null)
+            return CreateDefaultGoals();
+
+        return new UserGoals
+        {
+            Id = 1,
+            CaloriesTarget = parsed.calories_target,
+            CarbsGTarget = parsed.carbs_g_target,
+            ProteinGTarget = parsed.protein_g_target,
+        };
     }
 
     public async Task<bool> TryPushRemindersAsync(bool enabled, TimeSpan breakfast, TimeSpan lunch, TimeSpan dinner)
@@ -696,6 +743,50 @@ public class BackendSyncService
             }).ToList()
         };
     }
+
+    private static UserGoals CreateDefaultGoals()
+    {
+        return new UserGoals
+        {
+            Id = 1,
+            CaloriesTarget = 2000,
+            CarbsGTarget = 220,
+            ProteinGTarget = 120,
+        };
+    }
+
+    private static string ExtractJwtSubject(string idToken)
+    {
+        if (string.IsNullOrWhiteSpace(idToken))
+            return "";
+
+        try
+        {
+            var parts = idToken.Split('.');
+            if (parts.Length < 2)
+                return "";
+
+            var payload = parts[1]
+                .Replace('-', '+')
+                .Replace('_', '/');
+
+            var pad = payload.Length % 4;
+            if (pad > 0)
+                payload = payload.PadRight(payload.Length + (4 - pad), '=');
+
+            var json = Encoding.UTF8.GetString(Convert.FromBase64String(payload));
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+
+            if (doc.RootElement.TryGetProperty("sub", out var subEl))
+                return (subEl.GetString() ?? "").Trim();
+
+            return "";
+        }
+        catch
+        {
+            return "";
+        }
+    }
 }
 
 public class BackendMeal
@@ -714,6 +805,13 @@ public class BackendMeal
     public double quality_score { get; set; }
     public string quality_label { get; set; } = "";
     public List<BackendMealItem> items { get; set; } = new();
+}
+
+public class BackendGoalsDto
+{
+    public double calories_target { get; set; }
+    public double carbs_g_target { get; set; }
+    public double protein_g_target { get; set; }
 }
 
 public class BackendMealItem
