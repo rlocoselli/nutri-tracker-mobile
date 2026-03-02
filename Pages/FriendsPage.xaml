@@ -15,8 +15,10 @@
             <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
                 <Button Text="{Binding TabFriendsText}" Style="{StaticResource SecondaryButton}" Command="{Binding ShowFriendsTabCommand}" />
                 <Button Grid.Column="1" Text="{Binding TabRequestsText}" Style="{StaticResource SecondaryButton}" Command="{Binding ShowRequestsTabCommand}" />
-                <Button Grid.Column="2" Text="{Binding TabSuggestionsText}" Style="{StaticResource SecondaryButton}" Command="{Binding ShowSuggestionsTabCommand}" />
+                <Button Grid.Column="2" Text="{Binding TabSuggestionsText}" IsVisible="{Binding ShowSuggestionsUi}" Style="{StaticResource SecondaryButton}" Command="{Binding ShowSuggestionsTabCommand}" />
             </Grid>
+
+            <Button Text="{Binding ShareAppText}" Style="{StaticResource SecondaryButton}" Command="{Binding ShareAppCommand}" />
 
             <Label Text="{Binding StatusText}" Style="{StaticResource BodyMuted}" />
 
@@ -158,7 +160,7 @@
                 </Label>
             </VerticalStackLayout>
 
-            <VerticalStackLayout Spacing="12" IsVisible="{Binding IsSuggestionsTab}">
+            <VerticalStackLayout Spacing="12" IsVisible="{Binding ShowSuggestionsUi}">
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Spacing="10">
                         <Label Text="{Binding SearchSectionTitleText}" FontAttributes="Bold" />

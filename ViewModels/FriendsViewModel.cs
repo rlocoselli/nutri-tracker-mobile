@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Maui.Controls;
+using Microsoft.Maui.ApplicationModel.DataTransfer;
 using NutritionTracker.Services;
 
 namespace NutritionTracker.ViewModels;
@@ -51,6 +52,7 @@ public partial class FriendsViewModel : ObservableObject
     public string TabFriendsText => T("friends_tab_friends");
     public string TabRequestsText => T("friends_tab_requests");
     public string TabSuggestionsText => T("friends_tab_suggestions");
+    public string ShareAppText => T("share_app_button");
     public string IncomingSectionText => T("incoming_invites_title");
     public string OutgoingSectionText => T("outgoing_invites_title");
     public string SuggestionsHintText => T("suggestions_hint");
@@ -69,6 +71,7 @@ public partial class FriendsViewModel : ObservableObject
     public bool IsFriendsTab => string.Equals(SelectedTab, "friends", StringComparison.OrdinalIgnoreCase);
     public bool IsRequestsTab => string.Equals(SelectedTab, "requests", StringComparison.OrdinalIgnoreCase);
     public bool IsSuggestionsTab => string.Equals(SelectedTab, "suggestions", StringComparison.OrdinalIgnoreCase);
+    public bool ShowSuggestionsUi => false;
     public bool HasIncomingInvites => IncomingInvites.Count > 0;
     public bool HasOutgoingInvites => OutgoingInvites.Count > 0;
     public bool HasRequestItems => HasIncomingInvites || HasOutgoingInvites;
@@ -109,6 +112,7 @@ public partial class FriendsViewModel : ObservableObject
         OnPropertyChanged(nameof(TabFriendsText));
         OnPropertyChanged(nameof(TabRequestsText));
         OnPropertyChanged(nameof(TabSuggestionsText));
+        OnPropertyChanged(nameof(ShareAppText));
         OnPropertyChanged(nameof(IncomingSectionText));
         OnPropertyChanged(nameof(OutgoingSectionText));
         OnPropertyChanged(nameof(SuggestionsHintText));
@@ -121,6 +125,7 @@ public partial class FriendsViewModel : ObservableObject
         OnPropertyChanged(nameof(SyncContactsText));
         OnPropertyChanged(nameof(InviteLinkText));
         OnPropertyChanged(nameof(ShowQrText));
+        OnPropertyChanged(nameof(ShowSuggestionsUi));
         OnPropertyChanged(nameof(RequestToConfirmText));
         OnPropertyChanged(nameof(RequestSentStateText));
         await ReloadAsync();
@@ -146,6 +151,20 @@ public partial class FriendsViewModel : ObservableObject
 
     [RelayCommand]
     private void ShowSuggestionsTab() => SelectedTab = "suggestions";
+
+    [RelayCommand]
+    private async Task ShareApp()
+    {
+        var shareText = T("share_app_message");
+        var title = T("share_app_title");
+
+        await Share.Default.RequestAsync(new ShareTextRequest
+        {
+            Text = shareText,
+            Title = title,
+            Subject = title,
+        });
+    }
 
     [RelayCommand]
     private async Task Refresh()

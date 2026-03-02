@@ -43,7 +43,16 @@ public class BackendSyncService
 
             var storedEmailSubject = Preferences.Default.Get(BackendIdentitySubjectKey, "").Trim().ToLowerInvariant();
             var currentEmail = Preferences.Default.Get("profile_email", "").Trim().ToLowerInvariant();
-            if (!string.IsNullOrWhiteSpace(currentEmail) && string.Equals(storedEmailSubject, currentEmail, StringComparison.Ordinal))
+            if (string.IsNullOrWhiteSpace(currentEmail))
+                return !string.IsNullOrWhiteSpace(existingUserId);
+
+            if (string.IsNullOrWhiteSpace(storedEmailSubject))
+            {
+                Preferences.Default.Set(BackendIdentitySubjectKey, currentEmail);
+                return true;
+            }
+
+            if (string.Equals(storedEmailSubject, currentEmail, StringComparison.Ordinal))
                 return true;
 
             Preferences.Default.Remove(BackendUserIdKey);
@@ -59,29 +68,42 @@ public class BackendSyncService
 
         if (!string.IsNullOrWhiteSpace(existingUserId))
         {
-            if (!string.IsNullOrWhiteSpace(incomingSubject) &&
-                string.Equals(storedSubject, incomingSubject, StringComparison.Ordinal))
+            if (string.IsNullOrWhiteSpace(incomingSubject))
+                return true;
+
+            if (string.IsNullOrWhiteSpace(storedSubject))
             {
+                Preferences.Default.Set(BackendIdentitySubjectKey, incomingSubject);
                 return true;
             }
+
+            if (string.Equals(storedSubject, incomingSubject, StringComparison.Ordinal))
+                return true;
 
             Preferences.Default.Remove(BackendUserIdKey);
             Preferences.Default.Remove(BackendIdentitySubjectKey);
         }
 
-        var payload = new { id_token = idToken };
-        var resp = await _http.PostAsJsonAsync($"{ApiBaseUrl}/auth/google", payload);
-        if (!resp.IsSuccessStatusCode)
-            return false;
+        try
+        {
+            var payload = new { id_token = idToken };
+            var resp = await _http.PostAsJsonAsync($"{ApiBaseUrl}/auth/google", payload);
+            if (!resp.IsSuccessStatusCode)
+                return false;
 
-        var parsed = await resp.Content.ReadFromJsonAsync<AuthResponse>();
-        if (parsed == null || string.IsNullOrWhiteSpace(parsed.user_id))
-            return false;
+            var parsed = await resp.Content.ReadFromJsonAsync<AuthResponse>();
+            if (parsed == null || string.IsNullOrWhiteSpace(parsed.user_id))
+                return false;
 
-        Preferences.Default.Set(BackendUserIdKey, parsed.user_id);
-        if (!string.IsNullOrWhiteSpace(incomingSubject))
-            Preferences.Default.Set(BackendIdentitySubjectKey, incomingSubject);
-        return true;
+            Preferences.Default.Set(BackendUserIdKey, parsed.user_id);
+            if (!string.IsNullOrWhiteSpace(incomingSubject))
+                Preferences.Default.Set(BackendIdentitySubjectKey, incomingSubject);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public async Task<(bool ok, string message)> RegisterEmailAsync(string email, string password, string? displayName)
@@ -111,21 +133,12 @@ public class BackendSyncService
             return (false, LocalizationService.T("backend_identity_error"));
 
         try
-                if (string.IsNullOrWhiteSpace(currentEmail))
-                    return !string.IsNullOrWhiteSpace(existingUserId);
-
-                if (string.IsNullOrWhiteSpace(storedEmailSubject))
-                {
-                    Preferences.Default.Set(BackendIdentitySubjectKey, currentEmail);
-                    return true;
-                }
-
-                if (string.Equals(storedEmailSubject, currentEmail, StringComparison.Ordinal))
-                    return true;
-
-                Preferences.Default.Remove(BackendUserIdKey);
-                Preferences.Default.Remove(BackendIdentitySubjectKey);
-                return false;
+        {
+            var payload = new { email = (email ?? "").Trim(), code = (code ?? "").Trim() };
+            var resp = await _http.PostAsJsonAsync($"{ApiBaseUrl}/auth/email/verify", payload);
+            var parsed = await resp.Content.ReadFromJsonAsync<MessageResponseDto>();
+            if (!resp.IsSuccessStatusCode)
+                return (false, parsed?.detail ?? parsed?.message ?? LocalizationService.T("login_failed"));
 
             return (true, parsed?.message ?? LocalizationService.T("login_success"));
         }
@@ -136,17 +149,9 @@ public class BackendSyncService
     }
 
     public async Task<(bool ok, string message)> ResendVerificationCodeAsync(string email)
-                if (string.IsNullOrWhiteSpace(incomingSubject))
-                    return true;
-
-                if (string.IsNullOrWhiteSpace(storedSubject))
-                {
-                    Preferences.Default.Set(BackendIdentitySubjectKey, incomingSubject);
+    {
+        if (!IsConfigured)
             return (false, LocalizationService.T("backend_identity_error"));
-                }
-
-                if (string.Equals(storedSubject, incomingSubject, StringComparison.Ordinal))
-                    return true;
 
         try
         {
