@@ -15,6 +15,8 @@ public partial class ProfileViewModel : ObservableObject
     private readonly PointsService _points;
     private readonly SocialService _social;
     private readonly BackendSyncService _sync;
+    private readonly EmailAuthService _emailAuth;
+    private readonly SubscriptionService _subscription;
 
     public List<string> LanguageOptions { get; } = new() { "Français", "English", "Português (BR)", "Español (LatAm)" };
 
@@ -33,6 +35,14 @@ public partial class ProfileViewModel : ObservableObject
     [ObservableProperty] private string reminderStatusText = "";
     [ObservableProperty] private string inviteEmail = "";
     [ObservableProperty] private string socialStatusText = "";
+    [ObservableProperty] private bool isEmailAccount;
+    [ObservableProperty] private string currentPassword = "";
+    [ObservableProperty] private string newPassword = "";
+    [ObservableProperty] private string deletePassword = "";
+    [ObservableProperty] private string accountActionStatusText = "";
+    [ObservableProperty] private string subscriptionStatusText = "";
+    [ObservableProperty] private bool canStartFreeTrial;
+    [ObservableProperty] private bool canSubscribe;
 
     public ObservableCollection<FriendInviteItem> Friends { get; } = new();
     public ObservableCollection<FriendRankItem> FriendRanks { get; } = new();
@@ -58,9 +68,23 @@ public partial class ProfileViewModel : ObservableObject
     public string AcceptText => LocalizationService.T("accept");
     public string RemoveText => LocalizationService.T("remove");
     public string FriendsLeagueTitle => LocalizationService.T("friends_league_title");
+    public string PrivacyMenuText => LocalizationService.T("privacy_menu_item");
+    public string AccountSecurityTitle => LocalizationService.T("account_security_title");
+    public string CurrentPasswordLabel => LocalizationService.T("current_password_label");
+    public string NewPasswordLabel => LocalizationService.T("new_password_label");
+    public string ChangePasswordButton => LocalizationService.T("change_password_button");
+    public string DeleteAccountTitle => LocalizationService.T("delete_account_title");
+    public string DeleteAccountHint => LocalizationService.T("delete_account_hint");
+    public string DeleteAccountButton => LocalizationService.T("delete_account_button");
+    public string SubscriptionTitle => LocalizationService.T("subscription_title");
+    public string SubscriptionPlanText => LocalizationService.T("subscription_plan");
+    public string StartFreeTrialText => LocalizationService.T("subscription_start_trial");
+    public string SubscribeGoogleText => LocalizationService.T("subscription_subscribe_google");
+    public string ConfirmGoogleText => LocalizationService.T("subscription_confirm_google");
+    public bool ShowSubscriptionUi => FeatureFlags.EnableSubscriptions;
     public bool ShowGoogleFitUi => FeatureFlags.EnableGoogleFit;
 
-    public ProfileViewModel(IServiceProvider sp, Services.LocalDb db, Services.GoogleFitService googleFit, IMealReminderService mealReminderService, PointsService points, SocialService social, BackendSyncService sync)
+    public ProfileViewModel(IServiceProvider sp, Services.LocalDb db, Services.GoogleFitService googleFit, IMealReminderService mealReminderService, PointsService points, SocialService social, BackendSyncService sync, EmailAuthService emailAuth, SubscriptionService subscription)
     {
         _sp = sp;
         _db = db;
@@ -69,6 +93,8 @@ public partial class ProfileViewModel : ObservableObject
         _points = points;
         _social = social;
         _sync = sync;
+        _emailAuth = emailAuth;
+        _subscription = subscription;
     }
 
     public async Task LoadAsync()
@@ -76,6 +102,7 @@ public partial class ProfileViewModel : ObservableObject
         Name = Preferences.Default.Get("profile_name", "");
         Email = Preferences.Default.Get("profile_email", "");
         PictureUrl = Preferences.Default.Get("profile_picture", "");
+        IsEmailAccount = string.Equals(Preferences.Default.Get("auth_method", "google"), "email", StringComparison.OrdinalIgnoreCase);
 
         var appLang = Preferences.Default.Get("app_lang", "fr");
         SelectedLanguage = appLang switch
@@ -114,6 +141,20 @@ public partial class ProfileViewModel : ObservableObject
         OnPropertyChanged(nameof(AcceptText));
         OnPropertyChanged(nameof(RemoveText));
         OnPropertyChanged(nameof(FriendsLeagueTitle));
+        OnPropertyChanged(nameof(PrivacyMenuText));
+        OnPropertyChanged(nameof(AccountSecurityTitle));
+        OnPropertyChanged(nameof(CurrentPasswordLabel));
+        OnPropertyChanged(nameof(NewPasswordLabel));
+        OnPropertyChanged(nameof(ChangePasswordButton));
+        OnPropertyChanged(nameof(DeleteAccountTitle));
+        OnPropertyChanged(nameof(DeleteAccountHint));
+        OnPropertyChanged(nameof(DeleteAccountButton));
+        OnPropertyChanged(nameof(SubscriptionTitle));
+        OnPropertyChanged(nameof(SubscriptionPlanText));
+        OnPropertyChanged(nameof(StartFreeTrialText));
+        OnPropertyChanged(nameof(SubscribeGoogleText));
+        OnPropertyChanged(nameof(ConfirmGoogleText));
+        OnPropertyChanged(nameof(ShowSubscriptionUi));
         OnPropertyChanged(nameof(ShowGoogleFitUi));
 
         RemindersEnabled = Preferences.Default.Get("meal_reminders_enabled", false);
@@ -122,6 +163,8 @@ public partial class ProfileViewModel : ObservableObject
         DinnerReminderTime = Preferences.Default.Get("meal_reminder_dinner", "20:00");
         ReminderStatusText = "";
         SocialStatusText = "";
+        AccountActionStatusText = "";
+        RefreshSubscriptionUi();
         LoadFriends();
 
         var accessToken = Preferences.Default.Get("auth_access_token", "");
@@ -179,6 +222,36 @@ public partial class ProfileViewModel : ObservableObject
     private async Task OpenRecommendations()
     {
         await Shell.Current.Navigation.PushAsync(_sp.GetRequiredService<RecommendationsPage>());
+    }
+
+    [RelayCommand]
+    private async Task StartFreeTrial()
+    {
+        var started = await _subscription.StartFreeTrialAsync();
+        var key = started ? "subscription_started_ok" : "subscription_trial_unavailable";
+        SubscriptionStatusText = LocalizationService.T(key);
+        RefreshSubscriptionUi();
+    }
+
+    [RelayCommand]
+    private async Task SubscribeWithGoogle()
+    {
+        await _subscription.OpenGooglePlaySubscriptionAsync();
+        SubscriptionStatusText = LocalizationService.T("subscription_google_opened");
+    }
+
+    [RelayCommand]
+    private async Task ConfirmGoogleSubscription()
+    {
+        await _subscription.ConfirmGoogleSubscriptionAsync();
+        SubscriptionStatusText = LocalizationService.T("subscription_confirmed");
+        RefreshSubscriptionUi();
+    }
+
+    [RelayCommand]
+    private async Task OpenPrivacyMenu()
+    {
+        await Shell.Current.Navigation.PushAsync(_sp.GetRequiredService<HelpPage>());
     }
 
     [RelayCommand]
@@ -307,6 +380,55 @@ public partial class ProfileViewModel : ObservableObject
         await Task.CompletedTask;
     }
 
+    [RelayCommand]
+    private async Task ChangePassword()
+    {
+        if (!IsEmailAccount)
+        {
+            AccountActionStatusText = LocalizationService.T("change_password_email_only");
+            return;
+        }
+
+        var (ok, message) = await _emailAuth.ChangePasswordAsync(CurrentPassword, NewPassword);
+        AccountActionStatusText = message;
+        if (ok)
+        {
+            CurrentPassword = "";
+            NewPassword = "";
+        }
+    }
+
+    [RelayCommand]
+    private async Task DeleteAccount()
+    {
+        var confirm = await Application.Current!.MainPage!.DisplayAlert(
+            LocalizationService.T("delete_account_title"),
+            LocalizationService.T("delete_account_confirm"),
+            LocalizationService.T("delete_account_button"),
+            LocalizationService.T("cancel"));
+
+        if (!confirm)
+            return;
+
+        var password = IsEmailAccount ? DeletePassword : null;
+        var (ok, message) = await _emailAuth.DeleteAccountAsync(password);
+        AccountActionStatusText = message;
+        if (!ok)
+            return;
+
+        Preferences.Default.Remove("auth_id_token");
+        Preferences.Default.Remove("auth_access_token");
+        Preferences.Default.Remove("profile_name");
+        Preferences.Default.Remove("profile_email");
+        Preferences.Default.Remove("profile_picture");
+        Preferences.Default.Remove("backend_user_id");
+        Preferences.Default.Remove("auth_method");
+        Preferences.Default.Remove("email_session_active");
+
+        var login = _sp.GetRequiredService<LoginPage>();
+        Application.Current!.MainPage = new NavigationPage(login);
+    }
+
     private static bool TryParseTime(string input, out TimeSpan time)
     {
         time = default;
@@ -357,6 +479,37 @@ public partial class ProfileViewModel : ObservableObject
             });
             rank++;
         }
+    }
+
+    private void RefreshSubscriptionUi()
+    {
+        if (!ShowSubscriptionUi)
+        {
+            SubscriptionStatusText = "";
+            CanStartFreeTrial = false;
+            CanSubscribe = false;
+            return;
+        }
+
+        var state = _subscription.GetState();
+        CanStartFreeTrial = !state.IsSubscribed && !state.HasTrialBeenUsed;
+        CanSubscribe = !state.IsSubscribed;
+
+        if (state.IsSubscribed)
+        {
+            SubscriptionStatusText = LocalizationService.T("subscription_active");
+            return;
+        }
+
+        if (state.IsTrialActive)
+        {
+            SubscriptionStatusText = string.Format(LocalizationService.T("subscription_trial_active"), state.DaysRemaining);
+            return;
+        }
+
+        SubscriptionStatusText = state.HasTrialBeenUsed
+            ? LocalizationService.T("subscription_trial_expired")
+            : LocalizationService.T("subscription_trial_available");
     }
 }
 

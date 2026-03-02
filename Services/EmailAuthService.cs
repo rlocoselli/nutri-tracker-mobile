@@ -1,12 +1,13 @@
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
-
 namespace NutritionTracker.Services;
 
 public class EmailAuthService
 {
-    private const string UsersKey = "local_auth_users_v1";
+    private readonly BackendSyncService _sync;
+
+    public EmailAuthService(BackendSyncService sync)
+    {
+        _sync = sync;
+    }
 
     public Task<(bool ok, string message)> RegisterAsync(string email, string password, string? displayName = null)
     {
@@ -17,91 +18,62 @@ public class EmailAuthService
         if (string.IsNullOrWhiteSpace(password) || password.Length < 6)
             return Task.FromResult((false, LocalizationService.T("login_password_short")));
 
-        var users = LoadUsers();
-        if (users.Any(u => string.Equals(u.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase)))
-            return Task.FromResult((false, LocalizationService.T("login_email_exists")));
-
-        var salt = RandomNumberGenerator.GetBytes(16);
-        var hash = HashPassword(password, salt);
-
-        users.Add(new LocalAuthUser
-        {
-            Email = normalizedEmail,
-            DisplayName = string.IsNullOrWhiteSpace(displayName) ? normalizedEmail.Split('@')[0] : displayName.Trim(),
-            PasswordHash = Convert.ToBase64String(hash),
-            Salt = Convert.ToBase64String(salt),
-            CreatedAtUtc = DateTime.UtcNow,
-        });
-
-        SaveUsers(users);
-        return Task.FromResult((true, LocalizationService.T("login_register_success")));
+        return _sync.RegisterEmailAsync(normalizedEmail, password, displayName);
     }
 
-    public Task<(bool ok, string message, string name)> LoginAsync(string email, string password)
+    public async Task<(bool ok, string message, string name)> LoginAsync(string email, string password)
     {
         var normalizedEmail = NormalizeEmail(email);
         if (string.IsNullOrWhiteSpace(normalizedEmail) || string.IsNullOrWhiteSpace(password))
-            return Task.FromResult((false, LocalizationService.T("login_email_password_required"), ""));
+            return (false, LocalizationService.T("login_email_password_required"), "");
 
-        var users = LoadUsers();
-        var user = users.FirstOrDefault(u => string.Equals(u.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase));
-        if (user == null)
-            return Task.FromResult((false, LocalizationService.T("login_email_not_found"), ""));
+        var (ok, message, _, name) = await _sync.LoginEmailAsync(normalizedEmail, password);
+        return (ok, message, name);
+    }
 
-        byte[] salt;
-        byte[] expectedHash;
-        try
-        {
-            salt = Convert.FromBase64String(user.Salt);
-            expectedHash = Convert.FromBase64String(user.PasswordHash);
-        }
-        catch
-        {
-            return Task.FromResult((false, LocalizationService.T("login_failed"), ""));
-        }
+    public Task<(bool ok, string message)> VerifyEmailCodeAsync(string email, string code)
+    {
+        var normalizedEmail = NormalizeEmail(email);
+        if (string.IsNullOrWhiteSpace(normalizedEmail) || string.IsNullOrWhiteSpace(code))
+            return Task.FromResult((false, LocalizationService.T("verification_code_required")));
 
-        var actualHash = HashPassword(password, salt);
-        var ok = CryptographicOperations.FixedTimeEquals(actualHash, expectedHash);
-        if (!ok)
-            return Task.FromResult((false, LocalizationService.T("login_wrong_password"), ""));
+        return _sync.VerifyEmailCodeAsync(normalizedEmail, code);
+    }
 
-        var name = string.IsNullOrWhiteSpace(user.DisplayName) ? normalizedEmail.Split('@')[0] : user.DisplayName;
-        return Task.FromResult((true, LocalizationService.T("login_success"), name));
+    public Task<(bool ok, string message)> RequestPasswordResetAsync(string email)
+    {
+        var normalizedEmail = NormalizeEmail(email);
+        if (string.IsNullOrWhiteSpace(normalizedEmail) || !normalizedEmail.Contains('@'))
+            return Task.FromResult((false, LocalizationService.T("login_email_invalid")));
+
+        return _sync.RequestPasswordResetAsync(normalizedEmail);
+    }
+
+    public Task<(bool ok, string message)> ResetPasswordAsync(string email, string code, string newPassword)
+    {
+        var normalizedEmail = NormalizeEmail(email);
+        if (string.IsNullOrWhiteSpace(normalizedEmail) || string.IsNullOrWhiteSpace(code))
+            return Task.FromResult((false, LocalizationService.T("verification_code_required")));
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
+            return Task.FromResult((false, LocalizationService.T("login_password_short")));
+
+        return _sync.ResetPasswordAsync(normalizedEmail, code, newPassword);
+    }
+
+    public Task<(bool ok, string message)> ChangePasswordAsync(string currentPassword, string newPassword)
+    {
+        if (string.IsNullOrWhiteSpace(currentPassword) || string.IsNullOrWhiteSpace(newPassword))
+            return Task.FromResult((false, LocalizationService.T("login_email_password_required")));
+        if (newPassword.Length < 6)
+            return Task.FromResult((false, LocalizationService.T("login_password_short")));
+
+        return _sync.ChangePasswordAsync(currentPassword, newPassword);
+    }
+
+    public Task<(bool ok, string message)> DeleteAccountAsync(string? password)
+    {
+        return _sync.DeleteAccountAsync(password);
     }
 
     private static string NormalizeEmail(string email) => (email ?? "").Trim().ToLowerInvariant();
-
-    private static byte[] HashPassword(string password, byte[] salt)
-        => Rfc2898DeriveBytes.Pbkdf2(Encoding.UTF8.GetBytes(password), salt, 120_000, HashAlgorithmName.SHA256, 32);
-
-    private static List<LocalAuthUser> LoadUsers()
-    {
-        var raw = Preferences.Default.Get(UsersKey, "");
-        if (string.IsNullOrWhiteSpace(raw))
-            return new List<LocalAuthUser>();
-
-        try
-        {
-            return JsonSerializer.Deserialize<List<LocalAuthUser>>(raw) ?? new List<LocalAuthUser>();
-        }
-        catch
-        {
-            return new List<LocalAuthUser>();
-        }
-    }
-
-    private static void SaveUsers(List<LocalAuthUser> users)
-    {
-        var raw = JsonSerializer.Serialize(users);
-        Preferences.Default.Set(UsersKey, raw);
-    }
-
-    private sealed class LocalAuthUser
-    {
-        public string Email { get; set; } = "";
-        public string DisplayName { get; set; } = "";
-        public string PasswordHash { get; set; } = "";
-        public string Salt { get; set; } = "";
-        public DateTime CreatedAtUtc { get; set; }
-    }
 }

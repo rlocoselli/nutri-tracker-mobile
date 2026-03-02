@@ -6,10 +6,9 @@
              Title="{local:Translate Key=login_title}"
              BackgroundColor="{StaticResource Background}">
 
-  <Grid Padding="24" RowDefinitions="*,Auto,Auto">
-
-    <VerticalStackLayout VerticalOptions="Center" Spacing="16">
-      <Image Source="logo.svg" HeightRequest="84" WidthRequest="84" HorizontalOptions="Start" />
+  <ScrollView>
+    <VerticalStackLayout Padding="24" Spacing="16">
+      <Image Source="logo.svg" HeightRequest="84" WidthRequest="84" HorizontalOptions="Start" Margin="0,8,0,0" />
       <Label Text="NutritionTracker" Style="{StaticResource H1}" />
       <Label Text="{local:Translate Key=login_subtitle}" Style="{StaticResource BodyMuted}" />
 
@@ -33,18 +32,36 @@
           Command="{Binding RegisterEmailCommand}" />
       </Grid>
 
-      <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
-    </VerticalStackLayout>
-
-        <Button Grid.Row="1"
+      <Button
           Text="{local:Translate Key=login_google}"
           Command="{Binding LoginGoogleCommand}"
           ImageSource="ic_google.svg"
-          ContentLayout="Left,12"
-          BackgroundColor="{StaticResource Card}"
-          TextColor="{StaticResource Text}" />
+          ContentLayout="Left,12" />
 
-    <Label Grid.Row="2" Text="{local:Translate Key=login_disclaimer}" FontSize="12" TextColor="{StaticResource Muted}" />
+            <Entry Placeholder="{local:Translate Key=verification_code_placeholder}"
+             Text="{Binding VerificationCode}"
+             Keyboard="Numeric" />
+            <Button Text="{local:Translate Key=verify_email_button}"
+              Style="{StaticResource SecondaryButton}"
+              Command="{Binding VerifyEmailCommand}" />
 
-  </Grid>
+            <Button Text="{local:Translate Key=forgot_password_button}"
+              Style="{StaticResource SecondaryButton}"
+              Command="{Binding SendResetCodeCommand}" />
+
+            <Entry Placeholder="{local:Translate Key=reset_code_placeholder}"
+             Text="{Binding ResetCode}"
+             Keyboard="Numeric" />
+            <Entry Placeholder="{local:Translate Key=new_password_placeholder}"
+             Text="{Binding NewPassword}"
+             IsPassword="True" />
+            <Button Text="{local:Translate Key=reset_password_button}"
+              Style="{StaticResource SecondaryButton}"
+              Command="{Binding ResetPasswordCommand}" />
+
+      <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+
+      <Label Text="{local:Translate Key=login_disclaimer}" FontSize="12" TextColor="{StaticResource Muted}" Margin="0,0,0,20" />
+    </VerticalStackLayout>
+  </ScrollView>
 </ContentPage>

@@ -15,6 +15,9 @@ public partial class LoginViewModel : ObservableObject
     [ObservableProperty] private string email = "";
     [ObservableProperty] private string password = "";
     [ObservableProperty] private string displayName = "";
+    [ObservableProperty] private string verificationCode = "";
+    [ObservableProperty] private string resetCode = "";
+    [ObservableProperty] private string newPassword = "";
 
     public LoginViewModel(AuthService auth, EmailAuthService emailAuth, BackendSyncService sync, IServiceProvider sp)
     {
@@ -99,28 +102,82 @@ public partial class LoginViewModel : ObservableObject
         try
         {
             var (ok, message) = await _emailAuth.RegisterAsync(Email, Password, DisplayName);
+            await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("login_title"), message, "OK");
             if (!ok)
-            {
-                await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("login_title"), message, "OK");
                 return;
-            }
 
-            var (loginOk, loginMessage, name) = await _emailAuth.LoginAsync(Email, Password);
-            if (!loginOk)
+            await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("login_title"), LocalizationService.T("verification_needed"), "OK");
+        }
+        catch (Exception ex)
+        {
+            await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("login_title"), ex.Message, "OK");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task VerifyEmail()
+    {
+        if (IsBusy) return;
+        IsBusy = true;
+        try
+        {
+            var (ok, message) = await _emailAuth.VerifyEmailCodeAsync(Email, VerificationCode);
+            await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("login_title"), message, "OK");
+            if (ok)
             {
-                await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("login_title"), loginMessage, "OK");
-                return;
+                VerificationCode = "";
             }
+        }
+        catch (Exception ex)
+        {
+            await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("login_title"), ex.Message, "OK");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
 
-            Preferences.Default.Remove("auth_id_token");
-            Preferences.Default.Remove("auth_access_token");
-            Preferences.Default.Set("profile_name", name);
-            Preferences.Default.Set("profile_email", (Email ?? "").Trim().ToLowerInvariant());
-            Preferences.Default.Set("profile_picture", "");
-            Preferences.Default.Set("auth_method", "email");
-            Preferences.Default.Set("email_session_active", true);
+    [RelayCommand]
+    private async Task SendResetCode()
+    {
+        if (IsBusy) return;
+        IsBusy = true;
+        try
+        {
+            var (ok, message) = await _emailAuth.RequestPasswordResetAsync(Email);
+            await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("login_title"), message, "OK");
+            if (!ok)
+                return;
+        }
+        catch (Exception ex)
+        {
+            await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("login_title"), ex.Message, "OK");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
 
-            Application.Current!.MainPage = _sp.GetRequiredService<AppShell>();
+    [RelayCommand]
+    private async Task ResetPassword()
+    {
+        if (IsBusy) return;
+        IsBusy = true;
+        try
+        {
+            var (ok, message) = await _emailAuth.ResetPasswordAsync(Email, ResetCode, NewPassword);
+            await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("login_title"), message, "OK");
+            if (ok)
+            {
+                ResetCode = "";
+                NewPassword = "";
+            }
         }
         catch (Exception ex)
         {

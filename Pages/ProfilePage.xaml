@@ -121,6 +121,47 @@
                             </DataTemplate>
                         </CollectionView.ItemTemplate>
                     </CollectionView>
+
+                            <VerticalStackLayout Spacing="8" IsVisible="{Binding ShowSubscriptionUi}">
+                            <Label Text="{Binding SubscriptionTitle}" FontAttributes="Bold" Margin="0,10,0,0" />
+                            <Label Text="{Binding SubscriptionPlanText}" Style="{StaticResource BodyMuted}" />
+                            <Label Text="{Binding SubscriptionStatusText}" Style="{StaticResource BodyMuted}" />
+                            <Button Text="{Binding StartFreeTrialText}"
+                                Style="{StaticResource SecondaryButton}"
+                                IsVisible="{Binding CanStartFreeTrial}"
+                                Command="{Binding StartFreeTrialCommand}" />
+                            <Button Text="{Binding SubscribeGoogleText}"
+                                Style="{StaticResource SecondaryButton}"
+                                IsVisible="{Binding CanSubscribe}"
+                                Command="{Binding SubscribeWithGoogleCommand}" />
+                            <Button Text="{Binding ConfirmGoogleText}"
+                                Style="{StaticResource SecondaryButton}"
+                                IsVisible="{Binding CanSubscribe}"
+                                Command="{Binding ConfirmGoogleSubscriptionCommand}" />
+                            </VerticalStackLayout>
+
+                        <Label Text="{Binding AccountSecurityTitle}" FontAttributes="Bold" Margin="0,10,0,0" />
+                        <Button Text="{Binding PrivacyMenuText}"
+                            Style="{StaticResource SecondaryButton}"
+                            Command="{Binding OpenPrivacyMenuCommand}" />
+
+                        <VerticalStackLayout Spacing="8" IsVisible="{Binding IsEmailAccount}">
+                        <Label Text="{Binding CurrentPasswordLabel}" />
+                        <Entry Text="{Binding CurrentPassword}" IsPassword="True" />
+                        <Label Text="{Binding NewPasswordLabel}" />
+                        <Entry Text="{Binding NewPassword}" IsPassword="True" />
+                        <Button Text="{Binding ChangePasswordButton}"
+                            Style="{StaticResource SecondaryButton}"
+                            Command="{Binding ChangePasswordCommand}" />
+                        </VerticalStackLayout>
+
+                        <Label Text="{Binding DeleteAccountTitle}" FontAttributes="Bold" Margin="0,6,0,0" />
+                        <Label Text="{Binding DeleteAccountHint}" Style="{StaticResource BodyMuted}" />
+                        <Entry Text="{Binding DeletePassword}" IsPassword="True" IsVisible="{Binding IsEmailAccount}" Placeholder="{Binding CurrentPasswordLabel}" />
+                        <Button Text="{Binding DeleteAccountButton}"
+                            Style="{StaticResource SecondaryButton}"
+                            Command="{Binding DeleteAccountCommand}" />
+                        <Label Text="{Binding AccountActionStatusText}" Style="{StaticResource BodyMuted}" />
                 </VerticalStackLayout>
             </Border>
 

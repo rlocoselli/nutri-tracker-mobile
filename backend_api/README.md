@@ -97,9 +97,29 @@ For protected routes, pass header:
 
 Current `/api/auth/google` is a placeholder and returns a fake token.
 
+Email auth endpoints (multistep):
+- `POST /api/auth/email/register` (create account + send verification code by email)
+- `POST /api/auth/email/verify` (validate code)
+- `POST /api/auth/email/login`
+- `POST /api/auth/email/password/forgot` (send reset code)
+- `POST /api/auth/email/password/reset` (apply new password with code)
+- `POST /api/auth/email/password/change` (requires `X-User-Id`)
+- `DELETE /api/auth/account` (delete account + related data, requires `X-User-Id`)
+
+SMTP environment variables required for real emails:
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USERNAME`
+- `SMTP_PASSWORD`
+- `SMTP_FROM_EMAIL`
+- `SMTP_USE_TLS`
+
 ## 4) Main routes
 
 - `POST /api/auth/google`
+- `POST /api/auth/email/register`
+- `POST /api/auth/email/verify`
+- `POST /api/auth/email/login`
 - `POST /api/meals`
 - `GET /api/meals?from=YYYY-MM-DD&to=YYYY-MM-DD`
 - `PATCH /api/meals/{mealId}`

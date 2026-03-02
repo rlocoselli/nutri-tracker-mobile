@@ -17,6 +17,32 @@
                     <Button Text="{Binding OpenHelpText}" Command="{Binding OpenHelpCommand}" />
                 </VerticalStackLayout>
             </Border>
+
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="10">
+                    <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
+                        <Image Source="flag_fr.svg" HeightRequest="20" WidthRequest="30" />
+                        <Label Text="{Binding PrivacyTitle}" FontAttributes="Bold" FontSize="18" />
+                    </HorizontalStackLayout>
+
+                    <Label Text="{Binding PrivacyIntro}" Style="{StaticResource BodyMuted}" />
+
+                    <Label Text="{Binding PrivacyRetentionTitle}" FontAttributes="Bold" />
+                    <Label Text="{Binding PrivacyRetentionBody}" Style="{StaticResource BodyMuted}" />
+
+                    <Label Text="{Binding PrivacySecurityTitle}" FontAttributes="Bold" />
+                    <Label Text="{Binding PrivacySecurityBody}" Style="{StaticResource BodyMuted}" />
+
+                    <Label Text="{Binding PrivacyOpenAiTitle}" FontAttributes="Bold" />
+                    <Label Text="{Binding PrivacyOpenAiBody}" Style="{StaticResource BodyMuted}" />
+
+                    <Label Text="{Binding PrivacyStorageTitle}" FontAttributes="Bold" />
+                    <Label Text="{Binding PrivacyStorageBody}" Style="{StaticResource BodyMuted}" />
+
+                    <Label Text="{Binding CharityTitle}" FontAttributes="Bold" />
+                    <Label Text="{Binding CharityBody}" Style="{StaticResource BodyMuted}" />
+                </VerticalStackLayout>
+            </Border>
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>

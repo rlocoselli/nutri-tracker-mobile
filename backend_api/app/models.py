@@ -19,6 +19,40 @@ class User(Base):
     updated_at_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
 
+class EmailAccount(Base):
+    __tablename__ = "email_accounts"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    email_norm: Mapped[str] = mapped_column(String, unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(Text)
+    password_salt: Mapped[str] = mapped_column(Text)
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+
+class EmailVerificationCode(Base):
+    __tablename__ = "email_verification_codes"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email_norm: Mapped[str] = mapped_column(String, index=True)
+    code_hash: Mapped[str] = mapped_column(Text)
+    expires_at_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    consumed_at_utc: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+
+class PasswordResetCode(Base):
+    __tablename__ = "password_reset_codes"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email_norm: Mapped[str] = mapped_column(String, index=True)
+    code_hash: Mapped[str] = mapped_column(Text)
+    expires_at_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    consumed_at_utc: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+
 class UserGoals(Base):
     __tablename__ = "user_goals"
 

@@ -86,6 +86,41 @@ class GoogleAuthIn(BaseModel):
     id_token: str
 
 
+class EmailRegisterIn(BaseModel):
+    email: EmailStr
+    password: str
+    display_name: str = ""
+
+
+class EmailLoginIn(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class EmailCodeVerifyIn(BaseModel):
+    email: EmailStr
+    code: str
+
+
+class ForgotPasswordIn(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordIn(BaseModel):
+    email: EmailStr
+    code: str
+    new_password: str
+
+
+class ChangePasswordIn(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class DeleteAccountIn(BaseModel):
+    password: str | None = None
+
+
 class MessageOut(BaseModel):
     message: str
 

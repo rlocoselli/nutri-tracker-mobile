@@ -44,6 +44,164 @@ public class BackendSyncService
         return true;
     }
 
+    public async Task<(bool ok, string message)> RegisterEmailAsync(string email, string password, string? displayName)
+    {
+        if (!IsConfigured)
+            return (false, LocalizationService.T("backend_identity_error"));
+
+        try
+        {
+            var payload = new { email = (email ?? "").Trim(), password = password ?? "", display_name = displayName ?? "" };
+            var resp = await _http.PostAsJsonAsync($"{ApiBaseUrl}/auth/email/register", payload);
+            var parsed = await resp.Content.ReadFromJsonAsync<MessageResponseDto>();
+            if (!resp.IsSuccessStatusCode)
+                return (false, parsed?.detail ?? parsed?.message ?? LocalizationService.T("login_failed"));
+
+            return (true, parsed?.message ?? LocalizationService.T("login_register_success"));
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    public async Task<(bool ok, string message)> VerifyEmailCodeAsync(string email, string code)
+    {
+        if (!IsConfigured)
+            return (false, LocalizationService.T("backend_identity_error"));
+
+        try
+        {
+            var payload = new { email = (email ?? "").Trim(), code = (code ?? "").Trim() };
+            var resp = await _http.PostAsJsonAsync($"{ApiBaseUrl}/auth/email/verify", payload);
+            var parsed = await resp.Content.ReadFromJsonAsync<MessageResponseDto>();
+            if (!resp.IsSuccessStatusCode)
+                return (false, parsed?.detail ?? parsed?.message ?? LocalizationService.T("login_failed"));
+
+            return (true, parsed?.message ?? LocalizationService.T("login_success"));
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    public async Task<(bool ok, string message, string userId, string name)> LoginEmailAsync(string email, string password)
+    {
+        if (!IsConfigured)
+            return (false, LocalizationService.T("backend_identity_error"), "", "");
+
+        try
+        {
+            var payload = new { email = (email ?? "").Trim(), password = password ?? "" };
+            var resp = await _http.PostAsJsonAsync($"{ApiBaseUrl}/auth/email/login", payload);
+            var parsed = await resp.Content.ReadFromJsonAsync<EmailLoginResponseDto>();
+            if (!resp.IsSuccessStatusCode || parsed == null)
+                return (false, parsed?.detail ?? parsed?.message ?? LocalizationService.T("login_failed"), "", "");
+
+            if (string.IsNullOrWhiteSpace(parsed.user_id))
+                return (false, LocalizationService.T("login_failed"), "", "");
+
+            Preferences.Default.Set("backend_user_id", parsed.user_id);
+            return (true, parsed.message ?? LocalizationService.T("login_success"), parsed.user_id, parsed.name ?? "");
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message, "", "");
+        }
+    }
+
+    public async Task<(bool ok, string message)> RequestPasswordResetAsync(string email)
+    {
+        if (!IsConfigured)
+            return (false, LocalizationService.T("backend_identity_error"));
+
+        try
+        {
+            var payload = new { email = (email ?? "").Trim() };
+            var resp = await _http.PostAsJsonAsync($"{ApiBaseUrl}/auth/email/password/forgot", payload);
+            var parsed = await resp.Content.ReadFromJsonAsync<MessageResponseDto>();
+            if (!resp.IsSuccessStatusCode)
+                return (false, parsed?.detail ?? parsed?.message ?? LocalizationService.T("login_failed"));
+
+            return (true, parsed?.message ?? LocalizationService.T("password_reset_sent"));
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    public async Task<(bool ok, string message)> ResetPasswordAsync(string email, string code, string newPassword)
+    {
+        if (!IsConfigured)
+            return (false, LocalizationService.T("backend_identity_error"));
+
+        try
+        {
+            var payload = new { email = (email ?? "").Trim(), code = (code ?? "").Trim(), new_password = newPassword ?? "" };
+            var resp = await _http.PostAsJsonAsync($"{ApiBaseUrl}/auth/email/password/reset", payload);
+            var parsed = await resp.Content.ReadFromJsonAsync<MessageResponseDto>();
+            if (!resp.IsSuccessStatusCode)
+                return (false, parsed?.detail ?? parsed?.message ?? LocalizationService.T("login_failed"));
+
+            return (true, parsed?.message ?? LocalizationService.T("password_reset_done"));
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    public async Task<(bool ok, string message)> ChangePasswordAsync(string currentPassword, string newPassword)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
+            return (false, LocalizationService.T("backend_identity_error"));
+
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post, $"{ApiBaseUrl}/auth/email/password/change");
+            req.Headers.Add("X-User-Id", userId);
+            req.Content = JsonContent.Create(new { current_password = currentPassword ?? "", new_password = newPassword ?? "" });
+            var resp = await _http.SendAsync(req);
+            var parsed = await resp.Content.ReadFromJsonAsync<MessageResponseDto>();
+            if (!resp.IsSuccessStatusCode)
+                return (false, parsed?.detail ?? parsed?.message ?? LocalizationService.T("login_failed"));
+
+            return (true, parsed?.message ?? LocalizationService.T("password_change_success"));
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    public async Task<(bool ok, string message)> DeleteAccountAsync(string? password)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
+            return (false, LocalizationService.T("backend_identity_error"));
+
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Delete, $"{ApiBaseUrl}/auth/account");
+            req.Headers.Add("X-User-Id", userId);
+            req.Content = JsonContent.Create(new { password = password ?? "" });
+
+            var resp = await _http.SendAsync(req);
+            var parsed = await resp.Content.ReadFromJsonAsync<MessageResponseDto>();
+            if (!resp.IsSuccessStatusCode)
+                return (false, parsed?.detail ?? parsed?.message ?? LocalizationService.T("login_failed"));
+
+            return (true, parsed?.message ?? LocalizationService.T("account_delete_success"));
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
     public async Task<bool> TryPushMealAsync(MealEntry meal, List<MealItem> items)
     {
         var userId = Preferences.Default.Get("backend_user_id", "");
@@ -452,6 +610,25 @@ public class BackendSyncService
     private sealed class AuthResponse
     {
         public string user_id { get; set; } = "";
+    }
+
+    private sealed class EmailLoginResponseDto
+    {
+        public bool ok { get; set; }
+        public string message { get; set; } = "";
+        public string user_id { get; set; } = "";
+        public string email { get; set; } = "";
+        public string name { get; set; } = "";
+        public string token { get; set; } = "";
+        public string auth_method { get; set; } = "";
+        public string detail { get; set; } = "";
+    }
+
+    private sealed class MessageResponseDto
+    {
+        public bool ok { get; set; }
+        public string message { get; set; } = "";
+        public string detail { get; set; } = "";
     }
 
     private sealed class CreateMealResponse
