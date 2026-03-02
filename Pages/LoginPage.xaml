@@ -38,12 +38,13 @@
           ImageSource="ic_google.svg"
           ContentLayout="Left,12" />
 
-            <Entry Placeholder="{local:Translate Key=verification_code_placeholder}"
-             Text="{Binding VerificationCode}"
-             Keyboard="Numeric" />
-            <Button Text="{local:Translate Key=verify_email_button}"
+            <Button Text="{local:Translate Key=open_activation_screen_button}"
               Style="{StaticResource SecondaryButton}"
-              Command="{Binding VerifyEmailCommand}" />
+              Command="{Binding OpenActivationCommand}" />
+
+            <Button Text="{local:Translate Key=resend_activation_from_login_button}"
+              Style="{StaticResource SecondaryButton}"
+              Command="{Binding ResendActivationFromLoginCommand}" />
 
                   <Button Text="{local:Translate Key=forgot_password_button}"
                     Style="{StaticResource SecondaryButton}"

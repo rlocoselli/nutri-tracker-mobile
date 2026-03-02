@@ -80,6 +80,7 @@ class ReminderIn(BaseModel):
 
 class InviteIn(BaseModel):
     invitee_email: EmailStr
+    locale: str | None = None
 
 
 class GoogleAuthIn(BaseModel):

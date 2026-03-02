@@ -28,7 +28,14 @@ public class BackendSyncService
 
     public async Task<bool> EnsureBackendIdentityAsync(string idToken)
     {
-        if (!IsConfigured || string.IsNullOrWhiteSpace(idToken))
+        if (!IsConfigured)
+            return false;
+
+        var existingUserId = Preferences.Default.Get("backend_user_id", "");
+        if (!string.IsNullOrWhiteSpace(existingUserId))
+            return true;
+
+        if (string.IsNullOrWhiteSpace(idToken))
             return false;
 
         var payload = new { id_token = idToken };
@@ -79,6 +86,27 @@ public class BackendSyncService
                 return (false, parsed?.detail ?? parsed?.message ?? LocalizationService.T("login_failed"));
 
             return (true, parsed?.message ?? LocalizationService.T("login_success"));
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    public async Task<(bool ok, string message)> ResendVerificationCodeAsync(string email)
+    {
+        if (!IsConfigured)
+            return (false, LocalizationService.T("backend_identity_error"));
+
+        try
+        {
+            var payload = new { email = (email ?? "").Trim() };
+            var resp = await _http.PostAsJsonAsync($"{ApiBaseUrl}/auth/email/verify/resend", payload);
+            var parsed = await resp.Content.ReadFromJsonAsync<MessageResponseDto>();
+            if (!resp.IsSuccessStatusCode)
+                return (false, parsed?.detail ?? parsed?.message ?? LocalizationService.T("login_failed"));
+
+            return (true, parsed?.message ?? LocalizationService.T("activation_code_resent"));
         }
         catch (Exception ex)
         {
@@ -409,9 +437,13 @@ public class BackendSyncService
         if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
             return false;
 
+        var lang = Preferences.Default.Get("app_lang", "fr").Trim().ToLowerInvariant();
+        if (lang != "fr" && lang != "en" && lang != "pt" && lang != "es")
+            lang = "fr";
+
         using var req = new HttpRequestMessage(HttpMethod.Post, $"{ApiBaseUrl}/friends/invites");
         req.Headers.Add("X-User-Id", userId);
-        req.Content = JsonContent.Create(new { invitee_email = email });
+        req.Content = JsonContent.Create(new { invitee_email = email, locale = lang });
 
         var resp = await _http.SendAsync(req);
         return resp.IsSuccessStatusCode;

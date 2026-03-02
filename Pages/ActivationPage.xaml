@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="NutritionTracker.Pages.ActivationPage"
+             BackgroundColor="{StaticResource Background}">
+
+  <ScrollView>
+    <VerticalStackLayout Padding="24" Spacing="14">
+      <Label Text="{Binding TitleText}" Style="{StaticResource H1}" />
+      <Label Text="{Binding SubtitleText}" Style="{StaticResource BodyMuted}" />
+
+      <Entry Placeholder="{Binding EmailPlaceholder}"
+             Text="{Binding Email}"
+             Keyboard="Email" />
+
+      <Entry Placeholder="{Binding CodePlaceholder}"
+             Text="{Binding Code}"
+             Keyboard="Numeric" />
+
+      <Button Text="{Binding VerifyButtonText}"
+              Command="{Binding VerifyCodeCommand}" />
+
+      <Button Text="{Binding ResendButtonText}"
+              Style="{StaticResource SecondaryButton}"
+              Command="{Binding ResendCodeCommand}" />
+
+      <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+      <Label Text="{Binding StatusText}" Style="{StaticResource BodyMuted}" />
+    </VerticalStackLayout>
+  </ScrollView>
+</ContentPage>

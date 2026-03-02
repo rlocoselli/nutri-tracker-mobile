@@ -20,7 +20,6 @@ public partial class LoginViewModel : ObservableObject
     [ObservableProperty] private string email = "";
     [ObservableProperty] private string password = "";
     [ObservableProperty] private string displayName = "";
-    [ObservableProperty] private string verificationCode = "";
 
     public string TermsLinkText => LocalizationService.T("login_terms_link");
     public string PrivacyLinkText => LocalizationService.T("login_privacy_link");
@@ -113,7 +112,7 @@ public partial class LoginViewModel : ObservableObject
             if (!ok)
                 return;
 
-            await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("login_title"), LocalizationService.T("verification_needed"), "OK");
+            await OpenActivationPageAsync(Email);
         }
         catch (Exception ex)
         {
@@ -126,18 +125,22 @@ public partial class LoginViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task VerifyEmail()
+    private async Task OpenActivation()
+    {
+        await OpenActivationPageAsync(Email);
+    }
+
+    [RelayCommand]
+    private async Task ResendActivationFromLogin()
     {
         if (IsBusy) return;
         IsBusy = true;
         try
         {
-            var (ok, message) = await _emailAuth.VerifyEmailCodeAsync(Email, VerificationCode);
+            var (ok, message) = await _emailAuth.ResendVerificationCodeAsync(Email);
             await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("login_title"), message, "OK");
             if (ok)
-            {
-                VerificationCode = "";
-            }
+                await OpenActivationPageAsync(Email);
         }
         catch (Exception ex)
         {
@@ -171,6 +174,13 @@ public partial class LoginViewModel : ObservableObject
     {
         var page = _sp.GetRequiredService<ResetPasswordPage>();
         page.PreFill(email, code);
+        await Application.Current!.MainPage!.Navigation.PushAsync(page);
+    }
+
+    private async Task OpenActivationPageAsync(string? email)
+    {
+        var page = _sp.GetRequiredService<ActivationPage>();
+        page.PreFill(email);
         await Application.Current!.MainPage!.Navigation.PushAsync(page);
     }
 

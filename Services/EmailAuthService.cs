@@ -40,6 +40,15 @@ public class EmailAuthService
         return _sync.VerifyEmailCodeAsync(normalizedEmail, code);
     }
 
+    public Task<(bool ok, string message)> ResendVerificationCodeAsync(string email)
+    {
+        var normalizedEmail = NormalizeEmail(email);
+        if (string.IsNullOrWhiteSpace(normalizedEmail) || !normalizedEmail.Contains('@'))
+            return Task.FromResult((false, LocalizationService.T("login_email_invalid")));
+
+        return _sync.ResendVerificationCodeAsync(normalizedEmail);
+    }
+
     public Task<(bool ok, string message)> RequestPasswordResetAsync(string email)
     {
         var normalizedEmail = NormalizeEmail(email);

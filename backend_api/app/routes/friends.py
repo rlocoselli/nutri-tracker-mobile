@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_, func
 from sqlalchemy.orm import Session
 from ..db import get_db
+from ..config import APP_COMPANY_NAME, APP_DATA_LOCATION
+from ..mailer import send_email
 from ..models import FriendInvite, Friendship, MealEntry, User, StoryLike, StoryComment, PrivateMessage
 from ..schemas import InviteIn, FriendStoryOut, StoryLikeOut, StoryCommentIn, StoryCommentOut, PrivateMessageIn, PrivateMessageOut, FriendDirectoryOut, IncomingInviteOut
 from ..security import get_current_user_id
@@ -41,6 +43,73 @@ def _visible_user_ids(db: Session, user_id: uuid.UUID) -> set[uuid.UUID]:
             visible.add(row.user_a_id)
 
     return visible
+
+
+def _normalize_locale(raw_locale: str | None) -> str:
+    value = (raw_locale or "").strip().lower()
+    if value.startswith("fr"):
+        return "fr"
+    if value.startswith("en"):
+        return "en"
+    if value.startswith("pt"):
+        return "pt"
+    if value.startswith("es"):
+        return "es"
+    return "fr"
+
+
+def _send_friend_invite_email(invitee_email: str, inviter_display_name: str, locale: str) -> bool:
+    templates = {
+        "fr": {
+            "subject": "NutritionTracker - Nouvelle invitation ami",
+            "body": (
+                "Bonjour,\n\n"
+                "{inviter} vous a invité(e) à rejoindre ses amis sur NutritionTracker.\n"
+                "Connectez-vous dans l'application pour accepter ou refuser cette invitation.\n\n"
+                "Données hébergées en {location} par {company}.\n\n"
+                "Si vous n'êtes pas concerné(e), ignorez cet email."
+            ),
+        },
+        "en": {
+            "subject": "NutritionTracker - New friend invitation",
+            "body": (
+                "Hello,\n\n"
+                "{inviter} invited you to connect as friends on NutritionTracker.\n"
+                "Sign in to the app to accept or decline this invitation.\n\n"
+                "Data hosted in {location} by {company}.\n\n"
+                "If this wasn't expected, you can ignore this email."
+            ),
+        },
+        "pt": {
+            "subject": "NutritionTracker - Novo convite de amizade",
+            "body": (
+                "Olá,\n\n"
+                "{inviter} convidou você para ser amigo no NutritionTracker.\n"
+                "Entre no aplicativo para aceitar ou recusar este convite.\n\n"
+                "Dados hospedados em {location} por {company}.\n\n"
+                "Se não for para você, ignore este email."
+            ),
+        },
+        "es": {
+            "subject": "NutritionTracker - Nueva invitación de amistad",
+            "body": (
+                "Hola,\n\n"
+                "{inviter} te invitó a conectar como amigo en NutritionTracker.\n"
+                "Inicia sesión en la app para aceptar o rechazar esta invitación.\n\n"
+                "Datos alojados en {location} por {company}.\n\n"
+                "Si no era para ti, puedes ignorar este correo."
+            ),
+        },
+    }
+
+    selected = templates.get(locale, templates["fr"])
+    subject = selected["subject"]
+    body = selected["body"].format(
+        inviter=inviter_display_name,
+        location=APP_DATA_LOCATION,
+        company=APP_COMPANY_NAME,
+    )
+    return send_email(invitee_email, subject, body)
 
 
 @router.get("/invites")
@@ -89,18 +158,29 @@ def list_incoming_invites(user_id: uuid.UUID = Depends(get_current_user_id), db:
 
 @router.post("/invites")
 def create_invite(payload: InviteIn, user_id: uuid.UUID = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    invitee_email = (payload.invitee_email or "").strip().lower()
+    if not invitee_email:
+        raise HTTPException(status_code=400, detail="Invalid invite email")
+
+    inviter = db.query(User).filter(User.id == user_id).first()
+    inviter_name = _display_name(inviter)
+
     exists = (
         db.query(FriendInvite)
-        .filter(FriendInvite.inviter_user_id == user_id, FriendInvite.invitee_email == payload.invitee_email)
+        .filter(FriendInvite.inviter_user_id == user_id, func.lower(FriendInvite.invitee_email) == invitee_email)
         .first()
     )
     if exists:
         raise HTTPException(status_code=409, detail="Invite already exists")
 
-    row = FriendInvite(inviter_user_id=user_id, invitee_email=payload.invitee_email, status="pending")
+    row = FriendInvite(inviter_user_id=user_id, invitee_email=invitee_email, status="pending")
     db.add(row)
     db.commit()
     db.refresh(row)
+
+    locale = _normalize_locale(payload.locale)
+    _send_friend_invite_email(invitee_email, inviter_name, locale)
+
     return row
 
 
