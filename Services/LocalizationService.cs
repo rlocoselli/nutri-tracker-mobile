@@ -147,6 +147,7 @@ public static class LocalizationService
         ["stats_hydration_series"] = "Hydratation par période",
         ["dashboard_kpis_title"] = "Indicateurs du jour",
         ["dashboard_macro_chart_title"] = "Répartition des macros (aujourd'hui)",
+        ["dashboard_macro_legend_title"] = "Légende des couleurs",
         ["dashboard_goal_chart_title"] = "Atteinte des objectifs (%)",
 
         ["dashboard_title"] = "Tableau",
@@ -455,6 +456,7 @@ public static class LocalizationService
         ["stats_hydration_series"] = "Hydration by period",
         ["dashboard_kpis_title"] = "Today's indicators",
         ["dashboard_macro_chart_title"] = "Macro split (today)",
+        ["dashboard_macro_legend_title"] = "Color legend",
         ["dashboard_goal_chart_title"] = "Goal achievement (%)",
 
         ["dashboard_title"] = "Dashboard",
@@ -765,6 +767,7 @@ public static class LocalizationService
         ["stats_hydration_series"] = "Hidratação por período",
         ["dashboard_kpis_title"] = "Indicadores de hoje",
         ["dashboard_macro_chart_title"] = "Divisão de macros (hoje)",
+        ["dashboard_macro_legend_title"] = "Legenda de cores",
         ["dashboard_goal_chart_title"] = "Meta atingida (%)",
         ["dashboard_title"] = "Painel",
         ["hello"] = "Olá,",
@@ -1067,6 +1070,7 @@ public static class LocalizationService
         ["stats_hydration_series"] = "Hidratación por período",
         ["dashboard_kpis_title"] = "Indicadores de hoy",
         ["dashboard_macro_chart_title"] = "Distribución de macros (hoy)",
+        ["dashboard_macro_legend_title"] = "Leyenda de colores",
         ["dashboard_goal_chart_title"] = "Cumplimiento de objetivos (%)",
         ["dashboard_title"] = "Panel",
         ["hello"] = "Hola,",
