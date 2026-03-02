@@ -17,6 +17,7 @@ from ..schemas import (
     EmailRegisterIn,
     EmailLoginIn,
     EmailCodeVerifyIn,
+    EmailVerificationResendIn,
     ForgotPasswordIn,
     ResetPasswordIn,
     ChangePasswordIn,
@@ -185,6 +186,33 @@ def auth_email_verify(payload: EmailCodeVerifyIn, db: Session = Depends(get_db))
     account.updated_at_utc = now
     db.commit()
     return {"ok": True, "message": "Email verified"}
+
+
+@router.post("/email/verify/resend")
+def auth_email_verify_resend(payload: EmailVerificationResendIn, db: Session = Depends(get_db)):
+    email = _normalize_email(payload.email)
+    account = db.query(EmailAccount).filter(EmailAccount.email_norm == email).first()
+    if not account:
+        return {"ok": True, "message": "If the account exists, a verification email has been sent."}
+
+    if account.email_verified:
+        return {"ok": True, "message": "Email already verified."}
+
+    code = _new_code()
+    verification = EmailVerificationCode(
+        email_norm=email,
+        code_hash=_hash_code(code),
+        expires_at_utc=_utcnow() + timedelta(minutes=AUTH_CODE_TTL_MINUTES),
+        created_at_utc=_utcnow(),
+    )
+    db.add(verification)
+    db.commit()
+
+    mail_ok = _send_verification_email(email, code)
+    if not mail_ok:
+        return {"ok": True, "message": "If the account exists, a verification email has been sent (SMTP not configured)."}
+
+    return {"ok": True, "message": "Verification code sent by email."}
 
 
 @router.post("/email/login")

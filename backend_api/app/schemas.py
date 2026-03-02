@@ -102,6 +102,10 @@ class EmailCodeVerifyIn(BaseModel):
     code: str
 
 
+class EmailVerificationResendIn(BaseModel):
+    email: EmailStr
+
+
 class ForgotPasswordIn(BaseModel):
     email: EmailStr
 
