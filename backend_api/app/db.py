@@ -2,6 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from .config import DATABASE_URL
 from pathlib import Path
+import logging
 
 
 class Base(DeclarativeBase):
@@ -10,6 +11,7 @@ class Base(DeclarativeBase):
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+logger = logging.getLogger(__name__)
 
 
 def ensure_postgres_objects() -> None:
@@ -26,9 +28,17 @@ def ensure_postgres_objects() -> None:
     if not statements:
         return
 
-    with engine.begin() as conn:
-        for statement in statements:
-            conn.exec_driver_sql(statement)
+    for statement in statements:
+        try:
+            with engine.begin() as conn:
+                conn.exec_driver_sql(statement)
+        except Exception as exc:
+            statement_head = statement.split("\n", 1)[0].strip().lower()
+            is_extension_stmt = statement_head.startswith("create extension")
+            if is_extension_stmt:
+                logger.warning("Skipping PostgreSQL extension statement due to permissions: %s", exc)
+                continue
+            raise
 
 
 def _split_sql_statements(sql_text: str) -> list[str]:

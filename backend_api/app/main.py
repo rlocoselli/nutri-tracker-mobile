@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from .db import Base, engine, ensure_postgres_objects
+from . import models  # noqa: F401
 from .routes import auth, meals, goals, points, reminders, friends, water
 
 
