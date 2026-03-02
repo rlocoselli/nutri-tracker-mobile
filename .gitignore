@@ -7,6 +7,8 @@
 .env
 .venv/
 scripts/local/
+scripts/local/set-gh-secrets.sh
+scripts/local/*secrets*.sh
 
 # Local Google Play deployment secrets/helpers
 scripts/local/*.local.sh
