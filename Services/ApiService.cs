@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Net;
 using System.Text.Json;
 using NutritionTracker.Services.Dto;
+using System.Net.Sockets;
 
 namespace NutritionTracker.Services;
 
@@ -23,7 +24,7 @@ public class ApiService
         if (resp.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
         {
             await _session.RedirectToLoginAsync(clearAuth: true);
-            throw new Exception("Session expirée. Veuillez vous reconnecter.");
+            throw new Exception(LocalizationService.T("not_logged_in"));
         }
 
         if (!resp.IsSuccessStatusCode)
@@ -54,7 +55,7 @@ public class ApiService
             req.Content = mp;
         }
 
-        using var resp = await _http.SendAsync(req);
+        using var resp = await SendWithSessionRecoveryAsync(req);
         var json = await resp.Content.ReadAsStringAsync();
         await EnsureAuthorizedOrRedirectAsync(resp, json);
 
@@ -71,12 +72,42 @@ public class ApiService
         req.Content = new StringContent(body);
         req.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-        using var resp = await _http.SendAsync(req);
+        using var resp = await SendWithSessionRecoveryAsync(req);
         var json = await resp.Content.ReadAsStringAsync();
         await EnsureAuthorizedOrRedirectAsync(resp, json);
 
         var parsed = JsonSerializer.Deserialize<RecommendationsResponse>(json, _jsonOptions);
         if (parsed == null) throw new Exception("Invalid JSON from API");
         return parsed;
+    }
+
+    private async Task<HttpResponseMessage> SendWithSessionRecoveryAsync(HttpRequestMessage req)
+    {
+        try
+        {
+            return await _http.SendAsync(req);
+        }
+        catch (Exception ex) when (IsSocketClosedError(ex))
+        {
+            await _session.RedirectToLoginAsync(clearAuth: true);
+            throw new Exception(LocalizationService.T("not_logged_in"));
+        }
+    }
+
+    private static bool IsSocketClosedError(Exception ex)
+    {
+        for (Exception? current = ex; current != null; current = current.InnerException)
+        {
+            if (current is SocketException)
+                return true;
+
+            var message = current.Message ?? "";
+            if (message.IndexOf("socket closed", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                message.IndexOf("connection reset", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                message.IndexOf("broken pipe", StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+        }
+
+        return false;
     }
 }

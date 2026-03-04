@@ -24,7 +24,9 @@ public static class MealMapper
                 : fallbackFromItems;
 
         var quality = MealQualityService.Classify(
+            cleanedRaw,
             r.meal.notes,
+            r.meal.items.Select(i => i.name),
             r.meal.totals.calories,
             r.meal.totals.protein_g,
             r.meal.totals.carbs_g,

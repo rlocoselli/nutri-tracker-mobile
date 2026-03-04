@@ -163,9 +163,8 @@ public partial class AddMealViewModel : ObservableObject
             HasResult = true;
 
             var newBalance = _points.Award(10);
-            var earnedText = string.Format(T("earned_points"), 10, newBalance);
-
-            await Application.Current!.MainPage!.DisplayAlert(T("saved_title"), $"{T("saved_message")}\n{earnedText}", "OK");
+            var streakDays = await ComputeBalancedStreakAsync();
+            await RewardPopupService.ShowAsync(10, newBalance, streakDays);
             await PromptShareToFriendAsync(resp.meal.notes, entry.TotalCalories, entry.TotalProteinG, entry.TotalCarbsG);
         }
         catch (Exception ex)
@@ -184,6 +183,29 @@ public partial class AddMealViewModel : ObservableObject
             return LocalizationService.T("saved_title_common");
 
         return LocalizationService.T(key);
+    }
+
+    private async Task<int> ComputeBalancedStreakAsync()
+    {
+        try
+        {
+            var goals = await _sync.GetGoalsAsync();
+            return await DailyRewardService.ComputeCurrentStreakAsync(goals, async dayLocal =>
+            {
+                var start = DateTime.SpecifyKind(dayLocal.Date, DateTimeKind.Local).ToUniversalTime();
+                var end = DateTime.SpecifyKind(dayLocal.Date.AddDays(1), DateTimeKind.Local).ToUniversalTime();
+                var meals = await _sync.GetMealsBetweenUtcAsync(start, end);
+                return (
+                    meals.Sum(x => x.total_calories),
+                    meals.Sum(x => x.total_carbs_g),
+                    meals.Sum(x => x.total_protein_g),
+                    0d);
+            });
+        }
+        catch
+        {
+            return 0;
+        }
     }
 
     private void RebuildStoryVisibilityOptions()

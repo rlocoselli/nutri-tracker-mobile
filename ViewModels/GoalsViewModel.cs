@@ -82,11 +82,33 @@ public partial class GoalsViewModel : ObservableObject
         }
 
         var balance = _points.Award(5);
-        var title = LocalizationService.T("saved_title_common");
-        var message = string.Format(LocalizationService.T("goals_saved_message"), balance);
-        await Application.Current!.MainPage!.DisplayAlert(title, message, "OK");
+        var streakDays = await ComputeBalancedStreakAsync();
+        await RewardPopupService.ShowAsync(5, balance, streakDays);
         if (Shell.Current?.Navigation != null)
             await Shell.Current.Navigation.PopAsync();
+    }
+
+    private async Task<int> ComputeBalancedStreakAsync()
+    {
+        try
+        {
+            var goals = await _sync.GetGoalsAsync();
+            return await DailyRewardService.ComputeCurrentStreakAsync(goals, async dayLocal =>
+            {
+                var start = DateTime.SpecifyKind(dayLocal.Date, DateTimeKind.Local).ToUniversalTime();
+                var end = DateTime.SpecifyKind(dayLocal.Date.AddDays(1), DateTimeKind.Local).ToUniversalTime();
+                var meals = await _sync.GetMealsBetweenUtcAsync(start, end);
+                return (
+                    meals.Sum(x => x.total_calories),
+                    meals.Sum(x => x.total_carbs_g),
+                    meals.Sum(x => x.total_protein_g),
+                    0d);
+            });
+        }
+        catch
+        {
+            return 0;
+        }
     }
 
     partial void OnCaloriesTargetChanged(double value)

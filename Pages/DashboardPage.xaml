@@ -81,6 +81,41 @@
                 </VerticalStackLayout>
             </Border>
 
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="{Binding StreakTitleText, StringFormat='★ {0}'}" FontAttributes="Bold" FontSize="12" />
+                    <Label Text="{Binding StreakSubtitleText}" Style="{StaticResource BodyMuted}" />
+
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="{Binding StreakText}" FontSize="20" FontAttributes="Bold" />
+                            <Label Text="{Binding BalanceStatusText}" Style="{StaticResource BodyMuted}" />
+                            <Label Text="{Binding StreakHintText}" Style="{StaticResource BodyMuted}" />
+                        </VerticalStackLayout>
+                        <Button Grid.Column="1"
+                                Text="i"
+                                Style="{StaticResource SecondaryButton}"
+                                Command="{Binding ShowBalanceInfoCommand}" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="{Binding RecordingStreakTitleText, StringFormat='✦ {0}'}" Style="{StaticResource BodyMuted}" />
+                        <Label Text="{Binding RecordingStreakText}" FontSize="20" FontAttributes="Bold" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Column="1" Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="{Binding CoinsTitleText, StringFormat='◎ {0}'}" Style="{StaticResource BodyMuted}" />
+                        <Label Text="{Binding CoinsText, StringFormat='◎ {0}'}" FontSize="20" FontAttributes="Bold" />
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+
             <Label Text="{Binding FitSyncStatusText}" IsVisible="{Binding ShowGoogleFitUi}" FontSize="12" TextColor="{StaticResource Muted}" />
         </VerticalStackLayout>
     </ScrollView>

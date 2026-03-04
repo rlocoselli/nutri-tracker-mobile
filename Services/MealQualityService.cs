@@ -3,7 +3,9 @@ namespace NutritionTracker.Services;
 public static class MealQualityService
 {
     public static (double score, string label) Classify(
+        string rawText,
         string notes,
+        IEnumerable<string>? detectedItems,
         double calories,
         double proteinG,
         double carbsG,
@@ -22,12 +24,19 @@ public static class MealQualityService
 
         if (carbsG > proteinG * 3.5) score -= 8;
 
-        var lowered = (notes ?? "").ToLowerInvariant();
+        var lowered = BuildContext(rawText, notes, detectedItems).ToLowerInvariant();
         if (ContainsAny(lowered, "frit", "fried", "sucre", "sugar", "ultra", "soda", "transfo"))
             score -= 10;
 
+        if (ContainsAny(lowered,
+            "big mac", "bigmac", "mcdo", "mcdonald", "burger", "fries", "frites", "kfc", "pizza", "shawarma", "donut"))
+            score -= 18;
+
         if (ContainsAny(lowered, "veget", "légume", "fib", "grill", "lean", "complet", "nature"))
             score += 8;
+
+        if (ContainsAny(lowered, "eau", "water") && !ContainsAny(lowered, "soda"))
+            score += 2;
 
         score = Clamp(score, 0, 100);
 
@@ -77,4 +86,26 @@ public static class MealQualityService
 
     private static double Clamp(double value, double min, double max)
         => Math.Max(min, Math.Min(max, value));
+
+    private static string BuildContext(string rawText, string notes, IEnumerable<string>? detectedItems)
+    {
+        var parts = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(rawText))
+            parts.Add(rawText);
+
+        if (!string.IsNullOrWhiteSpace(notes))
+            parts.Add(notes);
+
+        if (detectedItems != null)
+        {
+            foreach (var item in detectedItems)
+            {
+                if (!string.IsNullOrWhiteSpace(item))
+                    parts.Add(item);
+            }
+        }
+
+        return string.Join(" | ", parts);
+    }
 }

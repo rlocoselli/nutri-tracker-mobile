@@ -317,7 +317,8 @@ public partial class DiaryViewModel : ObservableObject
 
         IsManualPopupVisible = false;
         var manualBalance = _points.Award(8);
-        await Application.Current!.MainPage!.DisplayAlert(T("saved_title"), string.Format(T("earned_points"), 8, manualBalance), "OK");
+        var manualStreak = await ComputeBalancedStreakAsync();
+        await RewardPopupService.ShowAsync(8, manualBalance, manualStreak);
         await LoadDayAsync(SelectedDayLocal);
         await LoadStoriesAsync();
         await LoadChartAsync();
@@ -363,7 +364,9 @@ public partial class DiaryViewModel : ObservableObject
         if (!double.TryParse(EditCarbs, out var carbs)) carbs = _editingMeal.TotalCarbsG;
 
         var quality = MealQualityService.Classify(
+            EditMealName,
             _editingMeal.AiNotes,
+            null,
             calories,
             protein,
             carbs,
@@ -405,7 +408,8 @@ public partial class DiaryViewModel : ObservableObject
         IsEditPopupVisible = false;
         _editingMeal = null;
         var editBalance = _points.Award(4);
-        await Application.Current!.MainPage!.DisplayAlert(T("saved_title"), string.Format(T("earned_points"), 4, editBalance), "OK");
+        var editStreak = await ComputeBalancedStreakAsync();
+        await RewardPopupService.ShowAsync(4, editBalance, editStreak);
         await LoadDayAsync(SelectedDayLocal);
         await LoadStoriesAsync();
         await LoadChartAsync();
@@ -747,6 +751,29 @@ public partial class DiaryViewModel : ObservableObject
         return LocalizationService.T(key);
     }
 
+    private async Task<int> ComputeBalancedStreakAsync()
+    {
+        try
+        {
+            var goals = await _sync.GetGoalsAsync();
+            return await DailyRewardService.ComputeCurrentStreakAsync(goals, async dayLocal =>
+            {
+                var start = DateTime.SpecifyKind(dayLocal.Date, DateTimeKind.Local).ToUniversalTime();
+                var end = DateTime.SpecifyKind(dayLocal.Date.AddDays(1), DateTimeKind.Local).ToUniversalTime();
+                var meals = await _sync.GetMealsBetweenUtcAsync(start, end);
+                return (
+                    meals.Sum(x => x.total_calories),
+                    meals.Sum(x => x.total_carbs_g),
+                    meals.Sum(x => x.total_protein_g),
+                    0d);
+            });
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
     private void RebuildMetricTabs()
     {
         MetricTabs.Clear();
@@ -856,7 +883,9 @@ public partial class DiaryViewModel : ObservableObject
         if (!double.TryParse(EditCarbs, out var carbs)) carbs = _editingMeal.TotalCarbsG;
 
         var quality = MealQualityService.Classify(
+            EditMealName,
             _editingMeal.AiNotes,
+            null,
             calories,
             protein,
             carbs,

@@ -23,11 +23,11 @@ public partial class DashboardViewModel : ObservableObject
     [ObservableProperty] private string todayBurnText = "0 kcal";
     [ObservableProperty] private string todayNetCaloriesText = "0 kcal";
     [ObservableProperty] private string fitSyncStatusText = "";
-    [ObservableProperty] private string streakText = "🔥 0";
+    [ObservableProperty] private string streakText = "0 jours";
     [ObservableProperty] private string streakHintText = "";
     [ObservableProperty] private string balanceStatusText = "";
-    [ObservableProperty] private string recordingStreakText = "📝 0";
-    [ObservableProperty] private string coinsText = "🪙 0";
+    [ObservableProperty] private string recordingStreakText = "0 jours";
+    [ObservableProperty] private string coinsText = "0";
     [ObservableProperty] private bool isLoading;
 
     [ObservableProperty] private double caloriesProgress;
@@ -183,16 +183,6 @@ public partial class DashboardViewModel : ObservableObject
             LocalizationService.T("macro_carbs")
         };
 
-        var balancedToday = DailyRewardService.IsBalancedDay(goals, cal, carbs, prot, todayBurnedCalories);
-        var streak = await DailyRewardService.ComputeCurrentStreakAsync(goals, async dayLocal =>
-        {
-            var start = DateTime.SpecifyKind(dayLocal.Date, DateTimeKind.Local).ToUniversalTime();
-            var end = DateTime.SpecifyKind(dayLocal.Date.AddDays(1), DateTimeKind.Local).ToUniversalTime();
-
-            var meals = await GetMealsForRangeAsync(start, end);
-            return (meals.Sum(x => x.TotalCalories), meals.Sum(x => x.TotalCarbsG), meals.Sum(x => x.TotalProteinG), 0d);
-        });
-
         var dayWord = Preferences.Default.Get("app_lang", "fr") switch
         {
             "en" => "days",
@@ -200,17 +190,52 @@ public partial class DashboardViewModel : ObservableObject
             "es" => "días",
             _ => "jours",
         };
-        StreakText = $"🔥 {streak} {dayWord}";
-        StreakHintText = balancedToday
-            ? LocalizationService.T("reward_balanced_today")
-            : LocalizationService.T("reward_not_balanced_today");
-        BalanceStatusText = balancedToday
-            ? LocalizationService.T("reward_status_good")
-            : LocalizationService.T("reward_status_pending");
 
-        var loggingStreak = await ComputeRecordingStreakAsync();
-        RecordingStreakText = $"📝 {loggingStreak} {dayWord}";
-        CoinsText = $"🪙 {_points.GetBalance()}";
+        try
+        {
+            var balancedToday = DailyRewardService.IsBalancedDay(goals, cal, carbs, prot, todayBurnedCalories);
+            var streak = await DailyRewardService.ComputeCurrentStreakAsync(goals, async dayLocal =>
+            {
+                var start = DateTime.SpecifyKind(dayLocal.Date, DateTimeKind.Local).ToUniversalTime();
+                var end = DateTime.SpecifyKind(dayLocal.Date.AddDays(1), DateTimeKind.Local).ToUniversalTime();
+
+                var meals = await GetMealsForRangeAsync(start, end);
+                return (meals.Sum(x => x.TotalCalories), meals.Sum(x => x.TotalCarbsG), meals.Sum(x => x.TotalProteinG), 0d);
+            });
+
+            StreakText = $"{streak} {dayWord}";
+            StreakHintText = balancedToday
+                ? LocalizationService.T("reward_balanced_today")
+                : LocalizationService.T("reward_not_balanced_today");
+            BalanceStatusText = balancedToday
+                ? LocalizationService.T("reward_status_good")
+                : LocalizationService.T("reward_status_pending");
+        }
+        catch
+        {
+            StreakText = $"0 {dayWord}";
+            StreakHintText = LocalizationService.T("reward_not_balanced_today");
+            BalanceStatusText = LocalizationService.T("reward_status_pending");
+        }
+
+        try
+        {
+            var loggingStreak = await ComputeRecordingStreakAsync();
+            RecordingStreakText = $"{loggingStreak} {dayWord}";
+        }
+        catch
+        {
+            RecordingStreakText = $"0 {dayWord}";
+        }
+
+        try
+        {
+            CoinsText = _points.GetBalance().ToString();
+        }
+        catch
+        {
+            CoinsText = "0";
+        }
         }
         finally
         {

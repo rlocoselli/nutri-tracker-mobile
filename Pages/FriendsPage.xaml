@@ -13,16 +13,26 @@
             <ActivityIndicator IsVisible="{Binding IsBusy}" IsRunning="{Binding IsBusy}" />
 
             <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
-                <Button Text="{Binding TabFriendsText}" Style="{StaticResource SecondaryButton}" Command="{Binding ShowFriendsTabCommand}" />
-                <Button Grid.Column="1" Text="{Binding TabRequestsText}" Style="{StaticResource SecondaryButton}" Command="{Binding ShowRequestsTabCommand}" />
-                <Button Grid.Column="2" Text="{Binding TabSuggestionsText}" IsVisible="{Binding ShowSuggestionsUi}" Style="{StaticResource SecondaryButton}" Command="{Binding ShowSuggestionsTabCommand}" />
+                <Button Text="{Binding TabFriendsText, StringFormat='👥 {0}'}" Style="{StaticResource SecondaryButton}" Command="{Binding ShowFriendsTabCommand}" />
+                <Button Grid.Column="1" Text="{Binding TabRequestsText, StringFormat='✉️ {0}'}" Style="{StaticResource SecondaryButton}" Command="{Binding ShowRequestsTabCommand}" />
+                <Button Grid.Column="2" Text="{Binding TabSuggestionsText, StringFormat='🔎 {0}'}" IsVisible="{Binding ShowSuggestionsUi}" Style="{StaticResource SecondaryButton}" Command="{Binding ShowSuggestionsTabCommand}" />
             </Grid>
 
-            <Button Text="{Binding ShareAppText}" Style="{StaticResource SecondaryButton}" Command="{Binding ShareAppCommand}" />
+            <Button Text="{Binding ShareAppText, StringFormat='📲 {0}'}" Style="{StaticResource SecondaryButton}" Command="{Binding ShareAppCommand}" />
 
             <Label Text="{Binding StatusText}" Style="{StaticResource BodyMuted}" />
 
             <VerticalStackLayout Spacing="12" IsVisible="{Binding IsFriendsTab}">
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="{Binding InviteSectionTitleText}" FontAttributes="Bold" />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <Entry Text="{Binding InviteEmail}" Placeholder="{Binding InvitePlaceholder}" Keyboard="Email" />
+                            <Button Grid.Column="1" Text="{Binding InviteText, StringFormat='➕ {0}'}" Style="{StaticResource SecondaryButton}" Command="{Binding InviteCommand}" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Spacing="10">
                         <Label Text="{Binding FriendsSectionTitleText}" FontAttributes="Bold" />
@@ -51,7 +61,12 @@
                             <Border Style="{StaticResource Card}" Margin="0,0,0,8">
                                 <VerticalStackLayout Spacing="8">
                                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-                                        <Label Text="{Binding Badge}" FontSize="18" VerticalOptions="Center" />
+                                        <Grid WidthRequest="42" HeightRequest="42">
+                                            <Border Background="{StaticResource Card2Brush}" StrokeThickness="0" StrokeShape="RoundRectangle 21" IsVisible="{Binding HasPicture}" />
+                                            <Image Source="{Binding PictureUrl}" WidthRequest="42" HeightRequest="42" Aspect="AspectFill" IsVisible="{Binding HasPicture}" />
+                                            <Border Background="{StaticResource Card2Brush}" StrokeThickness="0" StrokeShape="RoundRectangle 21" IsVisible="{Binding HasNoPicture}" />
+                                            <Label Text="{Binding Initials}" HorizontalOptions="Center" VerticalOptions="Center" FontAttributes="Bold" IsVisible="{Binding HasNoPicture}" />
+                                        </Grid>
                                         <VerticalStackLayout Grid.Column="1" Spacing="2">
                                             <Label Text="{Binding DisplayName}" FontAttributes="Bold" />
                                             <Label Text="{Binding Handle}" Style="{StaticResource BodyMuted}" />
@@ -108,11 +123,19 @@
                         <DataTemplate>
                             <Border Style="{StaticResource Card}" Margin="0,0,0,8">
                                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" VerticalOptions="Center">
-                                    <VerticalStackLayout Spacing="2">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                        <Grid WidthRequest="36" HeightRequest="36">
+                                            <Border Background="{StaticResource Card2Brush}" StrokeThickness="0" StrokeShape="RoundRectangle 18" IsVisible="{Binding HasPicture}" />
+                                            <Image Source="{Binding PictureUrl}" WidthRequest="36" HeightRequest="36" Aspect="AspectFill" IsVisible="{Binding HasPicture}" />
+                                            <Border Background="{StaticResource Card2Brush}" StrokeThickness="0" StrokeShape="RoundRectangle 18" IsVisible="{Binding HasNoPicture}" />
+                                            <Label Text="{Binding Initials}" HorizontalOptions="Center" VerticalOptions="Center" FontAttributes="Bold" IsVisible="{Binding HasNoPicture}" />
+                                        </Grid>
+                                        <VerticalStackLayout Grid.Column="1" Spacing="2">
                                         <Label Text="{Binding InviterDisplay}" FontAttributes="Bold" />
                                         <Label Text="{Binding InviterHandle}" Style="{StaticResource BodyMuted}" />
                                         <Label Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.RequestToConfirmText}" Style="{StaticResource BodyMuted}" />
-                                    </VerticalStackLayout>
+                                        </VerticalStackLayout>
+                                    </Grid>
                                     <Button Grid.Column="1"
                                             Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.AcceptText}"
                                             Style="{StaticResource SecondaryButton}"
@@ -169,11 +192,6 @@
                             <Button Grid.Column="1" Text="{Binding SearchText}" Style="{StaticResource SecondaryButton}" Command="{Binding SearchUsersCommand}" />
                         </Grid>
                         <Label Text="{Binding SuggestionsHintText}" Style="{StaticResource BodyMuted}" />
-                        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
-                            <Button Text="{Binding SyncContactsText}" Style="{StaticResource SecondaryButton}" Command="{Binding SyncContactsCommand}" />
-                            <Button Grid.Column="1" Text="{Binding InviteLinkText}" Style="{StaticResource SecondaryButton}" Command="{Binding InviteByLinkCommand}" />
-                            <Button Grid.Column="2" Text="{Binding ShowQrText}" Style="{StaticResource SecondaryButton}" Command="{Binding ShowQrCommand}" />
-                        </Grid>
                     </VerticalStackLayout>
                 </Border>
 
@@ -182,16 +200,36 @@
                         <DataTemplate>
                             <Border Style="{StaticResource Card}" Margin="0,0,0,8">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" VerticalOptions="Center">
-                                    <VerticalStackLayout Spacing="2">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                        <Grid WidthRequest="36" HeightRequest="36">
+                                            <Border Background="{StaticResource Card2Brush}" StrokeThickness="0" StrokeShape="RoundRectangle 18" IsVisible="{Binding HasPicture}" />
+                                            <Image Source="{Binding PictureUrl}" WidthRequest="36" HeightRequest="36" Aspect="AspectFill" IsVisible="{Binding HasPicture}" />
+                                            <Border Background="{StaticResource Card2Brush}" StrokeThickness="0" StrokeShape="RoundRectangle 18" IsVisible="{Binding HasNoPicture}" />
+                                            <Label Text="{Binding Initials}" HorizontalOptions="Center" VerticalOptions="Center" FontAttributes="Bold" IsVisible="{Binding HasNoPicture}" />
+                                        </Grid>
+                                        <VerticalStackLayout Grid.Column="1" Spacing="2">
                                         <Label Text="{Binding DisplayName}" FontAttributes="Bold" />
                                         <Label Text="{Binding Handle}" Style="{StaticResource BodyMuted}" />
                                         <Label Text="{Binding NutritionHint}" Style="{StaticResource BodyMuted}" />
-                                    </VerticalStackLayout>
+                                        </VerticalStackLayout>
+                                    </Grid>
                                     <Button Grid.Column="1"
-                                            Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.InviteText}"
+                                            Text="{Binding ActionText}"
                                             Style="{StaticResource SecondaryButton}"
+                                            IsVisible="{Binding IsInvitable}"
                                             Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.InviteUserCommand}"
                                             CommandParameter="{Binding .}" />
+
+                                    <Border Grid.Column="1" Style="{StaticResource Card}" IsVisible="{Binding IsInvited}">
+                                        <Label Text="{Binding ActionText}" HorizontalOptions="Center" VerticalOptions="Center" FontAttributes="Bold" />
+                                    </Border>
+
+                                    <Label Grid.Column="1"
+                                           Text="{Binding ActionText}"
+                                           FontAttributes="Bold"
+                                           HorizontalOptions="End"
+                                           VerticalOptions="Center"
+                                           IsVisible="{Binding IsFriend}" />
                                 </Grid>
                             </Border>
                         </DataTemplate>

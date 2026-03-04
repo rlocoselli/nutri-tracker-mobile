@@ -71,7 +71,7 @@ public partial class FriendsViewModel : ObservableObject
     public bool IsFriendsTab => string.Equals(SelectedTab, "friends", StringComparison.OrdinalIgnoreCase);
     public bool IsRequestsTab => string.Equals(SelectedTab, "requests", StringComparison.OrdinalIgnoreCase);
     public bool IsSuggestionsTab => string.Equals(SelectedTab, "suggestions", StringComparison.OrdinalIgnoreCase);
-    public bool ShowSuggestionsUi => false;
+    public bool ShowSuggestionsUi => true;
     public bool HasIncomingInvites => IncomingInvites.Count > 0;
     public bool HasOutgoingInvites => OutgoingInvites.Count > 0;
     public bool HasRequestItems => HasIncomingInvites || HasOutgoingInvites;
@@ -264,7 +264,14 @@ public partial class FriendsViewModel : ObservableObject
         try
         {
             IsBusy = true;
-            var knownEmails = Friends
+            var pendingEmails = Friends
+                .Where(x => x.IsPending)
+                .Select(x => (x.Email ?? "").Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var friendEmails = Friends
+                .Where(x => !x.IsPending)
                 .Select(x => (x.Email ?? "").Trim())
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -273,7 +280,7 @@ public partial class FriendsViewModel : ObservableObject
             {
                 var email = (invite.InviterEmail ?? "").Trim();
                 if (!string.IsNullOrWhiteSpace(email))
-                    knownEmails.Add(email);
+                    pendingEmails.Add(email);
             }
 
             var users = await _sync.SearchFriendUsersAsync(query, limit: 20);
@@ -283,8 +290,17 @@ public partial class FriendsViewModel : ObservableObject
                 if (string.IsNullOrWhiteSpace(email))
                     continue;
 
-                if (IsCurrentUserEmail(email) || knownEmails.Contains(email))
+                if (IsCurrentUserEmail(email))
                     continue;
+
+                var isFriend = friendEmails.Contains(email);
+                var isInvited = !isFriend && pendingEmails.Contains(email);
+
+                var actionText = isFriend
+                    ? T("status_friend")
+                    : isInvited
+                        ? T("invited_short")
+                        : T("invite_friend");
 
                 SearchResults.Add(new FriendSearchRow
                 {
@@ -292,7 +308,12 @@ public partial class FriendsViewModel : ObservableObject
                     Email = email,
                     DisplayName = string.IsNullOrWhiteSpace(user.display_name) ? email.Split('@')[0] : user.display_name,
                     Handle = BuildHandle(string.IsNullOrWhiteSpace(user.display_name) ? email.Split('@')[0] : user.display_name),
+                    PictureUrl = (user.picture_url ?? "").Trim(),
                     NutritionHint = T("friend_suggestion_nutrition_hint"),
+                    ActionText = actionText,
+                    IsInvitable = !isFriend && !isInvited,
+                    IsInvited = isInvited,
+                    IsFriend = isFriend,
                 });
             }
         }
@@ -327,6 +348,9 @@ public partial class FriendsViewModel : ObservableObject
             var ok = await _sync.TryInviteFriendAsync(email);
             StatusText = ok ? T("invite_sent") : T("invite_send_failed");
             await ReloadAsync();
+
+            if (ok)
+                await SearchUsers();
         }
         finally
         {
@@ -600,7 +624,7 @@ public partial class FriendsViewModel : ObservableObject
 
     private async Task ReloadAsync()
     {
-        var displayByEmail = new Dictionary<string, (string Name, string UserId)>(StringComparer.OrdinalIgnoreCase);
+        var displayByEmail = new Dictionary<string, (string Name, string UserId, string PictureUrl)>(StringComparer.OrdinalIgnoreCase);
         var outgoingByEmail = new Dictionary<string, OutgoingInviteDto>(StringComparer.OrdinalIgnoreCase);
         var token = Preferences.Default.Get("auth_id_token", "");
         var identityOk = await _sync.EnsureBackendIdentityAsync(token);
@@ -617,7 +641,7 @@ public partial class FriendsViewModel : ObservableObject
                 if (string.IsNullOrWhiteSpace(name))
                     name = DisplayNameFromEmail(email);
 
-                displayByEmail[email] = (name, (user.user_id ?? "").Trim());
+                displayByEmail[email] = (name, (user.user_id ?? "").Trim(), (user.picture_url ?? "").Trim());
             }
 
             var outgoing = await _sync.GetOutgoingInvitesAsync();
@@ -652,6 +676,7 @@ public partial class FriendsViewModel : ObservableObject
                 DisplayName = displayName,
                 Handle = BuildHandle(displayName),
                 UserId = displayByEmail.TryGetValue(email, out var info) ? info.UserId : "",
+                PictureUrl = displayByEmail.TryGetValue(email, out var pendingInfo) ? pendingInfo.PictureUrl : "",
                 InviteId = pair.Value.id,
                 Status = pending ? T("status_pending") : T("status_friend"),
                 Badge = pending ? "🟡" : "🟢",
@@ -670,6 +695,7 @@ public partial class FriendsViewModel : ObservableObject
                 DisplayName = kv.Value.Name,
                 Handle = BuildHandle(kv.Value.Name),
                 UserId = kv.Value.UserId,
+                PictureUrl = kv.Value.PictureUrl,
                 InviteId = "",
                 Status = T("status_friend"),
                 Badge = "🟢",
@@ -693,6 +719,7 @@ public partial class FriendsViewModel : ObservableObject
                     DisplayName = displayName,
                     Handle = BuildHandle(displayName),
                     UserId = "",
+                    PictureUrl = "",
                     InviteId = "",
                     Status = pending ? T("status_pending") : T("status_friend"),
                     Badge = pending ? "🟡" : "🟢",
@@ -719,6 +746,7 @@ public partial class FriendsViewModel : ObservableObject
                     InviterEmail = email,
                     InviterDisplay = display,
                     InviterHandle = BuildHandle(display),
+                    PictureUrl = displayByEmail.TryGetValue(email.ToLowerInvariant(), out var incomingInfo) ? incomingInfo.PictureUrl : "",
                 });
             }
         }
@@ -836,10 +864,27 @@ public class FriendsInviteRow
     public string DisplayName { get; set; } = "";
     public string Handle { get; set; } = "@user";
     public string Email { get; set; } = "";
+    public string PictureUrl { get; set; } = "";
     public string Status { get; set; } = "";
     public string Badge { get; set; } = "";
     public bool IsPending { get; set; }
     public bool IsFriend => !IsPending;
+    public bool HasPicture => !string.IsNullOrWhiteSpace(PictureUrl);
+    public bool HasNoPicture => !HasPicture;
+    public string Initials => BuildInitials(DisplayName, Email);
+
+    private static string BuildInitials(string displayName, string email)
+    {
+        var source = string.IsNullOrWhiteSpace(displayName) ? email : displayName;
+        if (string.IsNullOrWhiteSpace(source))
+            return "?";
+
+        var tokens = source.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (tokens.Length >= 2)
+            return $"{char.ToUpperInvariant(tokens[0][0])}{char.ToUpperInvariant(tokens[1][0])}";
+
+        return char.ToUpperInvariant(tokens[0][0]).ToString();
+    }
 }
 
 public class FriendsRankRow
@@ -855,7 +900,15 @@ public class FriendSearchRow
     public string Email { get; set; } = "";
     public string DisplayName { get; set; } = "";
     public string Handle { get; set; } = "@user";
+    public string PictureUrl { get; set; } = "";
     public string NutritionHint { get; set; } = "";
+    public string ActionText { get; set; } = "";
+    public bool IsInvitable { get; set; }
+    public bool IsInvited { get; set; }
+    public bool IsFriend { get; set; }
+    public bool HasPicture => !string.IsNullOrWhiteSpace(PictureUrl);
+    public bool HasNoPicture => !HasPicture;
+    public string Initials => string.IsNullOrWhiteSpace(DisplayName) ? "?" : char.ToUpperInvariant(DisplayName.Trim()[0]).ToString();
 }
 
 public class IncomingInviteRow
@@ -865,4 +918,8 @@ public class IncomingInviteRow
     public string InviterEmail { get; set; } = "";
     public string InviterDisplay { get; set; } = "";
     public string InviterHandle { get; set; } = "@user";
+    public string PictureUrl { get; set; } = "";
+    public bool HasPicture => !string.IsNullOrWhiteSpace(PictureUrl);
+    public bool HasNoPicture => !HasPicture;
+    public string Initials => string.IsNullOrWhiteSpace(InviterDisplay) ? "?" : char.ToUpperInvariant(InviterDisplay.Trim()[0]).ToString();
 }
