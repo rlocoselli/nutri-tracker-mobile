@@ -11,6 +11,7 @@ public partial class DashboardViewModel : ObservableObject
     private readonly IServiceProvider _sp;
     private readonly PointsService _points;
     private readonly BackendSyncService _sync;
+    private readonly WeeklyMissionService _missions;
 
     [ObservableProperty] private string userPictureUrl = "";
     [ObservableProperty] private string userName = "";
@@ -28,6 +29,7 @@ public partial class DashboardViewModel : ObservableObject
     [ObservableProperty] private string balanceStatusText = "";
     [ObservableProperty] private string recordingStreakText = "0 jours";
     [ObservableProperty] private string coinsText = "0";
+    [ObservableProperty] private string weeklyMissionStatusText = "";
     [ObservableProperty] private bool isLoading;
 
     [ObservableProperty] private double caloriesProgress;
@@ -37,6 +39,7 @@ public partial class DashboardViewModel : ObservableObject
     [ObservableProperty] private IList<string> macroChartLabels = Array.Empty<string>();
     [ObservableProperty] private IList<double> goalChartValues = Array.Empty<double>();
     [ObservableProperty] private IList<string> goalChartLabels = Array.Empty<string>();
+    public IList<WeeklyMissionItem> WeeklyMissions { get; private set; } = Array.Empty<WeeklyMissionItem>();
 
     public string HelloText => LocalizationService.T("hello");
     public string RecordMealText => LocalizationService.T("record_meal_plus");
@@ -62,14 +65,16 @@ public partial class DashboardViewModel : ObservableObject
     public string BalanceInfoTitleText => LocalizationService.T("balance_info_title");
     public string RecordingStreakTitleText => LocalizationService.T("recording_streak_title");
     public string CoinsTitleText => LocalizationService.T("coins_balance");
+    public string WeeklyMissionTitleText => LocalizationService.T("weekly_mission_title");
     public bool ShowGoogleFitUi => FeatureFlags.EnableGoogleFit;
 
-    public DashboardViewModel(GoogleFitService googleFit, IServiceProvider sp, PointsService points, BackendSyncService sync)
+    public DashboardViewModel(GoogleFitService googleFit, IServiceProvider sp, PointsService points, BackendSyncService sync, WeeklyMissionService missions)
     {
         _googleFit = googleFit;
         _sp = sp;
         _points = points;
         _sync = sync;
+        _missions = missions;
     }
 
     public async Task LoadAsync()
@@ -108,6 +113,7 @@ public partial class DashboardViewModel : ObservableObject
         OnPropertyChanged(nameof(BalanceInfoTitleText));
         OnPropertyChanged(nameof(RecordingStreakTitleText));
         OnPropertyChanged(nameof(CoinsTitleText));
+        OnPropertyChanged(nameof(WeeklyMissionTitleText));
         OnPropertyChanged(nameof(ShowGoogleFitUi));
 
         var accessToken = Preferences.Default.Get("auth_access_token", "");
@@ -141,9 +147,13 @@ public partial class DashboardViewModel : ObservableObject
         var toUtc = DateTime.SpecifyKind(todayLocal.AddDays(1), DateTimeKind.Local).ToUniversalTime();
 
         var token = Preferences.Default.Get("auth_id_token", "");
-        _ = await _sync.EnsureBackendIdentityAsync(token);
-        var goals = await _sync.GetGoalsAsync();
-        var mealsToday = await GetMealsForRangeAsync(fromUtc, toUtc);
+        var identityOk = await _sync.EnsureBackendIdentityAsync(token);
+        var goalsTask = _sync.GetGoalsAsync();
+        var mealsTodayTask = GetMealsForRangeAsync(fromUtc, toUtc, identityAlreadyEnsured: identityOk);
+        await Task.WhenAll(goalsTask, mealsTodayTask);
+
+        var goals = goalsTask.Result;
+        var mealsToday = mealsTodayTask.Result;
         var cal = mealsToday.Sum(m => m.TotalCalories);
         var carbs = mealsToday.Sum(m => m.TotalCarbsG);
         var prot = mealsToday.Sum(m => m.TotalProteinG);
@@ -199,7 +209,7 @@ public partial class DashboardViewModel : ObservableObject
                 var start = DateTime.SpecifyKind(dayLocal.Date, DateTimeKind.Local).ToUniversalTime();
                 var end = DateTime.SpecifyKind(dayLocal.Date.AddDays(1), DateTimeKind.Local).ToUniversalTime();
 
-                var meals = await GetMealsForRangeAsync(start, end);
+                var meals = await GetMealsForRangeAsync(start, end, identityAlreadyEnsured: identityOk);
                 return (meals.Sum(x => x.TotalCalories), meals.Sum(x => x.TotalCarbsG), meals.Sum(x => x.TotalProteinG), 0d);
             });
 
@@ -220,7 +230,7 @@ public partial class DashboardViewModel : ObservableObject
 
         try
         {
-            var loggingStreak = await ComputeRecordingStreakAsync();
+            var loggingStreak = await ComputeRecordingStreakAsync(identityAlreadyEnsured: identityOk);
             RecordingStreakText = $"{loggingStreak} {dayWord}";
         }
         catch
@@ -236,6 +246,33 @@ public partial class DashboardViewModel : ObservableObject
         {
             CoinsText = "0";
         }
+
+        try
+        {
+            var startOfWeekLocal = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek + (int)DayOfWeek.Monday);
+            if (DateTime.Today.DayOfWeek == DayOfWeek.Sunday)
+                startOfWeekLocal = DateTime.Today.AddDays(-6);
+
+            var startWeekUtc = DateTime.SpecifyKind(startOfWeekLocal.Date, DateTimeKind.Local).ToUniversalTime();
+            var nowUtc = DateTime.UtcNow;
+            var weekMeals = await GetMealsForRangeAsync(startWeekUtc, nowUtc.AddMinutes(1), identityAlreadyEnsured: identityOk);
+
+            var missionState = _missions.BuildState(weekMeals, goals);
+            WeeklyMissions = missionState.Missions.ToList();
+            WeeklyMissionStatusText = missionState.StatusText;
+            if (missionState.BonusAwarded && missionState.BonusPoints > 0)
+            {
+                _points.Award(missionState.BonusPoints);
+                CoinsText = _points.GetBalance().ToString();
+            }
+            OnPropertyChanged(nameof(WeeklyMissions));
+        }
+        catch
+        {
+            WeeklyMissions = Array.Empty<WeeklyMissionItem>();
+            WeeklyMissionStatusText = "";
+            OnPropertyChanged(nameof(WeeklyMissions));
+        }
         }
         finally
         {
@@ -243,7 +280,7 @@ public partial class DashboardViewModel : ObservableObject
         }
     }
 
-    private async Task<int> ComputeRecordingStreakAsync(int maxDays = 30)
+    private async Task<int> ComputeRecordingStreakAsync(int maxDays = 30, bool identityAlreadyEnsured = false)
     {
         var streak = 0;
         for (var i = 0; i < maxDays; i++)
@@ -251,7 +288,7 @@ public partial class DashboardViewModel : ObservableObject
             var dayLocal = DateTime.Now.Date.AddDays(-i);
             var fromUtc = DateTime.SpecifyKind(dayLocal, DateTimeKind.Local).ToUniversalTime();
             var toUtc = DateTime.SpecifyKind(dayLocal.AddDays(1), DateTimeKind.Local).ToUniversalTime();
-            var meals = await GetMealsForRangeAsync(fromUtc, toUtc);
+            var meals = await GetMealsForRangeAsync(fromUtc, toUtc, identityAlreadyEnsured);
             if (meals.Count == 0)
                 break;
             streak++;
@@ -287,12 +324,15 @@ public partial class DashboardViewModel : ObservableObject
             "OK");
     }
 
-    private async Task<List<MealEntry>> GetMealsForRangeAsync(DateTime fromUtc, DateTime toUtc)
+    private async Task<List<MealEntry>> GetMealsForRangeAsync(DateTime fromUtc, DateTime toUtc, bool identityAlreadyEnsured = false)
     {
-        var token = Preferences.Default.Get("auth_id_token", "");
-        var identityOk = await _sync.EnsureBackendIdentityAsync(token);
-        if (!identityOk)
-            return new List<MealEntry>();
+        if (!identityAlreadyEnsured)
+        {
+            var token = Preferences.Default.Get("auth_id_token", "");
+            var identityOk = await _sync.EnsureBackendIdentityAsync(token);
+            if (!identityOk)
+                return new List<MealEntry>();
+        }
 
         var backendMeals = await _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc);
         return backendMeals

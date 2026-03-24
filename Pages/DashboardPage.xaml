@@ -116,11 +116,40 @@
                 </Border>
             </Grid>
 
+            <Border Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="{Binding WeeklyMissionTitleText, StringFormat='🚀 {0}'}" FontAttributes="Bold" FontSize="12" />
+                    <Label Text="{Binding WeeklyMissionStatusText}" Style="{StaticResource BodyMuted}" />
+
+                    <CollectionView ItemsSource="{Binding WeeklyMissions}" SelectionMode="None">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Padding="0,2">
+                                    <Label Text="✅" IsVisible="{Binding IsCompleted}" />
+                                    <Label Text="🎯" IsVisible="False">
+                                        <Label.Triggers>
+                                            <DataTrigger TargetType="Label" Binding="{Binding IsCompleted}" Value="False">
+                                                <Setter Property="IsVisible" Value="True" />
+                                            </DataTrigger>
+                                        </Label.Triggers>
+                                    </Label>
+                                    <VerticalStackLayout Grid.Column="1" Spacing="0">
+                                        <Label Text="{Binding Title}" FontAttributes="Bold" FontSize="12" />
+                                        <Label Text="{Binding Hint}" Style="{StaticResource BodyMuted}" FontSize="11" />
+                                    </VerticalStackLayout>
+                                    <Label Grid.Column="2" Text="{Binding ProgressText}" FontAttributes="Bold" VerticalOptions="Center" />
+                                </Grid>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Border>
+
             <Label Text="{Binding FitSyncStatusText}" IsVisible="{Binding ShowGoogleFitUi}" FontSize="12" TextColor="{StaticResource Muted}" />
         </VerticalStackLayout>
     </ScrollView>
 
-    <Grid IsVisible="{Binding IsLoading}" BackgroundColor="#70000000" InputTransparent="False">
+    <Grid IsVisible="{Binding IsLoading}" BackgroundColor="#40000000" InputTransparent="True">
         <Border Style="{StaticResource Card}" Padding="18" MaximumWidthRequest="240" HorizontalOptions="Center" VerticalOptions="Center">
             <VerticalStackLayout Spacing="10" HorizontalOptions="Center">
                 <ActivityIndicator IsRunning="{Binding IsLoading}" IsVisible="{Binding IsLoading}" />

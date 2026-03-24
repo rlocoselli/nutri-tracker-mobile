@@ -88,6 +88,21 @@
                     <controls:MacroDonutChart HeightRequest="180"
                                               Values="{Binding QualityDonutValues}"
                                               Labels="{Binding QualityDonutLabels}" />
+                    <VerticalStackLayout Spacing="6" Margin="0,4,0,0">
+                        <Label Text="{Binding ChartLegendTitle}" Style="{StaticResource BodyMuted}" />
+                        <HorizontalStackLayout Spacing="8">
+                            <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="5" Color="#3CB371" VerticalOptions="Center" />
+                            <Label Text="{Binding ChartLegendGoodText}" FontSize="12" />
+                        </HorizontalStackLayout>
+                        <HorizontalStackLayout Spacing="8">
+                            <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="5" Color="#DAA520" VerticalOptions="Center" />
+                            <Label Text="{Binding ChartLegendMediumText}" FontSize="12" />
+                        </HorizontalStackLayout>
+                        <HorizontalStackLayout Spacing="8">
+                            <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="5" Color="#CD5C5C" VerticalOptions="Center" />
+                            <Label Text="{Binding ChartLegendLowText}" FontSize="12" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
                 </VerticalStackLayout>
             </Border>
 
@@ -97,12 +112,16 @@
                     <controls:BarChart HeightRequest="220"
                                        Values="{Binding HydrationValues}"
                                        Labels="{Binding HydrationLabels}" />
+                    <HorizontalStackLayout Spacing="8" Margin="0,4,0,0">
+                        <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="5" Color="#1E90FF" VerticalOptions="Center" />
+                        <Label Text="{Binding ChartLegendHydrationText}" Style="{StaticResource BodyMuted}" FontSize="12" />
+                    </HorizontalStackLayout>
                 </VerticalStackLayout>
             </Border>
         </VerticalStackLayout>
     </ScrollView>
 
-    <Grid IsVisible="{Binding IsLoading}" BackgroundColor="#70000000" InputTransparent="False">
+    <Grid IsVisible="{Binding IsLoading}" BackgroundColor="#40000000" InputTransparent="True">
         <Border Style="{StaticResource Card}" Padding="18" MaximumWidthRequest="240" HorizontalOptions="Center" VerticalOptions="Center">
             <VerticalStackLayout Spacing="10" HorizontalOptions="Center">
                 <ActivityIndicator IsRunning="{Binding IsLoading}" IsVisible="{Binding IsLoading}" />

@@ -49,6 +49,23 @@
             <Label Text="{Binding ResultQuality}" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
             <Label Text="{Binding ResultBadge}" FontAttributes="Bold" />
             <Label Text="{Binding ResultSemaphore}" Style="{StaticResource BodyMuted}" />
+            <Border Style="{StaticResource Card}" Background="{StaticResource Card2Brush}" Padding="10,8" IsVisible="{Binding HasScoreWhy}">
+              <Label Text="{Binding ResultScoreWhy}" FontSize="12" LineBreakMode="WordWrap" />
+            </Border>
+            <Border Style="{StaticResource Card}" Background="{StaticResource Card2Brush}" Padding="10,8">
+              <VerticalStackLayout Spacing="4">
+                <Label Text="{Binding ResultMotivation}" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
+                <Label Text="{Binding ResultSocialStatus}" FontSize="12" TextColor="{StaticResource Muted}" />
+              </VerticalStackLayout>
+            </Border>
+            <Border Style="{StaticResource Card}" Background="{StaticResource Card2Brush}" Padding="10,8" IsVisible="{Binding HasTip}">
+              <VerticalStackLayout Spacing="4">
+                <Label Text="{Binding ResultTipTitle}" FontAttributes="Bold" />
+                <Label Text="{Binding ResultTipMessage}" />
+                <Label Text="{Binding ResultTipChallenge}" FontSize="12" FontAttributes="Bold" />
+                <Label Text="{Binding ResultTipProgress}" FontSize="12" TextColor="{StaticResource Muted}" />
+              </VerticalStackLayout>
+            </Border>
             <Label Text="{Binding ResultNotes}" FontSize="12" Opacity="0.7" />
           </VerticalStackLayout>
         </Border>

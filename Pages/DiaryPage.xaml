@@ -206,7 +206,7 @@
                                     Text="{Binding AnalysisText}"
                                     IsVisible="{Binding HasAnalysis}"
                                     LineBreakMode="WordWrap"
-                                    MaxLines="3"
+                                    MaxLines="6"
                                     FontSize="12"
                                     TextColor="{StaticResource Primary}" />
                                 <Image Grid.Row="4"
@@ -329,7 +329,7 @@
             </Border>
         </Grid>
 
-        <Grid IsVisible="{Binding IsLoading}" BackgroundColor="#70000000" InputTransparent="False">
+        <Grid IsVisible="{Binding IsLoading}" BackgroundColor="#40000000" InputTransparent="True">
             <Border Style="{StaticResource Card}" Padding="18" MaximumWidthRequest="240" HorizontalOptions="Center" VerticalOptions="Center">
                 <VerticalStackLayout Spacing="10" HorizontalOptions="Center">
                     <ActivityIndicator IsRunning="{Binding IsLoading}" IsVisible="{Binding IsLoading}" />

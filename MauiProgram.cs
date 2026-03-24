@@ -25,6 +25,10 @@ public static class MauiProgram
         builder.Services.AddSingleton<SessionService>();
         builder.Services.AddSingleton<GoogleFitService>();
         builder.Services.AddSingleton<PointsService>();
+        builder.Services.AddSingleton<HealthyTipService>();
+        builder.Services.AddSingleton<GamificationCoachService>();
+        builder.Services.AddSingleton<WeeklyMissionService>();
+        builder.Services.AddSingleton<GoalNudgeService>();
         builder.Services.AddSingleton<SocialService>();
         builder.Services.AddSingleton<SocialNotificationService>();
         builder.Services.AddSingleton<BackendSyncService>();
@@ -48,6 +52,7 @@ public static class MauiProgram
         builder.Services.AddTransient<ProfileViewModel>();
         builder.Services.AddTransient<HelpViewModel>();
         builder.Services.AddTransient<StatisticsViewModel>();
+        builder.Services.AddTransient<ScoreHistoryViewModel>();
 
         // Pages
         builder.Services.AddTransient<LoginPage>();
@@ -64,6 +69,7 @@ public static class MauiProgram
         builder.Services.AddTransient<ProfilePage>();
         builder.Services.AddTransient<HelpPage>();
         builder.Services.AddTransient<StatisticsPage>();
+        builder.Services.AddTransient<ScoreHistoryPage>();
 
         // Shell + Main (loading)
         builder.Services.AddSingleton<AppShell>();

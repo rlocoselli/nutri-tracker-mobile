@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from .db import Base, engine, ensure_postgres_objects, ensure_postgres_required_columns
 from . import models  # noqa: F401
-from .routes import auth, meals, goals, points, reminders, friends, water
+from .routes import auth, meals, goals, points, reminders, friends, water, gamification
 
 
 app = FastAPI(
@@ -38,3 +38,4 @@ app.include_router(points.router, prefix="/api")
 app.include_router(reminders.router, prefix="/api")
 app.include_router(friends.router, prefix="/api")
 app.include_router(water.router, prefix="/api")
+app.include_router(gamification.router, prefix="/api")

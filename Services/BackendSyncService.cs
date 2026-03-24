@@ -773,6 +773,91 @@ public class BackendSyncService
         return parsed ?? new List<FriendDirectoryDto>();
     }
 
+    public async Task<List<BackendGamificationEvent>> GetGamificationEventsAsync(int limit = 60)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
+            return new List<BackendGamificationEvent>();
+
+        var safeLimit = Math.Clamp(limit, 1, 200);
+        using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/gamification/events?limit={safeLimit}");
+        req.Headers.Add("X-User-Id", userId);
+
+        var resp = await _http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode)
+            return new List<BackendGamificationEvent>();
+
+        var parsed = await resp.Content.ReadFromJsonAsync<List<BackendGamificationEvent>>();
+        return parsed ?? new List<BackendGamificationEvent>();
+    }
+
+    public async Task<bool> TryPostGamificationEventAsync(string eventType, string title, string message, Dictionary<string, object>? metadata = null)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(eventType))
+            return false;
+
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post, $"{ApiBaseUrl}/gamification/events");
+            req.Headers.Add("X-User-Id", userId);
+            req.Content = JsonContent.Create(new
+            {
+                event_type = eventType.Trim(),
+                title = (title ?? "").Trim(),
+                message = (message ?? "").Trim(),
+                metadata_json = metadata ?? new Dictionary<string, object>()
+            });
+
+            var resp = await _http.SendAsync(req);
+            return resp.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<bool> TryUpdateGamificationStateAsync(
+        int? sharedStreakDays = null,
+        int? weeklySharedPosts = null,
+        string? weeklyMissionStatus = null,
+        int? weeklyMissionCompleted = null,
+        int? weeklyMissionTarget = null,
+        string? leagueTier = null,
+        string? seasonKey = null)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
+            return false;
+
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Put, $"{ApiBaseUrl}/gamification/season");
+            req.Headers.Add("X-User-Id", userId);
+
+            var payload = new Dictionary<string, object>();
+            if (sharedStreakDays.HasValue) payload["shared_streak_days"] = Math.Max(0, sharedStreakDays.Value);
+            if (weeklySharedPosts.HasValue) payload["weekly_shared_posts"] = Math.Max(0, weeklySharedPosts.Value);
+            if (weeklyMissionCompleted.HasValue) payload["weekly_mission_completed"] = Math.Max(0, weeklyMissionCompleted.Value);
+            if (weeklyMissionTarget.HasValue) payload["weekly_mission_target"] = Math.Max(1, weeklyMissionTarget.Value);
+            if (!string.IsNullOrWhiteSpace(weeklyMissionStatus)) payload["weekly_mission_status"] = weeklyMissionStatus.Trim();
+            if (!string.IsNullOrWhiteSpace(leagueTier)) payload["league_tier"] = leagueTier.Trim();
+            if (!string.IsNullOrWhiteSpace(seasonKey)) payload["season_key"] = seasonKey.Trim();
+
+            if (payload.Count == 0)
+                return true;
+
+            req.Content = JsonContent.Create(payload);
+            var resp = await _http.SendAsync(req);
+            return resp.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private sealed class AuthResponse
     {
         public string user_id { get; set; } = "";
@@ -1015,5 +1100,15 @@ public class OutgoingInviteDto
     public string id { get; set; } = "";
     public string invitee_email { get; set; } = "";
     public string status { get; set; } = "";
+    public DateTime created_at_utc { get; set; }
+}
+
+public class BackendGamificationEvent
+{
+    public string id { get; set; } = "";
+    public string event_type { get; set; } = "";
+    public string title { get; set; } = "";
+    public string message { get; set; } = "";
+    public Dictionary<string, object> metadata_json { get; set; } = new();
     public DateTime created_at_utc { get; set; }
 }

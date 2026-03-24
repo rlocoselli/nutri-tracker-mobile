@@ -7,6 +7,7 @@
     Title="{Binding TitleText}"
     BackgroundColor="{StaticResource Background}">
 
+    <Grid>
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="14">
             <Label Text="{Binding TitleText}" Style="{StaticResource H1}" />
@@ -101,6 +102,10 @@
                                     <VerticalStackLayout Grid.Column="1" Spacing="2">
                                         <Label Text="{Binding Name}" FontAttributes="Bold" />
                                         <Label Text="{Binding Detail}" Style="{StaticResource BodyMuted}" />
+                                    </VerticalStackLayout>
+                                    <VerticalStackLayout Grid.Column="2" Spacing="2" HorizontalOptions="End">
+                                        <Label Text="{Binding TierBadge}" FontSize="18" HorizontalTextAlignment="Center" />
+                                        <Label Text="{Binding TierName}" Style="{StaticResource BodyMuted}" HorizontalTextAlignment="Center" />
                                     </VerticalStackLayout>
                                 </Grid>
                             </Border>
@@ -248,4 +253,18 @@
             <Button Text="{Binding RefreshText}" Style="{StaticResource SecondaryButton}" Command="{Binding RefreshCommand}" />
         </VerticalStackLayout>
     </ScrollView>
+
+    <Border x:Name="LeagueToast"
+            IsVisible="{Binding HasLeagueBadgeAnnouncement}"
+            Opacity="0"
+            Scale="0.9"
+            HorizontalOptions="Center"
+            VerticalOptions="Start"
+            Margin="20,16,20,0"
+            Padding="14,10"
+            Style="{StaticResource Card}"
+            Background="{StaticResource Card2Brush}">
+        <Label Text="{Binding LeagueBadgeAnnouncement}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+    </Border>
+    </Grid>
 </ContentPage>

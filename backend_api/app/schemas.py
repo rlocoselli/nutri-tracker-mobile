@@ -218,3 +218,40 @@ class IncomingInviteOut(BaseModel):
     invitee_email: str
     status: str
     created_at_utc: datetime
+
+
+class GamificationStatePatchIn(BaseModel):
+    season_key: str | None = None
+    league_tier: str | None = None
+    shared_streak_days: int | None = None
+    weekly_shared_posts: int | None = None
+    weekly_mission_completed: int | None = None
+    weekly_mission_target: int | None = None
+    weekly_mission_status: str | None = None
+
+
+class GamificationStateOut(BaseModel):
+    season_key: str
+    league_tier: str
+    shared_streak_days: int
+    weekly_shared_posts: int
+    weekly_mission_completed: int
+    weekly_mission_target: int
+    weekly_mission_status: str
+    updated_at_utc: datetime
+
+
+class GamificationEventIn(BaseModel):
+    event_type: str
+    title: str = ""
+    message: str = ""
+    metadata_json: dict = Field(default_factory=dict)
+
+
+class GamificationEventOut(BaseModel):
+    id: str
+    event_type: str
+    title: str
+    message: str
+    metadata_json: dict = Field(default_factory=dict)
+    created_at_utc: datetime

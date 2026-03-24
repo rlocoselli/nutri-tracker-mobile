@@ -74,6 +74,7 @@ public partial class ProfileViewModel : ObservableObject
     public string AcceptText => LocalizationService.T("accept");
     public string RemoveText => LocalizationService.T("remove");
     public string FriendsLeagueTitle => LocalizationService.T("friends_league_title");
+    public string ScoreHistoryButtonText => LocalizationService.T("score_history_open");
     public string PrivacyMenuText => LocalizationService.T("privacy_menu_item");
     public string AccountSecurityTitle => LocalizationService.T("account_security_title");
     public string CurrentPasswordLabel => LocalizationService.T("current_password_label");
@@ -151,6 +152,7 @@ public partial class ProfileViewModel : ObservableObject
         OnPropertyChanged(nameof(AcceptText));
         OnPropertyChanged(nameof(RemoveText));
         OnPropertyChanged(nameof(FriendsLeagueTitle));
+        OnPropertyChanged(nameof(ScoreHistoryButtonText));
         OnPropertyChanged(nameof(PrivacyMenuText));
         OnPropertyChanged(nameof(AccountSecurityTitle));
         OnPropertyChanged(nameof(CurrentPasswordLabel));
@@ -259,6 +261,12 @@ public partial class ProfileViewModel : ObservableObject
         await _subscription.ConfirmGoogleSubscriptionAsync();
         SubscriptionStatusText = LocalizationService.T("subscription_confirmed");
         RefreshSubscriptionUi();
+    }
+
+    [RelayCommand]
+    private async Task OpenScoreHistory()
+    {
+        await Shell.Current.Navigation.PushAsync(_sp.GetRequiredService<ScoreHistoryPage>());
     }
 
     [RelayCommand]

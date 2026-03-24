@@ -22,6 +22,8 @@ Usage:
   ./scripts/deploy_android_wifi.sh pair <ip:pair_port> [pairing_code]
   ./scripts/deploy_android_wifi.sh connect <ip:adb_port>
   ./scripts/deploy_android_wifi.sh install [device_serial]
+  ./scripts/deploy_android_wifi.sh usb
+  ./scripts/deploy_android_wifi.sh usb-install
   ./scripts/deploy_android_wifi.sh status
   ./scripts/deploy_android_wifi.sh all <ip:pair_port> <ip:adb_port> [pairing_code]
 
@@ -29,6 +31,7 @@ Examples:
   ./scripts/deploy_android_wifi.sh pair 192.168.1.50:42081 123456
   ./scripts/deploy_android_wifi.sh connect 192.168.1.50:45553
   ./scripts/deploy_android_wifi.sh install 192.168.1.50:45553
+  ./scripts/deploy_android_wifi.sh usb
   ./scripts/deploy_android_wifi.sh all 192.168.1.50:42081 192.168.1.50:45553 123456
 
 Phone prerequisites (Android 11+):
@@ -42,6 +45,11 @@ require_dotnet() {
     echo "❌ dotnet introuvable dans le PATH." >&2
     exit 1
   fi
+}
+
+first_usb_device_serial() {
+  "$ADB_BIN" devices -l \
+    | awk 'NR > 1 && $2 == "device" {for (i = 3; i <= NF; i++) if ($i ~ /^usb:/) {print $1; exit}}'
 }
 
 cmd="${1:-}"
@@ -90,6 +98,21 @@ case "$cmd" in
       dotnet build "$PROJECT_FILE" -t:Install -f "$TFM" -v minimal
     fi
 
+    popd >/dev/null
+    ;;
+
+  usb|usb-install)
+    require_dotnet
+    serial="$(first_usb_device_serial)"
+    if [[ -z "$serial" ]]; then
+      echo "❌ Aucun appareil USB detecte. Branche le telephone puis active le debogage USB." >&2
+      "$ADB_BIN" devices -l
+      exit 1
+    fi
+
+    echo "📲 Déploiement USB auto sur $serial"
+    pushd "$PROJECT_ROOT" >/dev/null
+    dotnet build "$PROJECT_FILE" -t:Install -f "$TFM" -p:AndroidDeviceSerial="$serial" -v minimal
     popd >/dev/null
     ;;
 

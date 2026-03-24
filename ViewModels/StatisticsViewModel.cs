@@ -10,6 +10,7 @@ namespace NutritionTracker.ViewModels;
 public partial class StatisticsViewModel : ObservableObject
 {
     private readonly BackendSyncService _sync;
+    private bool _reloadRequested;
 
     public ObservableCollection<StatisticsToggleItem> PeriodTabs { get; } = new();
 
@@ -38,6 +39,11 @@ public partial class StatisticsViewModel : ObservableObject
     public string AvgHydrationTitle => LocalizationService.T("stats_avg_hydration");
     public string QualitySplitTitle => LocalizationService.T("stats_quality_split");
     public string HydrationSeriesTitle => LocalizationService.T("stats_hydration_series");
+    public string ChartLegendTitle => LocalizationService.T("stats_chart_legend_title");
+    public string ChartLegendGoodText => LocalizationService.T("stats_chart_legend_good");
+    public string ChartLegendMediumText => LocalizationService.T("stats_chart_legend_medium");
+    public string ChartLegendLowText => LocalizationService.T("stats_chart_legend_low");
+    public string ChartLegendHydrationText => LocalizationService.T("stats_chart_legend_hydration");
     public string LoadingText => LocalizationService.T("main_loading");
 
     public StatisticsViewModel(BackendSyncService sync)
@@ -65,30 +71,43 @@ public partial class StatisticsViewModel : ObservableObject
     public async Task LoadAsync()
     {
         if (IsLoading)
+        {
+            _reloadRequested = true;
             return;
-
-        IsLoading = true;
-
-        try
-        {
-        OnPropertyChanged(nameof(TitleText));
-        OnPropertyChanged(nameof(SubtitleText));
-        OnPropertyChanged(nameof(PeriodTitle));
-        OnPropertyChanged(nameof(AvgCaloriesTitle));
-        OnPropertyChanged(nameof(AvgProteinTitle));
-        OnPropertyChanged(nameof(AvgCarbsTitle));
-        OnPropertyChanged(nameof(AvgQualityTitle));
-        OnPropertyChanged(nameof(AvgHydrationTitle));
-        OnPropertyChanged(nameof(QualitySplitTitle));
-        OnPropertyChanged(nameof(HydrationSeriesTitle));
-        OnPropertyChanged(nameof(LoadingText));
-
-        await LoadStatsAsync();
         }
-        finally
+
+        do
         {
-            IsLoading = false;
+            _reloadRequested = false;
+            IsLoading = true;
+
+            try
+            {
+                OnPropertyChanged(nameof(TitleText));
+                OnPropertyChanged(nameof(SubtitleText));
+                OnPropertyChanged(nameof(PeriodTitle));
+                OnPropertyChanged(nameof(AvgCaloriesTitle));
+                OnPropertyChanged(nameof(AvgProteinTitle));
+                OnPropertyChanged(nameof(AvgCarbsTitle));
+                OnPropertyChanged(nameof(AvgQualityTitle));
+                OnPropertyChanged(nameof(AvgHydrationTitle));
+                OnPropertyChanged(nameof(QualitySplitTitle));
+                OnPropertyChanged(nameof(HydrationSeriesTitle));
+                OnPropertyChanged(nameof(ChartLegendTitle));
+                OnPropertyChanged(nameof(ChartLegendGoodText));
+                OnPropertyChanged(nameof(ChartLegendMediumText));
+                OnPropertyChanged(nameof(ChartLegendLowText));
+                OnPropertyChanged(nameof(ChartLegendHydrationText));
+                OnPropertyChanged(nameof(LoadingText));
+
+                await LoadStatsAsync();
+            }
+            finally
+            {
+                IsLoading = false;
+            }
         }
+        while (_reloadRequested);
     }
 
     private async Task LoadStatsAsync()
@@ -118,12 +137,22 @@ public partial class StatisticsViewModel : ObservableObject
 
         var token = Preferences.Default.Get("auth_id_token", "");
         var identityOk = await _sync.EnsureBackendIdentityAsync(token);
-        var backendMeals = identityOk
-            ? await _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc)
-            : new List<BackendMeal>();
-        var waterPoints = identityOk
-            ? await _sync.GetWaterIntakeSeriesAsync(fromLocal.Date, toLocalExclusive.Date)
-            : new List<BackendWaterPoint>();
+
+        List<BackendMeal> backendMeals;
+        List<BackendWaterPoint> waterPoints;
+        if (identityOk)
+        {
+            var mealsTask = _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc);
+            var waterTask = _sync.GetWaterIntakeSeriesAsync(fromLocal.Date, toLocalExclusive.Date);
+            await Task.WhenAll(mealsTask, waterTask);
+            backendMeals = mealsTask.Result;
+            waterPoints = waterTask.Result;
+        }
+        else
+        {
+            backendMeals = new List<BackendMeal>();
+            waterPoints = new List<BackendWaterPoint>();
+        }
 
         var entries = backendMeals.Select(ToMealEntry).ToList();
 
@@ -136,8 +165,9 @@ public partial class StatisticsViewModel : ObservableObject
             AvgHydrationText = "0 L";
             ChartValues = Array.Empty<double>();
             ChartLabels = Array.Empty<string>();
-            HydrationValues = BuildHydrationSeries(new List<BackendWaterPoint>(), fromLocal.Date, toLocalExclusive.Date).Select(x => x.Value).ToList();
-            HydrationLabels = BuildHydrationSeries(new List<BackendWaterPoint>(), fromLocal.Date, toLocalExclusive.Date).Select(x => x.Label).ToList();
+            var hydrationEmpty = BuildHydrationSeries(new List<BackendWaterPoint>(), fromLocal.Date, toLocalExclusive.Date);
+            HydrationValues = hydrationEmpty.Select(x => x.Value).ToList();
+            HydrationLabels = hydrationEmpty.Select(x => x.Label).ToList();
             QualityDonutValues = new List<double> { 0, 0, 0 };
             QualityDonutLabels = new List<string> { LocalizationService.T("stats_quality_good"), LocalizationService.T("stats_quality_medium"), LocalizationService.T("stats_quality_low") };
             return;

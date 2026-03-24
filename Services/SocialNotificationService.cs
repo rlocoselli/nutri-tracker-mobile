@@ -5,6 +5,8 @@ namespace NutritionTracker.Services;
 public class SocialNotificationService
 {
     private const string SnapshotKey = "social_activity_snapshot_v1";
+    private const string FriendPostsSnapshotKey = "social_friend_posts_snapshot_v1";
+    private const string FriendPostsSnapshotInitializedKey = "social_friend_posts_snapshot_initialized_v1";
     private const string IncomingInviteSnapshotKey = "social_incoming_invites_snapshot_v1";
     private const string IncomingInviteSnapshotInitializedKey = "social_incoming_invites_snapshot_initialized_v1";
     private readonly BackendSyncService _sync;
@@ -37,6 +39,9 @@ public class SocialNotificationService
             var incomingInvites = await _sync.GetIncomingInvitesAsync();
             var mine = feed
                 .Where(x => string.Equals((x.user_id ?? "").Trim(), meUserId, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            var friends = feed
+                .Where(x => !string.Equals((x.user_id ?? "").Trim(), meUserId, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             var snapshot = LoadSnapshot();
@@ -76,6 +81,37 @@ public class SocialNotificationService
 
             SaveSnapshot(snapshot);
 
+            var friendSnapshot = LoadFriendPostSnapshot();
+            var hadFriendSnapshot = Preferences.Default.Get(FriendPostsSnapshotInitializedKey, false);
+            var currentFriendPostIds = friends
+                .Select(x => (x.meal_id ?? "").Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var newFriendPosts = friends
+                .Where(x => !friendSnapshot.Contains((x.meal_id ?? "").Trim()))
+                .OrderByDescending(x => x.date_utc)
+                .Take(3)
+                .ToList();
+
+            if (hadFriendSnapshot && newFriendPosts.Count > 0)
+            {
+                foreach (var story in newFriendPosts)
+                {
+                    var actor = (story.display_name ?? "").Trim();
+                    if (string.IsNullOrWhiteSpace(actor))
+                        actor = LocalizationService.T("story_default_author");
+
+                    var hasPhoto = !string.IsNullOrWhiteSpace((story.photo_url ?? "").Trim());
+                    notifications.Add(hasPhoto
+                        ? string.Format(LocalizationService.T("friend_story_photo_notification"), actor)
+                        : string.Format(LocalizationService.T("friend_story_entry_notification"), actor));
+                }
+            }
+
+            SaveFriendPostSnapshot(currentFriendPostIds);
+            Preferences.Default.Set(FriendPostsSnapshotInitializedKey, true);
+
             var inviteSnapshot = LoadInviteSnapshot();
             var hadInviteSnapshot = Preferences.Default.Get(IncomingInviteSnapshotInitializedKey, false);
             var currentInviteIds = incomingInvites
@@ -112,7 +148,13 @@ public class SocialNotificationService
             {
                 try
                 {
-                    await Application.Current!.MainPage!.DisplayAlert(
+                    var page = Application.Current?.Windows.Count > 0
+                        ? Application.Current.Windows[0].Page
+                        : null;
+                    if (page == null)
+                        return;
+
+                    await page.DisplayAlert(
                         LocalizationService.T("social_notify_title"),
                         body,
                         "OK");
@@ -149,6 +191,31 @@ public class SocialNotificationService
     {
         var json = JsonSerializer.Serialize(snapshot);
         Preferences.Default.Set(SnapshotKey, json);
+    }
+
+    private static HashSet<string> LoadFriendPostSnapshot()
+    {
+        var json = Preferences.Default.Get(FriendPostsSnapshotKey, "");
+        if (string.IsNullOrWhiteSpace(json))
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<List<string>>(json) ?? new List<string>();
+            return parsed
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private static void SaveFriendPostSnapshot(HashSet<string> mealIds)
+    {
+        var json = JsonSerializer.Serialize(mealIds.ToList());
+        Preferences.Default.Set(FriendPostsSnapshotKey, json);
     }
 
     private static HashSet<string> LoadInviteSnapshot()

@@ -20,6 +20,7 @@ public partial class FriendsViewModel : ObservableObject
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private string selectedTab = "friends";
     [ObservableProperty] private string friendsSearchQuery = "";
+    [ObservableProperty] private string leagueBadgeAnnouncement = "";
 
     public ObservableCollection<FriendsInviteRow> Friends { get; } = new();
     public ObservableCollection<FriendsInviteRow> AcceptedFriends { get; } = new();
@@ -77,6 +78,7 @@ public partial class FriendsViewModel : ObservableObject
     public bool HasRequestItems => HasIncomingInvites || HasOutgoingInvites;
     public bool HasSuggestions => SearchResults.Count > 0;
     public bool HasAcceptedFriends => AcceptedFriends.Count > 0;
+    public bool HasLeagueBadgeAnnouncement => !string.IsNullOrWhiteSpace(LeagueBadgeAnnouncement);
 
     public FriendsViewModel(SocialService social, BackendSyncService sync, PointsService points, IServiceProvider services)
     {
@@ -141,6 +143,11 @@ public partial class FriendsViewModel : ObservableObject
     partial void OnFriendsSearchQueryChanged(string value)
     {
         ApplyFriendsFilter();
+    }
+
+    partial void OnLeagueBadgeAnnouncementChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasLeagueBadgeAnnouncement));
     }
 
     [RelayCommand]
@@ -484,19 +491,25 @@ public partial class FriendsViewModel : ObservableObject
     [RelayCommand]
     private async Task SyncContacts()
     {
-        await Application.Current!.MainPage!.DisplayAlert(T("friends_title"), T("contacts_permission_explainer"), "OK");
+        var page = GetCurrentPage();
+        if (page == null) return;
+        await page.DisplayAlert(T("friends_title"), T("contacts_permission_explainer"), "OK");
     }
 
     [RelayCommand]
     private async Task InviteByLink()
     {
-        await Application.Current!.MainPage!.DisplayAlert(T("friends_title"), T("invite_link_hint"), "OK");
+        var page = GetCurrentPage();
+        if (page == null) return;
+        await page.DisplayAlert(T("friends_title"), T("invite_link_hint"), "OK");
     }
 
     [RelayCommand]
     private async Task ShowQr()
     {
-        await Application.Current!.MainPage!.DisplayAlert(T("friends_title"), T("qr_hint"), "OK");
+        var page = GetCurrentPage();
+        if (page == null) return;
+        await page.DisplayAlert(T("friends_title"), T("qr_hint"), "OK");
     }
 
     [RelayCommand]
@@ -531,7 +544,9 @@ public partial class FriendsViewModel : ObservableObject
         var identityOk = await _sync.EnsureBackendIdentityAsync(token);
         if (!identityOk)
         {
-            await Application.Current!.MainPage!.DisplayAlert(T("friends_title"), T("friend_action_signin_needed"), "OK");
+            var page = GetCurrentPage();
+            if (page != null)
+                await page.DisplayAlert(T("friends_title"), T("friend_action_signin_needed"), "OK");
             return;
         }
 
@@ -541,10 +556,14 @@ public partial class FriendsViewModel : ObservableObject
 
         if (string.IsNullOrWhiteSpace(otherUserId))
         {
-            await Application.Current!.MainPage!.DisplayAlert(
-                string.Format(T("friend_stories_title"), row.DisplayName),
-                T("friend_no_stories"),
-                "OK");
+            var page = GetCurrentPage();
+            if (page != null)
+            {
+                await page.DisplayAlert(
+                    string.Format(T("friend_stories_title"), row.DisplayName),
+                    T("friend_no_stories"),
+                    "OK");
+            }
             return;
         }
 
@@ -580,7 +599,9 @@ public partial class FriendsViewModel : ObservableObject
         var identityOk = await _sync.EnsureBackendIdentityAsync(token);
         if (!identityOk)
         {
-            await Application.Current!.MainPage!.DisplayAlert(T("friends_title"), T("friend_action_signin_needed"), "OK");
+            var page = GetCurrentPage();
+            if (page != null)
+                await page.DisplayAlert(T("friends_title"), T("friend_action_signin_needed"), "OK");
             return;
         }
 
@@ -590,7 +611,9 @@ public partial class FriendsViewModel : ObservableObject
 
         if (string.IsNullOrWhiteSpace(otherUserId))
         {
-            await Application.Current!.MainPage!.DisplayAlert(T("friend_message"), T("friend_message_unavailable"), "OK");
+            var page = GetCurrentPage();
+            if (page != null)
+                await page.DisplayAlert(T("friend_message"), T("friend_message_unavailable"), "OK");
             return;
         }
 
@@ -765,6 +788,7 @@ public partial class FriendsViewModel : ObservableObject
         var rows = _social.GetLeaderboard(selfEmail, selfName, _points.GetBalance());
 
         var rank = 1;
+        var myTier = "";
         foreach (var row in rows)
         {
             var medal = rank switch
@@ -776,14 +800,49 @@ public partial class FriendsViewModel : ObservableObject
             };
 
             var me = row.IsMe ? $" ({T("you")})" : "";
+            var tier = ResolveTier(row.WeeklyXp, row.StreakDays);
+            if (row.IsMe)
+                myTier = tier.Name;
+
             League.Add(new FriendsRankRow
             {
                 Rank = medal,
                 Name = $"{row.DisplayName}{me}",
                 Detail = $"XP: {row.WeeklyXp} · 🔥 {row.StreakDays}",
+                TierBadge = tier.Badge,
+                TierName = tier.Name,
             });
             rank++;
         }
+
+        UpdateLeagueAnnouncement(myTier);
+    }
+
+    private void UpdateLeagueAnnouncement(string currentTierName)
+    {
+        if (string.IsNullOrWhiteSpace(currentTierName))
+            return;
+
+        var stored = Preferences.Default.Get("league_badge_tier_name", "").Trim();
+        if (string.Equals(stored, currentTierName, StringComparison.Ordinal))
+            return;
+
+        Preferences.Default.Set("league_badge_tier_name", currentTierName);
+        LeagueBadgeAnnouncement = string.Format(T("league_badge_unlocked"), currentTierName);
+    }
+
+    private static (string Badge, string Name) ResolveTier(int weeklyXp, int streakDays)
+    {
+        if (weeklyXp >= 1200 && streakDays >= 12)
+            return ("💎", "Diamond");
+
+        if (weeklyXp >= 800 && streakDays >= 8)
+            return ("🥇", "Gold");
+
+        if (weeklyXp >= 450 && streakDays >= 5)
+            return ("🥈", "Silver");
+
+        return ("🥉", "Bronze");
     }
 
     private static string DisplayNameFromEmail(string email)
@@ -825,6 +884,13 @@ public partial class FriendsViewModel : ObservableObject
         var mine = Preferences.Default.Get("profile_email", "").Trim().ToLowerInvariant();
         var other = (email ?? "").Trim().ToLowerInvariant();
         return !string.IsNullOrWhiteSpace(mine) && string.Equals(mine, other, StringComparison.Ordinal);
+    }
+
+    private static Page? GetCurrentPage()
+    {
+        return Application.Current?.Windows.Count > 0
+            ? Application.Current.Windows[0].Page
+            : null;
     }
 
     private static string T(string key) => LocalizationService.T(key);
@@ -892,6 +958,8 @@ public class FriendsRankRow
     public string Rank { get; set; } = "";
     public string Name { get; set; } = "";
     public string Detail { get; set; } = "";
+    public string TierBadge { get; set; } = "";
+    public string TierName { get; set; } = "";
 }
 
 public class FriendSearchRow

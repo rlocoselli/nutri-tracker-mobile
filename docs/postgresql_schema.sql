@@ -156,6 +156,33 @@ CREATE TABLE IF NOT EXISTS points_ledger (
 CREATE INDEX IF NOT EXISTS idx_points_ledger_user_time ON points_ledger(user_id, created_at_utc DESC);
 
 -- =========================
+-- Gamification persistence
+-- =========================
+CREATE TABLE IF NOT EXISTS user_gamification_state (
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    season_key TEXT NOT NULL DEFAULT '',
+    league_tier TEXT NOT NULL DEFAULT 'Bronze',
+    shared_streak_days INTEGER NOT NULL DEFAULT 0,
+    weekly_shared_posts INTEGER NOT NULL DEFAULT 0,
+    weekly_mission_completed INTEGER NOT NULL DEFAULT 0,
+    weekly_mission_target INTEGER NOT NULL DEFAULT 3,
+    weekly_mission_status TEXT NOT NULL DEFAULT '',
+    updated_at_utc TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS user_gamification_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_type TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    message TEXT NOT NULL DEFAULT '',
+    metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at_utc TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_gamification_events_user_time ON user_gamification_events(user_id, created_at_utc DESC);
+
+-- =========================
 -- Meal reminders
 -- (SQLite current: Preferences meal_reminders_enabled + hours)
 -- =========================

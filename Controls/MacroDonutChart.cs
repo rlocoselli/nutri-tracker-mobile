@@ -55,7 +55,13 @@ public class MacroDonutChart : GraphicsView
             var protein = TryGetColor("MacroProtein") ?? Colors.Teal;
             var carbs = TryGetColor("MacroCarbs") ?? Colors.DodgerBlue;
             var fat = TryGetColor("MacroFat") ?? Colors.Goldenrod;
-            var colors = new[] { protein, carbs, fat };
+            var qualityGood = Colors.MediumSeaGreen;
+            var qualityMedium = Colors.Goldenrod;
+            var qualityLow = Colors.IndianRed;
+
+            var colors = IsQualitySplit(_chart.Labels)
+                ? new[] { qualityGood, qualityMedium, qualityLow }
+                : new[] { protein, carbs, fat };
 
             var size = Math.Min(dirtyRect.Width, dirtyRect.Height);
             var stroke = Math.Max(14f, size * 0.18f);
@@ -98,6 +104,22 @@ public class MacroDonutChart : GraphicsView
             canvas.FontColor = text;
             var valueText = total > 0 ? Math.Round(total).ToString() : "0";
             canvas.DrawString(valueText, ring.Center.X - 26, centerTop + 14, 52, 18, HorizontalAlignment.Center, VerticalAlignment.Center);
+        }
+
+        private static bool IsQualitySplit(IList<string>? labels)
+        {
+            if (labels == null || labels.Count < 3)
+                return false;
+
+            var first = (labels[0] ?? "").ToLowerInvariant();
+            var second = (labels[1] ?? "").ToLowerInvariant();
+            var third = (labels[2] ?? "").ToLowerInvariant();
+
+            var isGood = first.Contains("good") || first.Contains("bonne") || first.Contains("boa") || first.Contains("buena");
+            var isMedium = second.Contains("medium") || second.Contains("moy") || second.Contains("media") || second.Contains("média");
+            var isLow = third.Contains("low") || third.Contains("faible") || third.Contains("baixa") || third.Contains("baja");
+
+            return isGood && isMedium && isLow;
         }
 
         private static Color? TryGetColor(string key)

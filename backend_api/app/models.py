@@ -203,3 +203,29 @@ class PrivateMessage(Base):
     recipient_user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True)
     text: Mapped[str] = mapped_column(Text, default="")
     created_at_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+
+class UserGamificationState(Base):
+    __tablename__ = "user_gamification_state"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    season_key: Mapped[str] = mapped_column(String, default="")
+    league_tier: Mapped[str] = mapped_column(String, default="Bronze")
+    shared_streak_days: Mapped[int] = mapped_column(Integer, default=0)
+    weekly_shared_posts: Mapped[int] = mapped_column(Integer, default=0)
+    weekly_mission_completed: Mapped[int] = mapped_column(Integer, default=0)
+    weekly_mission_target: Mapped[int] = mapped_column(Integer, default=3)
+    weekly_mission_status: Mapped[str] = mapped_column(Text, default="")
+    updated_at_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+
+class UserGamificationEvent(Base):
+    __tablename__ = "user_gamification_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    event_type: Mapped[str] = mapped_column(String, default="")
+    title: Mapped[str] = mapped_column(Text, default="")
+    message: Mapped[str] = mapped_column(Text, default="")
+    metadata_json: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)

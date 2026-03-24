@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
+using NutritionTracker.Models;
 using NutritionTracker.Services;
 
 namespace NutritionTracker.ViewModels;
@@ -9,6 +10,8 @@ public partial class AddMealViewModel : ObservableObject
 {
     private readonly ApiService _api;
     private readonly PointsService _points;
+    private readonly HealthyTipService _tips;
+    private readonly GamificationCoachService _gamification;
     private readonly BackendSyncService _sync;
     private readonly IVoiceInputService _voiceInput;
 
@@ -25,6 +28,13 @@ public partial class AddMealViewModel : ObservableObject
     [ObservableProperty] private string resultQuality = "";
     [ObservableProperty] private string resultBadge = "";
     [ObservableProperty] private string resultSemaphore = "";
+    [ObservableProperty] private string resultMotivation = "";
+    [ObservableProperty] private string resultTipTitle = "";
+    [ObservableProperty] private string resultTipMessage = "";
+    [ObservableProperty] private string resultTipChallenge = "";
+    [ObservableProperty] private string resultTipProgress = "";
+    [ObservableProperty] private string resultSocialStatus = "";
+    [ObservableProperty] private string resultScoreWhy = "";
 
     public string TitleText => T("add_meal_title");
     public string SubtitleText => T("add_meal_subtitle");
@@ -37,15 +47,19 @@ public partial class AddMealViewModel : ObservableObject
     public string ResultTitle => T("result");
     public string StoryVisibilityTitle => T("story_visibility_title");
     public string StoryVisibilityLabel => T("story_visibility_label");
+    public bool HasTip => !string.IsNullOrWhiteSpace(ResultTipMessage);
+    public bool HasScoreWhy => !string.IsNullOrWhiteSpace(ResultScoreWhy);
 
     public ObservableCollection<StoryVisibilityOption> StoryVisibilityOptions { get; } = new();
 
     public bool HasPhoto => !string.IsNullOrWhiteSpace(PhotoPath);
 
-    public AddMealViewModel(ApiService api, PointsService points, BackendSyncService sync, IVoiceInputService voiceInput)
+    public AddMealViewModel(ApiService api, PointsService points, HealthyTipService tips, GamificationCoachService gamification, BackendSyncService sync, IVoiceInputService voiceInput)
     {
         _api = api;
         _points = points;
+        _tips = tips;
+        _gamification = gamification;
         _sync = sync;
         _voiceInput = voiceInput;
 
@@ -55,6 +69,8 @@ public partial class AddMealViewModel : ObservableObject
     }
 
     partial void OnPhotoPathChanged(string value) => OnPropertyChanged(nameof(HasPhoto));
+    partial void OnResultTipMessageChanged(string value) => OnPropertyChanged(nameof(HasTip));
+    partial void OnResultScoreWhyChanged(string value) => OnPropertyChanged(nameof(HasScoreWhy));
 
     [RelayCommand]
     private async Task PickPhoto()
@@ -85,6 +101,13 @@ public partial class AddMealViewModel : ObservableObject
         ResultQuality = "";
         ResultBadge = "";
         ResultSemaphore = "";
+        ResultMotivation = "";
+        ResultTipTitle = "";
+        ResultTipMessage = "";
+        ResultTipChallenge = "";
+        ResultTipProgress = "";
+        ResultSocialStatus = "";
+        ResultScoreWhy = "";
 
         var defaultVisibility = BackendSyncService.NormalizeStoryVisibility(Preferences.Default.Get("story_visibility_default", "friends"));
         SelectedStoryVisibilityOption = StoryVisibilityOptions.FirstOrDefault(x => x.Value == defaultVisibility) ?? StoryVisibilityOptions.FirstOrDefault();
@@ -160,11 +183,56 @@ public partial class AddMealViewModel : ObservableObject
             ResultQuality = T("quality") + $": {entry.QualityLabel} ({Math.Round(entry.QualityScore)}/100)";
             ResultBadge = T("badge") + $": {MealQualityService.GetBadge(entry.QualityScore, appLang)}";
             ResultSemaphore = T("semaphore") + $": {MealQualityService.GetSemaphore(entry.QualityScore, appLang)}";
+            var scoreWhy = MealQualityService.BuildScoreExplanation(
+                Text,
+                resp.meal.notes,
+                resp.meal.items.Select(i => i.name),
+                entry.TotalCalories,
+                entry.TotalProteinG,
+                entry.TotalCarbsG,
+                entry.OverallConfidence,
+                appLang,
+                maxFactors: 5,
+                includeHeader: true);
+            ResultScoreWhy = scoreWhy;
             HasResult = true;
 
-            var newBalance = _points.Award(10);
+            var pointsEarned = ComputeAwardPoints(entry);
+            var postBonus = _gamification.EvaluateSharedPostBonus(entry);
+            pointsEarned += postBonus.BonusPoints;
+            var newBalance = _points.Award(pointsEarned);
             var streakDays = await ComputeBalancedStreakAsync();
-            await RewardPopupService.ShowAsync(10, newBalance, streakDays);
+            await RewardPopupService.ShowAsync(pointsEarned, newBalance, streakDays);
+
+            var tip = await _tips.BuildTipForEntryAsync(entry);
+            ResultTipTitle = tip.Title;
+            ResultTipMessage = tip.Message;
+            ResultTipChallenge = tip.Challenge;
+            ResultTipProgress = tip.Progress;
+            ResultSocialStatus = postBonus.Status;
+            ResultMotivation = BuildMotivationLine(entry, pointsEarned, postBonus.BonusPoints);
+
+            _ = _sync.TryUpdateGamificationStateAsync(
+                sharedStreakDays: postBonus.SharedStreakDays,
+                weeklySharedPosts: postBonus.WeeklySharedPosts,
+                weeklyMissionStatus: postBonus.Status);
+
+            _ = _sync.TryPostGamificationEventAsync(
+                eventType: "meal_score_explanation",
+                title: "Score transparency",
+                message: scoreWhy,
+                metadata: new Dictionary<string, object>
+                {
+                    ["meal_id"] = backendId,
+                    ["quality_score"] = Math.Round(entry.QualityScore, 1),
+                    ["quality_label"] = entry.QualityLabel,
+                    ["points_earned"] = pointsEarned,
+                    ["social_bonus"] = postBonus.BonusPoints,
+                    ["shared_streak_days"] = postBonus.SharedStreakDays,
+                    ["weekly_shared_posts"] = postBonus.WeeklySharedPosts,
+                    ["story_visibility"] = entry.StoryVisibility,
+                });
+
             await PromptShareToFriendAsync(resp.meal.notes, entry.TotalCalories, entry.TotalProteinG, entry.TotalCarbsG);
         }
         catch (Exception ex)
@@ -280,6 +348,56 @@ public partial class AddMealViewModel : ObservableObject
 
         var sent = await _sync.SendPrivateMessageAsync(peer.UserId, text);
         await page.DisplayAlert(T("share_meal_title"), sent ? T("share_meal_sent") : T("friend_message_failed"), "OK");
+    }
+
+    private int ComputeAwardPoints(MealEntry entry)
+    {
+        var points = 10;
+        if (!string.Equals(entry.StoryVisibility, "self", StringComparison.OrdinalIgnoreCase))
+            points += 3;
+
+        if (!string.IsNullOrWhiteSpace(entry.PhotoPath))
+            points += 2;
+
+        if (entry.QualityScore >= 70)
+            points += 2;
+
+        if (entry.TotalProteinG >= 25)
+            points += 1;
+
+        return points;
+    }
+
+    private static string BuildMotivationLine(MealEntry entry, int pointsEarned, int socialBonus)
+    {
+        var lang = (Preferences.Default.Get("app_lang", "fr") ?? "fr").Trim().ToLowerInvariant();
+        if (lang != "en")
+            lang = "fr";
+
+        var isShared = !string.Equals(entry.StoryVisibility, "self", StringComparison.OrdinalIgnoreCase);
+
+        if (lang == "en")
+        {
+            if (isShared)
+            {
+                if (socialBonus > 0)
+                    return $"Great job. +{pointsEarned} coins total, including +{socialBonus} social streak bonus.";
+
+                return $"Great job. +{pointsEarned} coins. Shared entries help you stay accountable and hit your goals faster.";
+            }
+
+            return $"Great job. +{pointsEarned} coins. Share your next healthy entry to boost consistency.";
+        }
+
+        if (isShared)
+        {
+            if (socialBonus > 0)
+                return $"Super. +{pointsEarned} pieces au total, dont +{socialBonus} de bonus serie sociale.";
+
+            return $"Super. +{pointsEarned} pieces. Les entrees partagees renforcent la regularite et accelerent l'atteinte des objectifs.";
+        }
+
+        return $"Super. +{pointsEarned} pieces. Partage la prochaine entree saine pour booster ta constance.";
     }
 }
 

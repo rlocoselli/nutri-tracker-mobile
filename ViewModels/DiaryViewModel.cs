@@ -11,6 +11,8 @@ namespace NutritionTracker.ViewModels;
 public partial class DiaryViewModel : ObservableObject
 {
     private readonly PointsService _points;
+    private readonly HealthyTipService _tips;
+    private readonly GamificationCoachService _gamification;
     private readonly BackendSyncService _sync;
 
     public string MetricTitle => T("metric");
@@ -103,9 +105,11 @@ public partial class DiaryViewModel : ObservableObject
     public string DailyGoalTitle => T("daily_goal_title");
     public string LoadingText => LocalizationService.T("main_loading");
 
-    public DiaryViewModel(PointsService points, BackendSyncService sync)
+    public DiaryViewModel(PointsService points, HealthyTipService tips, GamificationCoachService gamification, BackendSyncService sync)
     {
         _points = points;
+        _tips = tips;
+        _gamification = gamification;
         _sync = sync;
         UpdateSelectedDayText();
         RebuildDayTabs();
@@ -216,9 +220,13 @@ public partial class DiaryViewModel : ObservableObject
         RebuildPeriodTabs();
         RebuildDayTabs();
 
-        await LoadDayAsync(SelectedDayLocal);
-        await LoadStoriesAsync();
-        await LoadChartAsync();
+        var token = Preferences.Default.Get("auth_id_token", "");
+        var identityOk = await _sync.EnsureBackendIdentityAsync(token);
+
+        await Task.WhenAll(
+            LoadDayAsync(SelectedDayLocal, identityAlreadyEnsured: identityOk),
+            LoadStoriesAsync(identityAlreadyEnsured: identityOk),
+            LoadChartAsync(identityAlreadyEnsured: identityOk));
         }
         finally
         {
@@ -283,6 +291,26 @@ public partial class DiaryViewModel : ObservableObject
             : SelectedDayLocal.Date.AddHours(12);
         var dateUtc = DateTime.SpecifyKind(baseLocal, DateTimeKind.Local).ToUniversalTime();
 
+        var manualQuality = MealQualityService.Classify(
+            ManualMealName,
+            "",
+            null,
+            calories,
+            protein,
+            carbs,
+            1.0);
+        var manualScoreWhy = MealQualityService.BuildScoreExplanation(
+            ManualMealName,
+            "",
+            null,
+            calories,
+            protein,
+            carbs,
+            1.0,
+            Preferences.Default.Get("app_lang", "fr"),
+            maxFactors: 5,
+            includeHeader: true);
+
         var entry = new MealEntry
         {
             Id = Guid.NewGuid().ToString(),
@@ -294,8 +322,8 @@ public partial class DiaryViewModel : ObservableObject
             TotalProteinG = protein,
             TotalCarbsG = carbs,
             OverallConfidence = 1.0,
-            QualityScore = 50,
-            QualityLabel = "Moyen",
+            QualityScore = manualQuality.score,
+            QualityLabel = manualQuality.label,
             PhotoPath = "",
             StoryVisibility = BackendSyncService.NormalizeStoryVisibility(Preferences.Default.Get("story_visibility_default", "friends"))
         };
@@ -316,9 +344,45 @@ public partial class DiaryViewModel : ObservableObject
         }
 
         IsManualPopupVisible = false;
-        var manualBalance = _points.Award(8);
+        var manualPoints = string.Equals(entry.StoryVisibility, "self", StringComparison.OrdinalIgnoreCase) ? 8 : 10;
+        var postBonus = _gamification.EvaluateSharedPostBonus(entry);
+        manualPoints += postBonus.BonusPoints;
+        var manualBalance = _points.Award(manualPoints);
         var manualStreak = await ComputeBalancedStreakAsync();
-        await RewardPopupService.ShowAsync(8, manualBalance, manualStreak);
+        await RewardPopupService.ShowAsync(manualPoints, manualBalance, manualStreak);
+
+        _ = _sync.TryUpdateGamificationStateAsync(
+            sharedStreakDays: postBonus.SharedStreakDays,
+            weeklySharedPosts: postBonus.WeeklySharedPosts,
+            weeklyMissionStatus: postBonus.Status);
+
+        _ = _sync.TryPostGamificationEventAsync(
+            eventType: "meal_score_explanation",
+            title: "Score transparency",
+            message: manualScoreWhy,
+            metadata: new Dictionary<string, object>
+            {
+                ["meal_id"] = createdId,
+                ["quality_score"] = Math.Round(entry.QualityScore, 1),
+                ["quality_label"] = entry.QualityLabel,
+                ["points_earned"] = manualPoints,
+                ["social_bonus"] = postBonus.BonusPoints,
+                ["shared_streak_days"] = postBonus.SharedStreakDays,
+                ["weekly_shared_posts"] = postBonus.WeeklySharedPosts,
+                ["story_visibility"] = entry.StoryVisibility,
+            });
+
+        try
+        {
+            var tip = await _tips.BuildTipForEntryAsync(entry);
+            var message = $"{tip.Message}\n\n{tip.Challenge}\n{tip.Progress}\n\n{postBonus.Status}";
+            await Application.Current!.MainPage!.DisplayAlert(tip.Title, message, "OK");
+        }
+        catch
+        {
+            // Keep manual save resilient even if tip generation fails.
+        }
+
         await LoadDayAsync(SelectedDayLocal);
         await LoadStoriesAsync();
         await LoadChartAsync();
@@ -371,6 +435,17 @@ public partial class DiaryViewModel : ObservableObject
             protein,
             carbs,
             _editingMeal.OverallConfidence);
+        var editScoreWhy = MealQualityService.BuildScoreExplanation(
+            EditMealName,
+            _editingMeal.AiNotes,
+            null,
+            calories,
+            protein,
+            carbs,
+            _editingMeal.OverallConfidence,
+            Preferences.Default.Get("app_lang", "fr"),
+            maxFactors: 5,
+            includeHeader: true);
 
         var updated = new MealEntry
         {
@@ -410,6 +485,19 @@ public partial class DiaryViewModel : ObservableObject
         var editBalance = _points.Award(4);
         var editStreak = await ComputeBalancedStreakAsync();
         await RewardPopupService.ShowAsync(4, editBalance, editStreak);
+
+        _ = _sync.TryPostGamificationEventAsync(
+            eventType: "meal_score_explanation",
+            title: "Score transparency (edit)",
+            message: editScoreWhy,
+            metadata: new Dictionary<string, object>
+            {
+                ["meal_id"] = updated.Id,
+                ["quality_score"] = Math.Round(updated.QualityScore, 1),
+                ["quality_label"] = updated.QualityLabel,
+                ["action"] = "edit",
+            });
+
         await LoadDayAsync(SelectedDayLocal);
         await LoadStoriesAsync();
         await LoadChartAsync();
@@ -465,7 +553,7 @@ public partial class DiaryViewModel : ObservableObject
         await LoadChartAsync();
     }
 
-    private async Task LoadDayAsync(DateTime dayLocal)
+    private async Task LoadDayAsync(DateTime dayLocal, bool identityAlreadyEnsured = false)
     {
         Meals.Clear();
 
@@ -474,8 +562,12 @@ public partial class DiaryViewModel : ObservableObject
         var fromUtc = startLocal.ToUniversalTime();
         var toUtc = startLocal.AddDays(1).ToUniversalTime();
 
-        var token = Preferences.Default.Get("auth_id_token", "");
-        var identityOk = await _sync.EnsureBackendIdentityAsync(token);
+        var identityOk = identityAlreadyEnsured;
+        if (!identityOk)
+        {
+            var token = Preferences.Default.Get("auth_id_token", "");
+            identityOk = await _sync.EnsureBackendIdentityAsync(token);
+        }
         var backendMealsRaw = identityOk
             ? await _sync.GetMealsBetweenUtcAsync(fromUtc.AddDays(-1), toUtc.AddDays(1))
             : new List<BackendMeal>();
@@ -526,13 +618,17 @@ public partial class DiaryViewModel : ObservableObject
         UpdateWaterUi(liters);
     }
 
-    private async Task LoadStoriesAsync()
+    private async Task LoadStoriesAsync(bool identityAlreadyEnsured = false)
     {
         StoryPosts.Clear();
         OnPropertyChanged(nameof(HasStories));
 
-        var token = Preferences.Default.Get("auth_id_token", "");
-        var identityOk = await _sync.EnsureBackendIdentityAsync(token);
+        var identityOk = identityAlreadyEnsured;
+        if (!identityOk)
+        {
+            var token = Preferences.Default.Get("auth_id_token", "");
+            identityOk = await _sync.EnsureBackendIdentityAsync(token);
+        }
         if (!identityOk)
             return;
 
@@ -608,7 +704,7 @@ public partial class DiaryViewModel : ObservableObject
         }
     }
 
-    private async Task LoadChartAsync()
+    private async Task LoadChartAsync(bool identityAlreadyEnsured = false)
     {
         // Anchor chart window to selected day so navigation updates the graph.
         var anchorLocal = SelectedDayLocal.Date;
@@ -635,8 +731,12 @@ public partial class DiaryViewModel : ObservableObject
         var fromUtc = DateTime.SpecifyKind(fromLocal, DateTimeKind.Local).ToUniversalTime();
         var toUtc = DateTime.SpecifyKind(toLocalExclusive, DateTimeKind.Local).ToUniversalTime();
 
-        var token = Preferences.Default.Get("auth_id_token", "");
-        var identityOk = await _sync.EnsureBackendIdentityAsync(token);
+        var identityOk = identityAlreadyEnsured;
+        if (!identityOk)
+        {
+            var token = Preferences.Default.Get("auth_id_token", "");
+            identityOk = await _sync.EnsureBackendIdentityAsync(token);
+        }
         var backendMeals = identityOk
             ? await _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc)
             : new List<BackendMeal>();
@@ -966,7 +1066,18 @@ public class DiaryMealItem
                 .Where(n => !string.IsNullOrWhiteSpace(n))
                 .Distinct()
                 .Take(5));
-        var analysisText = BuildAnalysisText(e.AiNotes, itemList, e.QualityLabel, e.QualityScore);
+        var scoreWhyText = MealQualityService.BuildScoreExplanation(
+            e.RawText,
+            e.AiNotes,
+            items?.Select(i => i.Name),
+            e.TotalCalories,
+            e.TotalProteinG,
+            e.TotalCarbsG,
+            e.OverallConfidence,
+            lang,
+            maxFactors: 4,
+            includeHeader: true);
+        var analysisText = BuildAnalysisText(e.AiNotes, itemList, e.QualityLabel, e.QualityScore, scoreWhyText);
         var badgeText = MealQualityService.GetBadge(e.QualityScore, lang);
         var semaphoreText = MealQualityService.GetSemaphore(e.QualityScore, lang);
 
@@ -999,11 +1110,23 @@ public class DiaryMealItem
         };
     }
 
-    private static string BuildAnalysisText(string aiNotes, string items, string qualityLabel = "", double qualityScore = 0)
+    private static string BuildAnalysisText(string aiNotes, string items, string qualityLabel = "", double qualityScore = 0, string scoreWhy = "")
     {
         var notes = aiNotes?.Trim() ?? "";
         var itemsText = items?.Trim() ?? "";
         var qualityText = string.IsNullOrWhiteSpace(qualityLabel) ? "" : $"Qualité: {qualityLabel} ({Math.Round(qualityScore)}/100)";
+        var whyText = scoreWhy?.Trim() ?? "";
+
+        if (!string.IsNullOrWhiteSpace(whyText))
+        {
+            if (!string.IsNullOrWhiteSpace(qualityText) && !string.IsNullOrWhiteSpace(notes))
+                return $"IA: {qualityText} · {notes}\n{whyText}";
+            if (!string.IsNullOrWhiteSpace(qualityText))
+                return $"IA: {qualityText}\n{whyText}";
+            if (!string.IsNullOrWhiteSpace(notes))
+                return $"IA: {notes}\n{whyText}";
+            return $"IA: {whyText}";
+        }
 
         if (!string.IsNullOrWhiteSpace(qualityText) && !string.IsNullOrWhiteSpace(notes) && !string.IsNullOrWhiteSpace(itemsText))
             return $"IA: {qualityText} · {notes} · {itemsText}";
