@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NutritionTracker.Services;
@@ -106,7 +107,7 @@ public partial class FriendChatViewModel : ObservableObject
                 MineVisible = isMine,
                 OtherVisible = !isMine,
                 Text = message.text,
-                TimeText = message.created_at_utc.ToLocalTime().ToString("HH:mm"),
+                TimeText = message.created_at_utc.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
                 SenderText = isMine ? LocalizationService.T("you") : (string.IsNullOrWhiteSpace(FriendDisplayName) ? LocalizationService.T("friend_message") : FriendDisplayName),
             });
         }
@@ -115,6 +116,22 @@ public partial class FriendChatViewModel : ObservableObject
             StatusText = LocalizationService.T("friend_chat_empty");
         else
             StatusText = "";
+
+        // Track unread state for the friends list badge
+        var latestFromFriend = messages
+            .Where(m => !string.Equals((m.sender_user_id ?? "").Trim(), meUserId, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(m => m.created_at_utc)
+            .FirstOrDefault();
+        if (latestFromFriend != null)
+            Preferences.Default.Set($"chat_last_msg_{FriendUserId}", latestFromFriend.created_at_utc.Ticks);
+
+        // Mark conversation as read using message timeline to avoid clock skew issues.
+        var latestConversationTick = messages
+            .OrderByDescending(m => m.created_at_utc)
+            .Select(m => m.created_at_utc.Ticks)
+            .FirstOrDefault();
+        var readTick = latestConversationTick > 0 ? latestConversationTick : DateTime.UtcNow.Ticks;
+        Preferences.Default.Set($"chat_last_read_{FriendUserId}", readTick);
     }
 }
 

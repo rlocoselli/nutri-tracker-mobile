@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Maui.Controls;
@@ -79,6 +81,25 @@ public partial class FriendsViewModel : ObservableObject
     public bool HasSuggestions => SearchResults.Count > 0;
     public bool HasAcceptedFriends => AcceptedFriends.Count > 0;
     public bool HasLeagueBadgeAnnouncement => !string.IsNullOrWhiteSpace(LeagueBadgeAnnouncement);
+    public int AcceptedFriendsCount => AcceptedFriends.Count;
+    public int IncomingInvitesCount => IncomingInvites.Count;
+    public int OutgoingInvitesCount => OutgoingInvites.Count;
+    public int RequestItemsCount => IncomingInvitesCount + OutgoingInvitesCount;
+    public int SuggestionsCount => SearchResults.Count;
+    public int UnreadChatsCount => AcceptedFriends.Count(f => f.HasUnread);
+    public bool HasUnreadChats => UnreadChatsCount > 0;
+    public string UnreadChatsBadgeText => UnreadChatsCount > 99
+        ? "99+"
+        : UnreadChatsCount.ToString(CultureInfo.InvariantCulture);
+    public string TabFriendsCounterText => UnreadChatsCount > 0
+        ? $"{TabFriendsText} ({AcceptedFriendsCount}) +{UnreadChatsCount}"
+        : $"{TabFriendsText} ({AcceptedFriendsCount})";
+    public string TabRequestsCounterText => $"{TabRequestsText} ({RequestItemsCount})";
+    public string TabSuggestionsCounterText => $"{TabSuggestionsText} ({SuggestionsCount})";
+    public string FriendsCountSummaryText => $"{FriendsSectionTitleText}: {AcceptedFriendsCount}";
+    public string PendingCountSummaryText => $"{IncomingSectionText}: {RequestItemsCount}";
+    public string NewMessagesText => T("friend_new_messages");
+    public string HeaderNotificationText => $"{NewMessagesText}: {UnreadChatsBadgeText}";
 
     public FriendsViewModel(SocialService social, BackendSyncService sync, PointsService points, IServiceProvider services)
     {
@@ -130,6 +151,12 @@ public partial class FriendsViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowSuggestionsUi));
         OnPropertyChanged(nameof(RequestToConfirmText));
         OnPropertyChanged(nameof(RequestSentStateText));
+        OnPropertyChanged(nameof(TabFriendsCounterText));
+        OnPropertyChanged(nameof(TabRequestsCounterText));
+        OnPropertyChanged(nameof(TabSuggestionsCounterText));
+        OnPropertyChanged(nameof(FriendsCountSummaryText));
+        OnPropertyChanged(nameof(PendingCountSummaryText));
+        OnPropertyChanged(nameof(HeaderNotificationText));
         await ReloadAsync();
     }
 
@@ -253,6 +280,7 @@ public partial class FriendsViewModel : ObservableObject
 
         var query = (SearchQuery ?? "").Trim();
         SearchResults.Clear();
+        NotifyCountsChanged();
 
         if (query.Length < 2)
         {
@@ -323,6 +351,8 @@ public partial class FriendsViewModel : ObservableObject
                     IsFriend = isFriend,
                 });
             }
+
+            NotifyCountsChanged();
         }
         finally
         {
@@ -679,6 +709,9 @@ public partial class FriendsViewModel : ObservableObject
 
                 outgoingByEmail[email] = invite;
             }
+
+            var myUserId = Preferences.Default.Get("backend_user_id", "").Trim();
+            await RefreshUnreadMessageStateAsync(directory.Select(d => (d.user_id ?? "").Trim()), myUserId);
         }
 
         Friends.Clear();
@@ -703,6 +736,8 @@ public partial class FriendsViewModel : ObservableObject
                 InviteId = pair.Value.id,
                 Status = pending ? T("status_pending") : T("status_friend"),
                 Badge = pending ? "🟡" : "🟢",
+                CreatedAtUtc = pair.Value.created_at_utc,
+                CreatedAtText = FormatTimestamp(pair.Value.created_at_utc),
                 IsPending = pending,
             });
         }
@@ -722,7 +757,10 @@ public partial class FriendsViewModel : ObservableObject
                 InviteId = "",
                 Status = T("status_friend"),
                 Badge = "🟢",
+                CreatedAtUtc = DateTime.MinValue,
+                CreatedAtText = "",
                 IsPending = false,
+                HasUnread = ComputeHasUnread(kv.Value.UserId),
             });
         }
 
@@ -746,6 +784,8 @@ public partial class FriendsViewModel : ObservableObject
                     InviteId = "",
                     Status = pending ? T("status_pending") : T("status_friend"),
                     Badge = pending ? "🟡" : "🟢",
+                    CreatedAtUtc = DateTime.MinValue,
+                    CreatedAtText = "",
                     IsPending = pending,
                 });
             }
@@ -770,17 +810,15 @@ public partial class FriendsViewModel : ObservableObject
                     InviterDisplay = display,
                     InviterHandle = BuildHandle(display),
                     PictureUrl = displayByEmail.TryGetValue(email.ToLowerInvariant(), out var incomingInfo) ? incomingInfo.PictureUrl : "",
+                    CreatedAtUtc = invite.created_at_utc,
+                    CreatedAtText = FormatTimestamp(invite.created_at_utc),
                 });
             }
         }
 
         ApplyFriendsFilter();
         RebuildOutgoingInvites();
-        OnPropertyChanged(nameof(HasIncomingInvites));
-        OnPropertyChanged(nameof(HasOutgoingInvites));
-        OnPropertyChanged(nameof(HasRequestItems));
-        OnPropertyChanged(nameof(HasAcceptedFriends));
-        OnPropertyChanged(nameof(HasSuggestions));
+        NotifyCountsChanged();
 
         League.Clear();
         var selfEmail = Preferences.Default.Get("profile_email", "");
@@ -913,6 +951,8 @@ public partial class FriendsViewModel : ObservableObject
 
             AcceptedFriends.Add(row);
         }
+
+        NotifyCountsChanged();
     }
 
     private void RebuildOutgoingInvites()
@@ -920,6 +960,75 @@ public partial class FriendsViewModel : ObservableObject
         OutgoingInvites.Clear();
         foreach (var row in Friends.Where(x => x.IsPending))
             OutgoingInvites.Add(row);
+
+        NotifyCountsChanged();
+    }
+
+    private void NotifyCountsChanged()
+    {
+        OnPropertyChanged(nameof(HasIncomingInvites));
+        OnPropertyChanged(nameof(HasOutgoingInvites));
+        OnPropertyChanged(nameof(HasRequestItems));
+        OnPropertyChanged(nameof(HasAcceptedFriends));
+        OnPropertyChanged(nameof(HasSuggestions));
+        OnPropertyChanged(nameof(AcceptedFriendsCount));
+        OnPropertyChanged(nameof(IncomingInvitesCount));
+        OnPropertyChanged(nameof(OutgoingInvitesCount));
+        OnPropertyChanged(nameof(RequestItemsCount));
+        OnPropertyChanged(nameof(SuggestionsCount));
+        OnPropertyChanged(nameof(UnreadChatsCount));
+        OnPropertyChanged(nameof(HasUnreadChats));
+        OnPropertyChanged(nameof(UnreadChatsBadgeText));
+        OnPropertyChanged(nameof(TabFriendsCounterText));
+        OnPropertyChanged(nameof(TabRequestsCounterText));
+        OnPropertyChanged(nameof(TabSuggestionsCounterText));
+        OnPropertyChanged(nameof(FriendsCountSummaryText));
+        OnPropertyChanged(nameof(PendingCountSummaryText));
+        OnPropertyChanged(nameof(NewMessagesText));
+        OnPropertyChanged(nameof(HeaderNotificationText));
+    }
+
+    private async Task RefreshUnreadMessageStateAsync(IEnumerable<string> userIds, string meUserId)
+    {
+        var ids = userIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (ids.Count == 0)
+            return;
+
+        var tasks = ids.Select(async id =>
+        {
+            var messages = await _sync.GetPrivateMessagesAsync(id, limit: 40);
+            var latestIncomingTick = messages
+                .Where(m => !string.Equals((m.sender_user_id ?? "").Trim(), meUserId, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(m => m.created_at_utc)
+                .Select(m => m.created_at_utc.Ticks)
+                .FirstOrDefault();
+            return (id, latestIncomingTick);
+        });
+
+        var results = await Task.WhenAll(tasks);
+        foreach (var (id, latestIncomingTick) in results)
+        {
+            if (latestIncomingTick <= 0)
+                continue;
+
+            Preferences.Default.Set($"chat_last_msg_{id}", latestIncomingTick);
+        }
+    }
+
+    private static bool ComputeHasUnread(string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId)) return false;
+        var lastMsg = Preferences.Default.Get($"chat_last_msg_{userId}", 0L);
+        var lastRead = Preferences.Default.Get($"chat_last_read_{userId}", 0L);
+        return lastMsg > lastRead;
+    }
+
+    private static string FormatTimestamp(DateTime utc)
+    {
+        return utc.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
     }
 }
 
@@ -933,7 +1042,10 @@ public class FriendsInviteRow
     public string PictureUrl { get; set; } = "";
     public string Status { get; set; } = "";
     public string Badge { get; set; } = "";
+    public DateTime CreatedAtUtc { get; set; }
+    public string CreatedAtText { get; set; } = "";
     public bool IsPending { get; set; }
+    public bool HasUnread { get; set; }
     public bool IsFriend => !IsPending;
     public bool HasPicture => !string.IsNullOrWhiteSpace(PictureUrl);
     public bool HasNoPicture => !HasPicture;
@@ -987,6 +1099,8 @@ public class IncomingInviteRow
     public string InviterDisplay { get; set; } = "";
     public string InviterHandle { get; set; } = "@user";
     public string PictureUrl { get; set; } = "";
+    public DateTime CreatedAtUtc { get; set; }
+    public string CreatedAtText { get; set; } = "";
     public bool HasPicture => !string.IsNullOrWhiteSpace(PictureUrl);
     public bool HasNoPicture => !HasPicture;
     public string Initials => string.IsNullOrWhiteSpace(InviterDisplay) ? "?" : char.ToUpperInvariant(InviterDisplay.Trim()[0]).ToString();

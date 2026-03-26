@@ -10,13 +10,16 @@
         <RefreshView IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
             <Grid RowDefinitions="Auto,*" Padding="16,12,16,12" RowSpacing="10">
                 <VerticalStackLayout Grid.Row="0" Spacing="12">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                        <VerticalStackLayout Spacing="2">
-                            <Label Text="{Binding HeaderTitle}" Style="{StaticResource H1}" />
-                            <Label Text="{Binding HeaderSubtitle}" Style="{StaticResource BodyMuted}" />
-                        </VerticalStackLayout>
-                        <Button Grid.Column="1" Text="↻" Style="{StaticResource IconButton}" Command="{Binding RefreshCommand}" />
-                    </Grid>
+                    <Border Style="{StaticResource Card}" Stroke="{StaticResource Primary}" StrokeThickness="1.5">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" VerticalOptions="Center">
+                            <Image Source="logo.svg" WidthRequest="44" HeightRequest="44" Aspect="AspectFit" />
+                            <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                <Label Text="{Binding HeaderTitle}" Style="{StaticResource H2}" />
+                                <Label Text="{Binding HeaderSubtitle}" Style="{StaticResource BodyMuted}" />
+                            </VerticalStackLayout>
+                            <Button Grid.Column="2" Text="↻" Style="{StaticResource IconButton}" Command="{Binding RefreshCommand}" />
+                        </Grid>
+                    </Border>
 
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                         <Border Style="{StaticResource Card}" Padding="10,8">
