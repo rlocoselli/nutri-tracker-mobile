@@ -83,11 +83,6 @@
                         </VerticalStackLayout>
 
                     <Label Text="{Binding FriendsTitle}" FontAttributes="Bold" Margin="0,10,0,0" />
-                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
-                        <Entry Text="{Binding InviteEmail}" Placeholder="{Binding InvitePlaceholder}" Keyboard="Email" />
-                        <Button Grid.Column="1" Text="{Binding InviteButtonText}" Style="{StaticResource SecondaryButton}" Command="{Binding InviteFriendCommand}" />
-                        <Button Grid.Column="2" Text="{Binding AddBuddyButtonText}" Style="{StaticResource SecondaryButton}" Command="{Binding AddBuddyCommand}" />
-                    </Grid>
                     <Label Text="{Binding SocialStatusText}" Style="{StaticResource BodyMuted}" />
 
                     <CollectionView ItemsSource="{Binding Friends}" SelectionMode="None">
