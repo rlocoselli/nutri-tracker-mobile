@@ -82,6 +82,28 @@ public static class MealQualityService
         return lang == "en" ? "🔴 Red: to improve" : "🔴 Rouge : à améliorer";
     }
 
+    public static string GetFoodStyleBadge(double score, string lang)
+    {
+        var normalized = NormalizeLang(lang);
+
+        if (score >= 75)
+            return normalized == "en" ? "🥗 Healthy food badge" : "🥗 Badge bouffe saine";
+
+        if (score <= 45)
+            return normalized == "en" ? "🍔 Junk food badge" : "🍔 Badge mauvaise bouffe";
+
+        return normalized == "en" ? "⚖️ Balanced food badge" : "⚖️ Badge bouffe equilibree";
+    }
+
+    public static string GetTigerCatMood(double score, string lang)
+    {
+        var normalized = NormalizeLang(lang);
+        if (score >= 70)
+            return normalized == "en" ? "🐯😺 Happy tiger cat" : "🐯😺 Chat tigre content";
+
+        return normalized == "en" ? "🐯😾 Grumpy tiger cat" : "🐯😾 Chat tigre mecontent";
+    }
+
     private static bool ContainsAny(string text, params string[] tokens)
     {
         foreach (var token in tokens)

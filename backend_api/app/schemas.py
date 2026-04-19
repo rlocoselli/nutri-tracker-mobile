@@ -67,6 +67,15 @@ class MealOut(BaseModel):
 class GoalsIn(BaseModel):
     calories_target: float
     carbs_g_target: float
+
+class MealDailySummaryOut(BaseModel):
+    day_key_local: str
+    meal_count: int = 0
+    total_calories: float = 0
+    total_carbs_g: float = 0
+    total_protein_g: float = 0
+
+
     protein_g_target: float
 
 
@@ -74,6 +83,14 @@ class PointsAwardIn(BaseModel):
     event_type: str
     points_delta: int
     reference_id: str | None = None
+
+class StoryCommentPreviewOut(BaseModel):
+    id: str
+    meal_id: str
+    user_id: str
+    author_name: str
+    text: str
+    created_at_utc: datetime
 
 
 class ReminderIn(BaseModel):
@@ -163,6 +180,7 @@ class FriendStoryOut(BaseModel):
     like_count: int = 0
     comment_count: int = 0
     liked_by_me: bool = False
+    preview_comments: list[StoryCommentPreviewOut] = Field(default_factory=list)
 
 
 class StoryVisibilityDefaultIn(BaseModel):

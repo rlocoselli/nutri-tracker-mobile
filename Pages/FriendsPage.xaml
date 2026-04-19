@@ -11,7 +11,7 @@
         <ScrollView>
             <VerticalStackLayout Padding="20" Spacing="14">
                 <Border Style="{StaticResource Card}" Stroke="{StaticResource Primary}" StrokeThickness="1.5">
-                    <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10" VerticalOptions="Center">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" VerticalOptions="Center">
                         <Image Source="logo.svg" WidthRequest="60" HeightRequest="60" Aspect="AspectFit" />
                         <VerticalStackLayout Grid.Column="1" Spacing="2">
                             <Label Text="{Binding TitleText}" Style="{StaticResource H2}" />
@@ -38,7 +38,6 @@
                             </Border>
                         </Grid>
 
-                        <Button Grid.Column="3" Text="{Binding ShareAppText}" Style="{StaticResource SecondaryButton}" Command="{Binding ShareAppCommand}" HeightRequest="44" />
                     </Grid>
                 </Border>
 
@@ -72,21 +71,6 @@
                 <Label Text="{Binding StatusText}" Style="{StaticResource BodyMuted}" />
 
                 <VerticalStackLayout Spacing="12" IsVisible="{Binding IsFriendsTab}">
-                    <Border Style="{StaticResource Card}">
-                        <VerticalStackLayout Spacing="10">
-                            <Label Text="{Binding InviteSectionTitleText}" FontAttributes="Bold" />
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                <Entry Text="{Binding InviteEmail}" Placeholder="{Binding InvitePlaceholder}" Keyboard="Email" ReturnType="Send" />
-                                <Button Grid.Column="1" Text="{Binding InviteText}" Style="{StaticResource SecondaryButton}" Command="{Binding InviteCommand}" />
-                            </Grid>
-                            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
-                                <Button Text="{Binding SyncContactsText}" Style="{StaticResource SecondaryButton}" Command="{Binding SyncContactsCommand}" HeightRequest="44" />
-                                <Button Grid.Column="1" Text="{Binding InviteLinkText}" Style="{StaticResource SecondaryButton}" Command="{Binding InviteByLinkCommand}" HeightRequest="44" />
-                                <Button Grid.Column="2" Text="{Binding ShowQrText}" Style="{StaticResource SecondaryButton}" Command="{Binding ShowQrCommand}" HeightRequest="44" />
-                            </Grid>
-                        </VerticalStackLayout>
-                    </Border>
-
                     <Border Style="{StaticResource Card}">
                         <VerticalStackLayout Spacing="8">
                             <Label Text="{Binding FriendsSectionTitleText}" FontAttributes="Bold" />

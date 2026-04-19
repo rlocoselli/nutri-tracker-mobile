@@ -1,10 +1,11 @@
 import uuid
-from datetime import date
+from collections import defaultdict
+from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from ..db import get_db
 from ..models import MealEntry, MealItem, User
-from ..schemas import MealCreateIn, MealOut, MealItemOut
+from ..schemas import MealCreateIn, MealOut, MealItemOut, MealDailySummaryOut
 from ..security import get_current_user_id
 
 router = APIRouter(prefix="/meals", tags=["meals"])
@@ -117,6 +118,55 @@ def list_meals(
         ))
 
     return out
+
+
+@router.get("/daily-summary", response_model=list[MealDailySummaryOut])
+def list_meal_daily_summary(
+    from_utc: datetime = Query(alias="fromUtc"),
+    to_utc: datetime = Query(alias="toUtc"),
+    tz_offset_minutes: int = Query(0, alias="tzOffsetMinutes"),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    safe_offset_minutes = max(-840, min(tz_offset_minutes, 840))
+    offset = timedelta(minutes=safe_offset_minutes)
+
+    rows = (
+        db.query(MealEntry)
+        .filter(MealEntry.user_id == user_id)
+        .filter(MealEntry.date_utc >= from_utc)
+        .filter(MealEntry.date_utc < to_utc)
+        .order_by(MealEntry.date_utc.asc())
+        .all()
+    )
+
+    buckets: dict[str, dict[str, float]] = defaultdict(
+        lambda: {
+            "meal_count": 0,
+            "total_calories": 0.0,
+            "total_carbs_g": 0.0,
+            "total_protein_g": 0.0,
+        }
+    )
+
+    for meal in rows:
+        day_key_local = (meal.date_utc + offset).date().isoformat()
+        bucket = buckets[day_key_local]
+        bucket["meal_count"] += 1
+        bucket["total_calories"] += float(meal.total_calories or 0)
+        bucket["total_carbs_g"] += float(meal.total_carbs_g or 0)
+        bucket["total_protein_g"] += float(meal.total_protein_g or 0)
+
+    return [
+        MealDailySummaryOut(
+            day_key_local=day_key_local,
+            meal_count=int(values["meal_count"]),
+            total_calories=float(values["total_calories"]),
+            total_carbs_g=float(values["total_carbs_g"]),
+            total_protein_g=float(values["total_protein_g"]),
+        )
+        for day_key_local, values in sorted(buckets.items(), key=lambda item: item[0])
+    ]
 
 
 @router.patch("/{meal_id}")

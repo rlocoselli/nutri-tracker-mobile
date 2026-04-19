@@ -737,17 +737,102 @@ public partial class DiaryViewModel : ObservableObject
             var token = Preferences.Default.Get("auth_id_token", "");
             identityOk = await _sync.EnsureBackendIdentityAsync(token);
         }
-        var backendMeals = identityOk
-            ? await _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc)
-            : new List<BackendMeal>();
-
-        var entries = backendMeals.Select(ToMealEntry).ToList();
         var exercises = new List<ExerciseEntry>();
-        // Build a continuous series (fills missing days/weeks/months with zeros)
-        var points = BuildSeries(entries, exercises, fromLocal.Date, toLocalExclusive);
+        List<(string Label, double Value)> points;
+
+        if (identityOk && SelectedMetric != "Activities")
+        {
+            var summaries = await _sync.GetMealDailySummaryAsync(fromUtc, toUtc);
+            if (summaries.Count > 0)
+            {
+                points = BuildSeriesFromSummaries(summaries, fromLocal.Date, toLocalExclusive);
+            }
+            else
+            {
+                var backendMealsFallback = await _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc);
+                var entriesFallback = backendMealsFallback.Select(ToMealEntry).ToList();
+                points = BuildSeries(entriesFallback, exercises, fromLocal.Date, toLocalExclusive);
+            }
+        }
+        else
+        {
+            var backendMeals = identityOk
+                ? await _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc)
+                : new List<BackendMeal>();
+
+            var entries = backendMeals.Select(ToMealEntry).ToList();
+            points = BuildSeries(entries, exercises, fromLocal.Date, toLocalExclusive);
+        }
 
         ChartValues = points.Select(p => p.Value).ToList();
         ChartLabels = points.Select(p => p.Label).ToList();
+    }
+
+    private List<(string Label, double Value)> BuildSeriesFromSummaries(List<BackendMealDailySummary> summaries, DateTime fromLocalInclusive, DateTime toLocalExclusive)
+    {
+        static bool TryParseDay(string raw, out DateTime day)
+        {
+            return DateTime.TryParseExact(raw, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out day);
+        }
+
+        double Selector(BackendMealDailySummary entry) => SelectedMetric switch
+        {
+            "Proteína" => entry.total_protein_g,
+            "Protein" => entry.total_protein_g,
+            "Proteins" => entry.total_protein_g,
+            _ => entry.total_calories,
+        };
+
+        var byDay = summaries
+            .Select(summary => new { Summary = summary, Ok = TryParseDay(summary.day_key_local, out var parsedDay), Day = parsedDay })
+            .Where(x => x.Ok)
+            .GroupBy(x => x.Day.Date)
+            .ToDictionary(g => g.Key, g => g.Sum(x => Selector(x.Summary)));
+
+        if (SelectedPeriod == "Day")
+        {
+            var points = new List<(string Label, double Value)>();
+            for (var d = fromLocalInclusive.Date; d < toLocalExclusive.Date; d = d.AddDays(1))
+            {
+                byDay.TryGetValue(d, out var value);
+                points.Add((d.ToString("dd/MM"), value));
+            }
+            return points;
+        }
+
+        if (SelectedPeriod == "Week")
+        {
+            var byWeek = byDay
+                .GroupBy(x => IsoWeekKey(x.Key))
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.Value));
+
+            var points = new List<(string Label, double Value)>();
+            for (var d = fromLocalInclusive.Date; d <= toLocalExclusive.Date.AddDays(-1); d = d.AddDays(7))
+            {
+                var key = IsoWeekKey(d);
+                byWeek.TryGetValue(key, out var value);
+                points.Add((WeekLabel(key), value));
+            }
+
+            return points;
+        }
+
+        var byMonth = byDay
+            .GroupBy(x => (x.Key.Year, x.Key.Month))
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Value));
+
+        var startMonth = new DateTime(fromLocalInclusive.Year, fromLocalInclusive.Month, 1);
+        var endMonth = new DateTime(toLocalExclusive.AddDays(-1).Year, toLocalExclusive.AddDays(-1).Month, 1);
+        var outPoints = new List<(string Label, double Value)>();
+
+        for (var month = startMonth; month <= endMonth; month = month.AddMonths(1))
+        {
+            var label = $"{month.Month:00}/{(month.Year % 100):00}";
+            byMonth.TryGetValue((month.Year, month.Month), out var value);
+            outPoints.Add((label, value));
+        }
+
+        return outPoints;
     }
 
     private List<(string Label, double Value)> BuildSeries(List<MealEntry> entries, List<ExerciseEntry> exercises, DateTime fromLocalInclusive, DateTime toLocalExclusive)
@@ -993,7 +1078,7 @@ public partial class DiaryViewModel : ObservableObject
 
         var lang = Preferences.Default.Get("app_lang", "fr");
         EditQualityPreviewText = $"{T("quality")}: {quality.label} ({Math.Round(quality.score)}/100)";
-        EditBadgePreviewText = $"{T("badge")}: {MealQualityService.GetBadge(quality.score, lang)}";
+        EditBadgePreviewText = $"{T("badge")}: {MealQualityService.GetBadge(quality.score, lang)} · {MealQualityService.GetFoodStyleBadge(quality.score, lang)}";
         EditSemaphorePreviewText = $"{T("semaphore")}: {MealQualityService.GetSemaphore(quality.score, lang)}";
     }
 }
@@ -1039,6 +1124,8 @@ public class DiaryMealItem
     public bool HasAnalysis => !string.IsNullOrWhiteSpace(AnalysisText);
     public string QualityBadgeText { get; set; } = "";
     public bool HasQualityBadge => !string.IsNullOrWhiteSpace(QualityBadgeText);
+    public string TigerCatMoodText { get; set; } = "";
+    public bool HasTigerCatMood => !string.IsNullOrWhiteSpace(TigerCatMoodText);
     public string QualitySemaphoreText { get; set; } = "";
     public bool HasQualitySemaphore => !string.IsNullOrWhiteSpace(QualitySemaphoreText);
     public string CaloriesText { get; set; } = "";
@@ -1078,7 +1165,8 @@ public class DiaryMealItem
             maxFactors: 4,
             includeHeader: true);
         var analysisText = BuildAnalysisText(e.AiNotes, itemList, e.QualityLabel, e.QualityScore, scoreWhyText);
-        var badgeText = MealQualityService.GetBadge(e.QualityScore, lang);
+        var badgeText = $"{MealQualityService.GetBadge(e.QualityScore, lang)} · {MealQualityService.GetFoodStyleBadge(e.QualityScore, lang)}";
+        var tigerCatMoodText = MealQualityService.GetTigerCatMood(e.QualityScore, lang);
         var semaphoreText = MealQualityService.GetSemaphore(e.QualityScore, lang);
 
         return new DiaryMealItem
@@ -1103,6 +1191,7 @@ public class DiaryMealItem
             DescriptionText = displayDescription,
             AnalysisText = analysisText,
             QualityBadgeText = badgeText,
+            TigerCatMoodText = tigerCatMoodText,
             QualitySemaphoreText = semaphoreText,
             CaloriesText = $"{Math.Round(e.TotalCalories)} kcal",
             ProteinText = $"P {Math.Round(e.TotalProteinG)}g",

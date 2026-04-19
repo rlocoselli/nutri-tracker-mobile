@@ -145,15 +145,22 @@ public partial class DashboardViewModel : ObservableObject
         var todayLocal = DateTime.Now.Date;
         var fromUtc = DateTime.SpecifyKind(todayLocal, DateTimeKind.Local).ToUniversalTime();
         var toUtc = DateTime.SpecifyKind(todayLocal.AddDays(1), DateTimeKind.Local).ToUniversalTime();
+        var streakWindowStartLocal = todayLocal.AddDays(-29);
+        var streakWindowFromUtc = DateTime.SpecifyKind(streakWindowStartLocal, DateTimeKind.Local).ToUniversalTime();
 
         var token = Preferences.Default.Get("auth_id_token", "");
         var identityOk = await _sync.EnsureBackendIdentityAsync(token);
         var goalsTask = _sync.GetGoalsAsync();
         var mealsTodayTask = GetMealsForRangeAsync(fromUtc, toUtc, identityAlreadyEnsured: identityOk);
-        await Task.WhenAll(goalsTask, mealsTodayTask);
+        var dailySummaryTask = _sync.GetMealDailySummaryAsync(streakWindowFromUtc, toUtc);
+        await Task.WhenAll(goalsTask, mealsTodayTask, dailySummaryTask);
 
         var goals = goalsTask.Result;
         var mealsToday = mealsTodayTask.Result;
+        var dailySummaries = dailySummaryTask.Result;
+        var summaryByDay = dailySummaries
+            .Where(x => !string.IsNullOrWhiteSpace(x.day_key_local))
+            .ToDictionary(x => x.day_key_local, x => x, StringComparer.Ordinal);
         var cal = mealsToday.Sum(m => m.TotalCalories);
         var carbs = mealsToday.Sum(m => m.TotalCarbsG);
         var prot = mealsToday.Sum(m => m.TotalProteinG);
@@ -204,14 +211,16 @@ public partial class DashboardViewModel : ObservableObject
         try
         {
             var balancedToday = DailyRewardService.IsBalancedDay(goals, cal, carbs, prot, todayBurnedCalories);
-            var streak = await DailyRewardService.ComputeCurrentStreakAsync(goals, async dayLocal =>
-            {
-                var start = DateTime.SpecifyKind(dayLocal.Date, DateTimeKind.Local).ToUniversalTime();
-                var end = DateTime.SpecifyKind(dayLocal.Date.AddDays(1), DateTimeKind.Local).ToUniversalTime();
+            var streak = summaryByDay.Count > 0
+                ? ComputeBalancedStreak(goals, todayLocal, summaryByDay)
+                : await DailyRewardService.ComputeCurrentStreakAsync(goals, async dayLocal =>
+                {
+                    var start = DateTime.SpecifyKind(dayLocal.Date, DateTimeKind.Local).ToUniversalTime();
+                    var end = DateTime.SpecifyKind(dayLocal.Date.AddDays(1), DateTimeKind.Local).ToUniversalTime();
 
-                var meals = await GetMealsForRangeAsync(start, end, identityAlreadyEnsured: identityOk);
-                return (meals.Sum(x => x.TotalCalories), meals.Sum(x => x.TotalCarbsG), meals.Sum(x => x.TotalProteinG), 0d);
-            });
+                    var meals = await GetMealsForRangeAsync(start, end, identityAlreadyEnsured: identityOk);
+                    return (meals.Sum(x => x.TotalCalories), meals.Sum(x => x.TotalCarbsG), meals.Sum(x => x.TotalProteinG), 0d);
+                });
 
             StreakText = $"{streak} {dayWord}";
             StreakHintText = balancedToday
@@ -230,7 +239,9 @@ public partial class DashboardViewModel : ObservableObject
 
         try
         {
-            var loggingStreak = await ComputeRecordingStreakAsync(identityAlreadyEnsured: identityOk);
+            var loggingStreak = summaryByDay.Count > 0
+                ? ComputeRecordingStreak(todayLocal, summaryByDay)
+                : await ComputeRecordingStreakAsync(identityAlreadyEnsured: identityOk);
             RecordingStreakText = $"{loggingStreak} {dayWord}";
         }
         catch
@@ -278,6 +289,41 @@ public partial class DashboardViewModel : ObservableObject
         {
             IsLoading = false;
         }
+    }
+
+    private static int ComputeBalancedStreak(UserGoals goals, DateTime todayLocal, IReadOnlyDictionary<string, BackendMealDailySummary> summaryByDay, int maxDays = 30)
+    {
+        var streak = 0;
+        for (var i = 0; i < maxDays; i++)
+        {
+            var dayLocal = todayLocal.AddDays(-i);
+            var key = dayLocal.ToString("yyyy-MM-dd");
+            if (!summaryByDay.TryGetValue(key, out var summary) || summary.meal_count <= 0)
+                break;
+
+            if (!DailyRewardService.IsBalancedDay(goals, summary.total_calories, summary.total_carbs_g, summary.total_protein_g, 0d))
+                break;
+
+            streak++;
+        }
+
+        return streak;
+    }
+
+    private static int ComputeRecordingStreak(DateTime todayLocal, IReadOnlyDictionary<string, BackendMealDailySummary> summaryByDay, int maxDays = 30)
+    {
+        var streak = 0;
+        for (var i = 0; i < maxDays; i++)
+        {
+            var dayLocal = todayLocal.AddDays(-i);
+            var key = dayLocal.ToString("yyyy-MM-dd");
+            if (!summaryByDay.TryGetValue(key, out var summary) || summary.meal_count <= 0)
+                break;
+
+            streak++;
+        }
+
+        return streak;
     }
 
     private async Task<int> ComputeRecordingStreakAsync(int maxDays = 30, bool identityAlreadyEnsured = false)

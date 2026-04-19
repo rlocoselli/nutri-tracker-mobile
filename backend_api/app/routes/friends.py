@@ -7,7 +7,7 @@ from ..db import get_db
 from ..config import APP_COMPANY_NAME, APP_DATA_LOCATION
 from ..mailer import send_email
 from ..models import FriendInvite, Friendship, MealEntry, User, StoryLike, StoryComment, PrivateMessage
-from ..schemas import InviteIn, FriendStoryOut, StoryLikeOut, StoryCommentIn, StoryCommentOut, PrivateMessageIn, PrivateMessageOut, FriendDirectoryOut, IncomingInviteOut, StoryVisibilityDefaultIn, StoryVisibilityDefaultOut
+from ..schemas import InviteIn, FriendStoryOut, StoryLikeOut, StoryCommentIn, StoryCommentOut, StoryCommentPreviewOut, PrivateMessageIn, PrivateMessageOut, FriendDirectoryOut, IncomingInviteOut, StoryVisibilityDefaultIn, StoryVisibilityDefaultOut
 from ..security import get_current_user_id
 
 router = APIRouter(prefix="/friends", tags=["friends"])
@@ -419,20 +419,69 @@ def friends_feed(
         .all()
     )
 
-    out: list[FriendStoryOut] = []
+    visible_rows: list[tuple[MealEntry, User]] = []
     for meal, user in rows:
-        if not _can_view_story(meal, user_id, visible_user_ids):
+        if _can_view_story(meal, user_id, visible_user_ids):
+            visible_rows.append((meal, user))
+        if len(visible_rows) >= safe_limit:
+            break
+
+    if not visible_rows:
+        return []
+
+    meal_ids = [meal.id for meal, _ in visible_rows]
+
+    like_count_rows = (
+        db.query(StoryLike.meal_entry_id, func.count(StoryLike.id))
+        .filter(StoryLike.meal_entry_id.in_(meal_ids))
+        .group_by(StoryLike.meal_entry_id)
+        .all()
+    )
+    like_count_by_meal = {meal_id: int(count or 0) for meal_id, count in like_count_rows}
+
+    comment_count_rows = (
+        db.query(StoryComment.meal_entry_id, func.count(StoryComment.id))
+        .filter(StoryComment.meal_entry_id.in_(meal_ids))
+        .group_by(StoryComment.meal_entry_id)
+        .all()
+    )
+    comment_count_by_meal = {meal_id: int(count or 0) for meal_id, count in comment_count_rows}
+
+    liked_rows = (
+        db.query(StoryLike.meal_entry_id)
+        .filter(StoryLike.user_id == user_id)
+        .filter(StoryLike.meal_entry_id.in_(meal_ids))
+        .all()
+    )
+    liked_by_meal = {meal_id for meal_id, in liked_rows}
+
+    preview_rows = (
+        db.query(StoryComment, User)
+        .join(User, User.id == StoryComment.user_id)
+        .filter(StoryComment.meal_entry_id.in_(meal_ids))
+        .order_by(StoryComment.meal_entry_id.asc(), StoryComment.created_at_utc.asc())
+        .all()
+    )
+
+    preview_comments_by_meal: dict[uuid.UUID, list[StoryCommentPreviewOut]] = {}
+    for comment, author in preview_rows:
+        bucket = preview_comments_by_meal.setdefault(comment.meal_entry_id, [])
+        if len(bucket) >= 3:
             continue
 
-        like_count = db.query(StoryLike).filter(StoryLike.meal_entry_id == meal.id).count()
-        comment_count = db.query(StoryComment).filter(StoryComment.meal_entry_id == meal.id).count()
-        liked_by_me = (
-            db.query(StoryLike)
-            .filter(StoryLike.meal_entry_id == meal.id, StoryLike.user_id == user_id)
-            .first()
-            is not None
+        bucket.append(
+            StoryCommentPreviewOut(
+                id=str(comment.id),
+                meal_id=str(comment.meal_entry_id),
+                user_id=str(comment.user_id),
+                author_name=_display_name(author),
+                text=comment.text or "",
+                created_at_utc=comment.created_at_utc,
+            )
         )
 
+    out: list[FriendStoryOut] = []
+    for meal, user in visible_rows:
         out.append(
             FriendStoryOut(
                 meal_id=str(meal.id),
@@ -448,14 +497,12 @@ def friends_feed(
                 total_protein_g=float(meal.total_protein_g or 0),
                 quality_label=meal.quality_label or "",
                 story_visibility=_normalize_story_visibility(meal.story_visibility, "friends"),
-                like_count=like_count,
-                comment_count=comment_count,
-                liked_by_me=liked_by_me,
+                like_count=like_count_by_meal.get(meal.id, 0),
+                comment_count=comment_count_by_meal.get(meal.id, 0),
+                liked_by_me=meal.id in liked_by_meal,
+                preview_comments=preview_comments_by_meal.get(meal.id, []),
             )
         )
-
-        if len(out) >= safe_limit:
-            break
 
     return out
 

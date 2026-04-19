@@ -48,6 +48,7 @@
             <Label Text="{Binding ResultSummary}" />
             <Label Text="{Binding ResultQuality}" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
             <Label Text="{Binding ResultBadge}" FontAttributes="Bold" />
+            <Label Text="{Binding ResultTigerCatMood}" FontAttributes="Bold" />
             <Label Text="{Binding ResultSemaphore}" Style="{StaticResource BodyMuted}" />
             <Border Style="{StaticResource Card}" Background="{StaticResource Card2Brush}" Padding="10,8" IsVisible="{Binding HasScoreWhy}">
               <Label Text="{Binding ResultScoreWhy}" FontSize="12" LineBreakMode="WordWrap" />

@@ -10,6 +10,10 @@ public class BackendSyncService
     private const string BackendUserIdKey = "backend_user_id";
     private const string BackendIdentitySubjectKey = "backend_identity_subject";
     private readonly HttpClient _http = new();
+    private UserGoals? _cachedGoals;
+    private DateTime _cachedGoalsFetchedUtc;
+    private List<FriendDirectoryDto>? _cachedFriendDirectory;
+    private DateTime _cachedFriendDirectoryFetchedUtc;
 
     public string BackendBaseUrl => "https://api.nutritiontracker.fr/api";
 
@@ -406,6 +410,17 @@ public class BackendSyncService
         });
 
         var resp = await _http.SendAsync(req);
+        if (resp.IsSuccessStatusCode)
+        {
+            _cachedGoals = new UserGoals
+            {
+                Id = 1,
+                CaloriesTarget = goals.CaloriesTarget,
+                CarbsGTarget = goals.CarbsGTarget,
+                ProteinGTarget = goals.ProteinGTarget,
+            };
+            _cachedGoalsFetchedUtc = DateTime.UtcNow;
+        }
         return resp.IsSuccessStatusCode;
     }
 
@@ -414,6 +429,17 @@ public class BackendSyncService
         var userId = Preferences.Default.Get("backend_user_id", "");
         if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
             return CreateDefaultGoals();
+
+        if (_cachedGoals != null && DateTime.UtcNow - _cachedGoalsFetchedUtc < TimeSpan.FromSeconds(45))
+        {
+            return new UserGoals
+            {
+                Id = _cachedGoals.Id,
+                CaloriesTarget = _cachedGoals.CaloriesTarget,
+                CarbsGTarget = _cachedGoals.CarbsGTarget,
+                ProteinGTarget = _cachedGoals.ProteinGTarget,
+            };
+        }
 
         using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/goals");
         req.Headers.Add("X-User-Id", userId);
@@ -425,13 +451,37 @@ public class BackendSyncService
         if (parsed == null)
             return CreateDefaultGoals();
 
-        return new UserGoals
+        var goals = new UserGoals
         {
             Id = 1,
             CaloriesTarget = parsed.calories_target,
             CarbsGTarget = parsed.carbs_g_target,
             ProteinGTarget = parsed.protein_g_target,
         };
+
+        _cachedGoals = goals;
+        _cachedGoalsFetchedUtc = DateTime.UtcNow;
+        return goals;
+    }
+
+    public async Task<List<BackendMealDailySummary>> GetMealDailySummaryAsync(DateTime fromUtc, DateTime toUtc)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
+            return new List<BackendMealDailySummary>();
+
+        var offsetMinutes = (int)Math.Round(TimeZoneInfo.Local.GetUtcOffset(DateTime.Now).TotalMinutes);
+        var fromEncoded = Uri.EscapeDataString(fromUtc.ToUniversalTime().ToString("O"));
+        var toEncoded = Uri.EscapeDataString(toUtc.ToUniversalTime().ToString("O"));
+
+        using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/meals/daily-summary?fromUtc={fromEncoded}&toUtc={toEncoded}&tzOffsetMinutes={offsetMinutes}");
+        req.Headers.Add("X-User-Id", userId);
+        var resp = await _http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode)
+            return new List<BackendMealDailySummary>();
+
+        var parsed = await resp.Content.ReadFromJsonAsync<List<BackendMealDailySummary>>();
+        return parsed ?? new List<BackendMealDailySummary>();
     }
 
     public async Task<bool> TryPushRemindersAsync(bool enabled, TimeSpan breakfast, TimeSpan lunch, TimeSpan dinner)
@@ -763,6 +813,9 @@ public class BackendSyncService
         if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
             return new List<FriendDirectoryDto>();
 
+        if (_cachedFriendDirectory != null && DateTime.UtcNow - _cachedFriendDirectoryFetchedUtc < TimeSpan.FromSeconds(60))
+            return _cachedFriendDirectory.Select(CloneFriendDirectory).ToList();
+
         using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/friends/directory");
         req.Headers.Add("X-User-Id", userId);
         var resp = await _http.SendAsync(req);
@@ -770,7 +823,9 @@ public class BackendSyncService
             return new List<FriendDirectoryDto>();
 
         var parsed = await resp.Content.ReadFromJsonAsync<List<FriendDirectoryDto>>();
-        return parsed ?? new List<FriendDirectoryDto>();
+        _cachedFriendDirectory = (parsed ?? new List<FriendDirectoryDto>()).Select(CloneFriendDirectory).ToList();
+        _cachedFriendDirectoryFetchedUtc = DateTime.UtcNow;
+        return _cachedFriendDirectory.Select(CloneFriendDirectory).ToList();
     }
 
     public async Task<List<BackendGamificationEvent>> GetGamificationEventsAsync(int limit = 60)
@@ -945,6 +1000,17 @@ public class BackendSyncService
         };
     }
 
+    private static FriendDirectoryDto CloneFriendDirectory(FriendDirectoryDto input)
+    {
+        return new FriendDirectoryDto
+        {
+            user_id = input.user_id,
+            email = input.email,
+            display_name = input.display_name,
+            picture_url = input.picture_url,
+        };
+    }
+
     private static string ExtractJwtSubject(string idToken)
     {
         if (string.IsNullOrWhiteSpace(idToken))
@@ -1037,12 +1103,22 @@ public class BackendStory
     public int like_count { get; set; }
     public int comment_count { get; set; }
     public bool liked_by_me { get; set; }
+    public List<StoryCommentDto> preview_comments { get; set; } = new();
 }
 
 public class StoryLikeResultDto
 {
     public bool liked { get; set; }
     public int like_count { get; set; }
+}
+
+public class BackendMealDailySummary
+{
+    public string day_key_local { get; set; } = "";
+    public int meal_count { get; set; }
+    public double total_calories { get; set; }
+    public double total_carbs_g { get; set; }
+    public double total_protein_g { get; set; }
 }
 
 public class BackendWaterIntake

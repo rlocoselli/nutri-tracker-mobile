@@ -18,7 +18,7 @@ public partial class ProfileViewModel : ObservableObject
     private readonly EmailAuthService _emailAuth;
     private readonly SubscriptionService _subscription;
 
-    public List<string> LanguageOptions { get; } = new() { "Français", "English", "Português (BR)", "Español (LatAm)" };
+    public List<string> LanguageOptions { get; } = new() { "Français", "English", "Português (BR)", "Italiano", "Español (LatAm)", "Deutsch" };
 
     [ObservableProperty] private string name = "";
     [ObservableProperty] private string email = "";
@@ -117,14 +117,18 @@ public partial class ProfileViewModel : ObservableObject
         {
             "en" => "English",
             "pt" => "Português (BR)",
+            "it" => "Italiano",
             "es" => "Español (LatAm)",
+            "de" => "Deutsch",
             _ => "Français",
         };
         CurrentLanguageText = appLang switch
         {
             "en" => LocalizationService.T("current_lang_en"),
             "pt" => LocalizationService.T("current_lang_pt"),
+            "it" => LocalizationService.T("current_lang_it"),
             "es" => LocalizationService.T("current_lang_es"),
+            "de" => LocalizationService.T("current_lang_de"),
             _ => LocalizationService.T("current_lang_fr"),
         };
 
@@ -220,7 +224,9 @@ public partial class ProfileViewModel : ObservableObject
         {
             "English" => "en",
             "Português (BR)" => "pt",
+            "Italiano" => "it",
             "Español (LatAm)" => "es",
+            "Deutsch" => "de",
             _ => "fr",
         };
         Preferences.Default.Set("app_lang", lang);
@@ -228,7 +234,9 @@ public partial class ProfileViewModel : ObservableObject
         {
             "en" => LocalizationService.T("current_lang_en"),
             "pt" => LocalizationService.T("current_lang_pt"),
+            "it" => LocalizationService.T("current_lang_it"),
             "es" => LocalizationService.T("current_lang_es"),
+            "de" => LocalizationService.T("current_lang_de"),
             _ => LocalizationService.T("current_lang_fr"),
         };
     }

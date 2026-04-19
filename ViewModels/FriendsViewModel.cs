@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Maui.Controls;
-using Microsoft.Maui.ApplicationModel.DataTransfer;
 using NutritionTracker.Services;
 
 namespace NutritionTracker.ViewModels;
@@ -16,13 +15,14 @@ public partial class FriendsViewModel : ObservableObject
     private readonly PointsService _points;
     private readonly IServiceProvider _services;
 
-    [ObservableProperty] private string inviteEmail = "";
     [ObservableProperty] private string searchQuery = "";
     [ObservableProperty] private string statusText = "";
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private string selectedTab = "friends";
     [ObservableProperty] private string friendsSearchQuery = "";
     [ObservableProperty] private string leagueBadgeAnnouncement = "";
+
+    private DateTime _lastUnreadRefreshUtc = DateTime.MinValue;
 
     public ObservableCollection<FriendsInviteRow> Friends { get; } = new();
     public ObservableCollection<FriendsInviteRow> AcceptedFriends { get; } = new();
@@ -32,14 +32,10 @@ public partial class FriendsViewModel : ObservableObject
     public ObservableCollection<IncomingInviteRow> IncomingInvites { get; } = new();
 
     public string TitleText => T("friends_title");
-    public string InvitePlaceholder => T("invite_email_placeholder");
-    public string InviteSectionTitleText => T("friends_invite_section_title");
     public string FriendsSectionTitleText => T("friends_contacts_section_title");
     public string SearchSectionTitleText => T("friends_search_section_title");
     public string EmptyFriendsText => T("friends_empty");
     public string SearchPlaceholder => T("friend_search_placeholder");
-    public string InviteText => T("invite_friend");
-    public string AddBuddyText => T("add_buddy");
     public string SearchText => T("search");
     public string AcceptText => T("accept");
     public string DeclineText => T("decline");
@@ -55,7 +51,6 @@ public partial class FriendsViewModel : ObservableObject
     public string TabFriendsText => T("friends_tab_friends");
     public string TabRequestsText => T("friends_tab_requests");
     public string TabSuggestionsText => T("friends_tab_suggestions");
-    public string ShareAppText => T("share_app_button");
     public string IncomingSectionText => T("incoming_invites_title");
     public string OutgoingSectionText => T("outgoing_invites_title");
     public string SuggestionsHintText => T("suggestions_hint");
@@ -65,9 +60,6 @@ public partial class FriendsViewModel : ObservableObject
     public string EmptyFriendsHelpText => T("friends_empty_help");
     public string AcceptAllText => T("accept_all");
     public string DeclineAllText => T("decline_all");
-    public string SyncContactsText => T("sync_contacts");
-    public string InviteLinkText => T("invite_link");
-    public string ShowQrText => T("show_qr");
     public string RequestToConfirmText => T("request_to_confirm");
     public string RequestSentStateText => T("request_sent_state");
 
@@ -112,14 +104,10 @@ public partial class FriendsViewModel : ObservableObject
     public async Task LoadAsync()
     {
         OnPropertyChanged(nameof(TitleText));
-        OnPropertyChanged(nameof(InvitePlaceholder));
-        OnPropertyChanged(nameof(InviteSectionTitleText));
         OnPropertyChanged(nameof(FriendsSectionTitleText));
         OnPropertyChanged(nameof(SearchSectionTitleText));
         OnPropertyChanged(nameof(EmptyFriendsText));
         OnPropertyChanged(nameof(SearchPlaceholder));
-        OnPropertyChanged(nameof(InviteText));
-        OnPropertyChanged(nameof(AddBuddyText));
         OnPropertyChanged(nameof(SearchText));
         OnPropertyChanged(nameof(AcceptText));
         OnPropertyChanged(nameof(DeclineText));
@@ -135,7 +123,6 @@ public partial class FriendsViewModel : ObservableObject
         OnPropertyChanged(nameof(TabFriendsText));
         OnPropertyChanged(nameof(TabRequestsText));
         OnPropertyChanged(nameof(TabSuggestionsText));
-        OnPropertyChanged(nameof(ShareAppText));
         OnPropertyChanged(nameof(IncomingSectionText));
         OnPropertyChanged(nameof(OutgoingSectionText));
         OnPropertyChanged(nameof(SuggestionsHintText));
@@ -145,9 +132,6 @@ public partial class FriendsViewModel : ObservableObject
         OnPropertyChanged(nameof(EmptyFriendsHelpText));
         OnPropertyChanged(nameof(AcceptAllText));
         OnPropertyChanged(nameof(DeclineAllText));
-        OnPropertyChanged(nameof(SyncContactsText));
-        OnPropertyChanged(nameof(InviteLinkText));
-        OnPropertyChanged(nameof(ShowQrText));
         OnPropertyChanged(nameof(ShowSuggestionsUi));
         OnPropertyChanged(nameof(RequestToConfirmText));
         OnPropertyChanged(nameof(RequestSentStateText));
@@ -187,89 +171,9 @@ public partial class FriendsViewModel : ObservableObject
     private void ShowSuggestionsTab() => SelectedTab = "suggestions";
 
     [RelayCommand]
-    private async Task ShareApp()
-    {
-        var shareText = T("share_app_message");
-        var title = T("share_app_title");
-
-        await Share.Default.RequestAsync(new ShareTextRequest
-        {
-            Text = shareText,
-            Title = title,
-            Subject = title,
-        });
-    }
-
-    [RelayCommand]
     private async Task Refresh()
     {
         await ReloadAsync();
-    }
-
-    [RelayCommand]
-    private async Task Invite()
-    {
-        if (IsBusy)
-            return;
-
-        if (string.IsNullOrWhiteSpace(InviteEmail) || !InviteEmail.Contains('@'))
-        {
-            StatusText = T("invite_invalid_email");
-            return;
-        }
-
-        var email = InviteEmail.Trim();
-        if (IsCurrentUserEmail(email))
-        {
-            StatusText = T("invite_self_not_allowed");
-            return;
-        }
-
-        try
-        {
-            IsBusy = true;
-            var backendOk = await _sync.TryInviteFriendAsync(email);
-            InviteEmail = "";
-            StatusText = backendOk ? T("invite_sent") : T("invite_send_failed");
-            await ReloadAsync();
-        }
-        finally
-        {
-            IsBusy = false;
-        }
-    }
-
-    [RelayCommand]
-    private async Task AddBuddy()
-    {
-        if (IsBusy)
-            return;
-
-        if (string.IsNullOrWhiteSpace(InviteEmail) || !InviteEmail.Contains('@'))
-        {
-            StatusText = T("invite_invalid_email");
-            return;
-        }
-
-        var email = InviteEmail.Trim();
-        if (IsCurrentUserEmail(email))
-        {
-            StatusText = T("invite_self_not_allowed");
-            return;
-        }
-
-        try
-        {
-            IsBusy = true;
-            var ok = await _sync.TryInviteFriendAsync(email);
-            InviteEmail = "";
-            StatusText = ok ? T("invite_sent") : T("invite_send_failed");
-            await ReloadAsync();
-        }
-        finally
-        {
-            IsBusy = false;
-        }
     }
 
     [RelayCommand]
@@ -453,6 +357,9 @@ public partial class FriendsViewModel : ObservableObject
             if (!string.IsNullOrWhiteSpace(row.InviterEmail))
                 _social.AddFriend(row.InviterEmail);
 
+            // Optimistic UI update to avoid waiting for backend index propagation.
+            IncomingInvites.Remove(row);
+
             StatusText = T("friend_accepted");
             await ReloadAsync();
         }
@@ -472,16 +379,26 @@ public partial class FriendsViewModel : ObservableObject
         try
         {
             var success = 0;
+            var invites = IncomingInvites.ToList();
             foreach (var invite in IncomingInvites.ToList())
             {
                 if (string.IsNullOrWhiteSpace(invite.InviteId))
                     continue;
 
                 if (await _sync.TryAcceptInviteAsync(invite.InviteId))
+                {
                     success++;
+
+                    if (!string.IsNullOrWhiteSpace(invite.InviterEmail))
+                        _social.AddFriend(invite.InviterEmail);
+
+                    IncomingInvites.Remove(invite);
+                }
             }
 
-            StatusText = success > 0 ? T("friend_accepted") : T("invite_accept_failed");
+            StatusText = success > 0
+                ? (success == invites.Count ? T("friend_accepted") : $"{success}/{invites.Count} {T("friend_accepted")}")
+                : T("invite_accept_failed");
             await ReloadAsync();
         }
         finally
@@ -516,30 +433,6 @@ public partial class FriendsViewModel : ObservableObject
         {
             IsBusy = false;
         }
-    }
-
-    [RelayCommand]
-    private async Task SyncContacts()
-    {
-        var page = GetCurrentPage();
-        if (page == null) return;
-        await page.DisplayAlert(T("friends_title"), T("contacts_permission_explainer"), "OK");
-    }
-
-    [RelayCommand]
-    private async Task InviteByLink()
-    {
-        var page = GetCurrentPage();
-        if (page == null) return;
-        await page.DisplayAlert(T("friends_title"), T("invite_link_hint"), "OK");
-    }
-
-    [RelayCommand]
-    private async Task ShowQr()
-    {
-        var page = GetCurrentPage();
-        if (page == null) return;
-        await page.DisplayAlert(T("friends_title"), T("qr_hint"), "OK");
     }
 
     [RelayCommand]
@@ -680,10 +573,15 @@ public partial class FriendsViewModel : ObservableObject
         var displayByEmail = new Dictionary<string, (string Name, string UserId, string PictureUrl)>(StringComparer.OrdinalIgnoreCase);
         var outgoingByEmail = new Dictionary<string, OutgoingInviteDto>(StringComparer.OrdinalIgnoreCase);
         var token = Preferences.Default.Get("auth_id_token", "");
+        List<IncomingInviteDto> incoming = new();
         var identityOk = await _sync.EnsureBackendIdentityAsync(token);
         if (identityOk)
         {
             var directory = await _sync.GetFriendDirectoryAsync();
+
+            var outgoingTask = _sync.GetOutgoingInvitesAsync();
+            var incomingTask = _sync.GetIncomingInvitesAsync();
+
             foreach (var user in directory)
             {
                 var email = (user.email ?? "").Trim().ToLowerInvariant();
@@ -697,7 +595,8 @@ public partial class FriendsViewModel : ObservableObject
                 displayByEmail[email] = (name, (user.user_id ?? "").Trim(), (user.picture_url ?? "").Trim());
             }
 
-            var outgoing = await _sync.GetOutgoingInvitesAsync();
+            var outgoing = await outgoingTask;
+            incoming = await incomingTask;
             foreach (var invite in outgoing)
             {
                 var email = (invite.invitee_email ?? "").Trim().ToLowerInvariant();
@@ -711,7 +610,12 @@ public partial class FriendsViewModel : ObservableObject
             }
 
             var myUserId = Preferences.Default.Get("backend_user_id", "").Trim();
-            await RefreshUnreadMessageStateAsync(directory.Select(d => (d.user_id ?? "").Trim()), myUserId);
+            var shouldRefreshUnread = DateTime.UtcNow - _lastUnreadRefreshUtc > TimeSpan.FromSeconds(45);
+            if (shouldRefreshUnread)
+            {
+                await RefreshUnreadMessageStateAsync(directory.Select(d => (d.user_id ?? "").Trim()), myUserId);
+                _lastUnreadRefreshUtc = DateTime.UtcNow;
+            }
         }
 
         Friends.Clear();
@@ -794,7 +698,6 @@ public partial class FriendsViewModel : ObservableObject
         IncomingInvites.Clear();
         if (identityOk)
         {
-            var incoming = await _sync.GetIncomingInvitesAsync();
             foreach (var invite in incoming)
             {
                 var email = (invite.inviter_email ?? "").Trim();
@@ -999,7 +902,7 @@ public partial class FriendsViewModel : ObservableObject
 
         var tasks = ids.Select(async id =>
         {
-            var messages = await _sync.GetPrivateMessagesAsync(id, limit: 40);
+            var messages = await _sync.GetPrivateMessagesAsync(id, limit: 12);
             var latestIncomingTick = messages
                 .Where(m => !string.Equals((m.sender_user_id ?? "").Trim(), meUserId, StringComparison.OrdinalIgnoreCase))
                 .OrderByDescending(m => m.created_at_utc)

@@ -1,4 +1,5 @@
 using Microsoft.Maui.Controls.Xaml;
+using System.Globalization;
 
 namespace NutritionTracker.Services;
 
@@ -212,7 +213,7 @@ public static class LocalizationService
             ["friends_contacts_section_title"] = "Mes contacts",
             ["friends_empty"] = "Aucun ami pour le moment.",
             ["invite_email_placeholder"] = "email@exemple.com",
-            ["friend_search_placeholder"] = "Rechercher un utilisateur (nom ou email)",
+            ["friend_search_placeholder"] = "Rechercher un ami par nom",
             ["invite_friend"] = "Inviter",
                 ["add_buddy"] = "Ajouter buddy",
                 ["search"] = "Rechercher",
@@ -228,7 +229,7 @@ public static class LocalizationService
                 ["friend_message"] = "Message",
                 ["friends_tab_friends"] = "Amis",
                 ["friends_tab_requests"] = "Demandes",
-                ["friends_tab_suggestions"] = "Suggestions",
+                ["friends_tab_suggestions"] = "Ajouter",
                 ["share_app_button"] = "Partager l'app",
                 ["share_app_title"] = "Partager NutritionTracker",
                 ["share_app_message"] = "Rejoins-moi sur NutritionTracker pour suivre nutrition, défis et motivation 💪",
@@ -599,7 +600,7 @@ public static class LocalizationService
             ["friends_contacts_section_title"] = "My contacts",
             ["friends_empty"] = "No friends yet.",
             ["invite_email_placeholder"] = "email@example.com",
-            ["friend_search_placeholder"] = "Search user (name or email)",
+            ["friend_search_placeholder"] = "Search friend by name",
             ["invite_friend"] = "Invite",
                 ["add_buddy"] = "Add buddy",
                 ["search"] = "Search",
@@ -615,7 +616,7 @@ public static class LocalizationService
                 ["friend_message"] = "Message",
                 ["friends_tab_friends"] = "Friends",
                 ["friends_tab_requests"] = "Requests",
-                ["friends_tab_suggestions"] = "Suggestions",
+                ["friends_tab_suggestions"] = "Add",
                 ["share_app_button"] = "Share app",
                 ["share_app_title"] = "Share NutritionTracker",
                 ["share_app_message"] = "Join me on NutritionTracker to track nutrition, challenges and motivation 💪",
@@ -763,6 +764,8 @@ public static class LocalizationService
         ["current_lang_en"] = "Current language: English",
         ["current_lang_pt"] = "Current language: Portuguese (Brazil)",
         ["current_lang_es"] = "Current language: Spanish (LatAm)",
+        ["current_lang_it"] = "Current language: Italian",
+        ["current_lang_de"] = "Current language: German",
         ["steps_today"] = "Today's steps",
         ["advice_title"] = "Advice",
         ["advice_hint"] = "Generate recommendations from your history.",
@@ -986,7 +989,7 @@ public static class LocalizationService
         ["friends_contacts_section_title"] = "Meus contatos",
         ["friends_empty"] = "Ainda sem amigos.",
         ["invite_email_placeholder"] = "email@exemplo.com",
-        ["friend_search_placeholder"] = "Buscar usuário (nome ou email)",
+        ["friend_search_placeholder"] = "Buscar amigo por nome",
         ["invite_friend"] = "Convidar",
         ["add_buddy"] = "Adicionar buddy",
         ["search"] = "Buscar",
@@ -1002,7 +1005,7 @@ public static class LocalizationService
         ["friend_message"] = "Mensagem",
         ["friends_tab_friends"] = "Amigos",
         ["friends_tab_requests"] = "Pedidos",
-        ["friends_tab_suggestions"] = "Sugestões",
+        ["friends_tab_suggestions"] = "Adicionar",
         ["share_app_button"] = "Compartilhar app",
         ["share_app_title"] = "Compartilhar NutritionTracker",
         ["share_app_message"] = "Vem comigo no NutritionTracker para acompanhar nutrição, desafios e motivação 💪",
@@ -1147,6 +1150,8 @@ public static class LocalizationService
         ["current_lang_en"] = "Idioma atual: Inglês",
         ["current_lang_pt"] = "Idioma atual: Português (Brasil)",
         ["current_lang_es"] = "Idioma atual: Espanhol (LatAm)",
+        ["current_lang_it"] = "Idioma atual: Italiano",
+        ["current_lang_de"] = "Idioma atual: Alemão",
         ["steps_today"] = "Passos de hoje",
         ["advice_title"] = "Conselhos",
         ["advice_hint"] = "Gere recomendações com base no seu histórico.",
@@ -1367,7 +1372,7 @@ public static class LocalizationService
         ["friends_contacts_section_title"] = "Mis contactos",
         ["friends_empty"] = "Aún no tienes amigos.",
         ["invite_email_placeholder"] = "email@ejemplo.com",
-        ["friend_search_placeholder"] = "Buscar usuario (nombre o email)",
+        ["friend_search_placeholder"] = "Buscar amigo por nombre",
         ["invite_friend"] = "Invitar",
         ["add_buddy"] = "Agregar buddy",
         ["search"] = "Buscar",
@@ -1383,7 +1388,7 @@ public static class LocalizationService
         ["friend_message"] = "Mensaje",
         ["friends_tab_friends"] = "Amigos",
         ["friends_tab_requests"] = "Solicitudes",
-        ["friends_tab_suggestions"] = "Sugerencias",
+        ["friends_tab_suggestions"] = "Agregar",
         ["share_app_button"] = "Compartir app",
         ["share_app_title"] = "Compartir NutritionTracker",
         ["share_app_message"] = "Únete conmigo en NutritionTracker para seguir nutrición, retos y motivación 💪",
@@ -1528,6 +1533,8 @@ public static class LocalizationService
         ["current_lang_en"] = "Idioma actual: Inglés",
         ["current_lang_pt"] = "Idioma actual: Portugués (Brasil)",
         ["current_lang_es"] = "Idioma actual: Español (LatAm)",
+        ["current_lang_it"] = "Idioma actual: Italiano",
+        ["current_lang_de"] = "Idioma actual: Alemán",
         ["steps_today"] = "Pasos de hoy",
         ["advice_title"] = "Consejos",
         ["advice_hint"] = "Genera recomendaciones según tu historial.",
@@ -1542,14 +1549,70 @@ public static class LocalizationService
         ["sync_disabled"] = "Integración de Google Fit temporalmente desactivada",
     };
 
+    private static readonly Dictionary<string, string> It = new(En)
+    {
+        ["tab_dashboard"] = "Dashboard",
+        ["tab_diary"] = "Diario",
+        ["tab_add"] = "Aggiungi",
+        ["tab_goals"] = "Obiettivi",
+        ["tab_friends"] = "Amici",
+        ["tab_help"] = "Aiuto",
+        ["tab_profile"] = "Profilo",
+        ["language"] = "Lingua",
+        ["logout"] = "Disconnetti",
+        ["current_lang_fr"] = "Lingua corrente: Francese",
+        ["current_lang_en"] = "Lingua corrente: Inglese",
+        ["current_lang_pt"] = "Lingua corrente: Portoghese (Brasile)",
+        ["current_lang_es"] = "Lingua corrente: Spagnolo (LatAm)",
+        ["current_lang_it"] = "Lingua corrente: Italiano",
+        ["current_lang_de"] = "Lingua corrente: Tedesco",
+    };
+
+    private static readonly Dictionary<string, string> De = new(En)
+    {
+        ["tab_dashboard"] = "Dashboard",
+        ["tab_diary"] = "Tagebuch",
+        ["tab_add"] = "Hinzufugen",
+        ["tab_goals"] = "Ziele",
+        ["tab_friends"] = "Freunde",
+        ["tab_help"] = "Hilfe",
+        ["tab_profile"] = "Profil",
+        ["language"] = "Sprache",
+        ["logout"] = "Abmelden",
+        ["current_lang_fr"] = "Aktuelle Sprache: Franzosisch",
+        ["current_lang_en"] = "Aktuelle Sprache: Englisch",
+        ["current_lang_pt"] = "Aktuelle Sprache: Portugiesisch (Brasilien)",
+        ["current_lang_es"] = "Aktuelle Sprache: Spanisch (LatAm)",
+        ["current_lang_it"] = "Aktuelle Sprache: Italienisch",
+        ["current_lang_de"] = "Aktuelle Sprache: Deutsch",
+    };
+
+    public static void EnsureAppLanguageConfigured()
+    {
+        var stored = (Preferences.Default.Get("app_lang", "") ?? "").Trim().ToLowerInvariant();
+        var normalized = NormalizeSupportedLanguage(stored);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            normalized = ResolveLanguageCodeFromDevice();
+            Preferences.Default.Set("app_lang", normalized);
+            return;
+        }
+
+        if (!string.Equals(stored, normalized, StringComparison.Ordinal))
+            Preferences.Default.Set("app_lang", normalized);
+    }
+
     public static string T(string key)
     {
-        var lang = Preferences.Default.Get("app_lang", "fr");
+        EnsureAppLanguageConfigured();
+        var lang = NormalizeSupportedLanguage(Preferences.Default.Get("app_lang", "")) ?? "en";
         var dict = lang switch
         {
             "en" => En,
             "pt" => Pt,
             "es" => Es,
+            "it" => It,
+            "de" => De,
             _ => Fr,
         };
 
@@ -1557,6 +1620,32 @@ public static class LocalizationService
         if (En.TryGetValue(key, out var en)) return en;
         if (Fr.TryGetValue(key, out var fr)) return fr;
         return key;
+    }
+
+    private static string ResolveLanguageCodeFromDevice()
+    {
+        var cultureCode = (CultureInfo.CurrentUICulture?.Name ?? "").Trim().ToLowerInvariant();
+        var twoLetters = (CultureInfo.CurrentUICulture?.TwoLetterISOLanguageName ?? "").Trim().ToLowerInvariant();
+
+        return NormalizeSupportedLanguage(cultureCode)
+            ?? NormalizeSupportedLanguage(twoLetters)
+            ?? "en";
+    }
+
+    private static string? NormalizeSupportedLanguage(string? code)
+    {
+        var normalized = (code ?? "").Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(normalized))
+            return null;
+
+        if (normalized.StartsWith("fr", StringComparison.Ordinal)) return "fr";
+        if (normalized.StartsWith("en", StringComparison.Ordinal)) return "en";
+        if (normalized.StartsWith("pt", StringComparison.Ordinal)) return "pt";
+        if (normalized.StartsWith("es", StringComparison.Ordinal)) return "es";
+        if (normalized.StartsWith("it", StringComparison.Ordinal)) return "it";
+        if (normalized.StartsWith("de", StringComparison.Ordinal)) return "de";
+
+        return null;
     }
 }
 

@@ -210,8 +210,7 @@ public partial class StoriesViewModel : ObservableObject
                     AvatarSource = avatar,
                 };
 
-                var preview = await _sync.GetStoryCommentsAsync(row.meal_id, limit: 3);
-                foreach (var comment in preview)
+                foreach (var comment in row.preview_comments.OrderBy(x => x.created_at_utc))
                 {
                     item.Comments.Add(new StoryCommentLine
                     {

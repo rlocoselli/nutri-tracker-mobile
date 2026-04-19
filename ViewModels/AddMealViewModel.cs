@@ -27,6 +27,7 @@ public partial class AddMealViewModel : ObservableObject
     [ObservableProperty] private string resultNotes = "";
     [ObservableProperty] private string resultQuality = "";
     [ObservableProperty] private string resultBadge = "";
+    [ObservableProperty] private string resultTigerCatMood = "";
     [ObservableProperty] private string resultSemaphore = "";
     [ObservableProperty] private string resultMotivation = "";
     [ObservableProperty] private string resultTipTitle = "";
@@ -100,6 +101,7 @@ public partial class AddMealViewModel : ObservableObject
         ResultNotes = "";
         ResultQuality = "";
         ResultBadge = "";
+        ResultTigerCatMood = "";
         ResultSemaphore = "";
         ResultMotivation = "";
         ResultTipTitle = "";
@@ -181,7 +183,8 @@ public partial class AddMealViewModel : ObservableObject
             ResultSummary = $"Calories: {Math.Round(resp.meal.totals.calories)} | Carbs: {Math.Round(resp.meal.totals.carbs_g)}g | Protein: {Math.Round(resp.meal.totals.protein_g)}g";
             ResultNotes = resp.meal.notes;
             ResultQuality = T("quality") + $": {entry.QualityLabel} ({Math.Round(entry.QualityScore)}/100)";
-            ResultBadge = T("badge") + $": {MealQualityService.GetBadge(entry.QualityScore, appLang)}";
+            ResultBadge = T("badge") + $": {MealQualityService.GetBadge(entry.QualityScore, appLang)} · {MealQualityService.GetFoodStyleBadge(entry.QualityScore, appLang)}";
+            ResultTigerCatMood = MealQualityService.GetTigerCatMood(entry.QualityScore, appLang);
             ResultSemaphore = T("semaphore") + $": {MealQualityService.GetSemaphore(entry.QualityScore, appLang)}";
             var scoreWhy = MealQualityService.BuildScoreExplanation(
                 Text,
@@ -203,6 +206,9 @@ public partial class AddMealViewModel : ObservableObject
             var newBalance = _points.Award(pointsEarned);
             var streakDays = await ComputeBalancedStreakAsync();
             await RewardPopupService.ShowAsync(pointsEarned, newBalance, streakDays);
+
+            if (entry.QualityScore >= 75)
+                await TigrouPopupService.ShowAsync(entry.QualityScore, appLang);
 
             var tip = await _tips.BuildTipForEntryAsync(entry);
             ResultTipTitle = tip.Title;

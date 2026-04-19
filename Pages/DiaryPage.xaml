@@ -186,7 +186,7 @@
                 <BindableLayout.ItemTemplate>
                     <DataTemplate>
                         <Border Style="{StaticResource Card}" Margin="0,0,0,12">
-                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
                                 <Label Text="{Binding Title}" FontAttributes="Bold" FontSize="15" />
                                 <Label Grid.Column="1" Text="{Binding CaloriesText}" FontAttributes="Bold" />
                                 <Label Grid.Row="1" Text="{Binding Subtitle}" TextColor="{StaticResource Muted}" FontSize="12" />
@@ -222,11 +222,17 @@
                                        FontAttributes="Bold"
                                        FontSize="12" />
                                           <Label Grid.Row="6"
+                                                    Grid.ColumnSpan="2"
+                                                    Text="{Binding TigerCatMoodText}"
+                                                    IsVisible="{Binding HasTigerCatMood}"
+                                                    FontAttributes="Bold"
+                                                    FontSize="12" />
+                                                        <Label Grid.Row="7"
                                        Grid.ColumnSpan="2"
                                        Text="{Binding QualitySemaphoreText}"
                                        IsVisible="{Binding HasQualitySemaphore}"
                                        Style="{StaticResource BodyMuted}" />
-                                          <HorizontalStackLayout Grid.Row="7" Grid.ColumnSpan="2" Spacing="8" HorizontalOptions="End">
+                                                        <HorizontalStackLayout Grid.Row="8" Grid.ColumnSpan="2" Spacing="8" HorizontalOptions="End">
                                     <Button Style="{StaticResource SecondaryButton}"
                                         Text="{Binding Source={x:Reference DiaryRoot}, Path=BindingContext.EditText}"
                                             Command="{Binding Source={x:Reference DiaryRoot}, Path=BindingContext.EditMealCommand}"
