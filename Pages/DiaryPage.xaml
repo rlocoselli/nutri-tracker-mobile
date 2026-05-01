@@ -278,6 +278,12 @@
                     <Label Text="{Binding CarbsLabel}" FontAttributes="Bold" FontSize="12" />
                     <Entry Text="{Binding ManualCarbs}" Keyboard="Numeric" Placeholder="{Binding CarbsPlaceholder}" />
 
+                        <Label Text="{Binding MealTypeLabel}" FontAttributes="Bold" FontSize="12" />
+                        <Picker ItemsSource="{Binding MealTypeChoices}"
+                            ItemDisplayBinding="{Binding Label}"
+                            SelectedItem="{Binding SelectedManualMealType}"
+                            Title="{Binding MealTypeLabel}" />
+
                     <Label Text="{Binding MinutesLabel}" FontAttributes="Bold" FontSize="12" />
                     <Entry Text="{Binding ManualExerciseMinutes}" Keyboard="Numeric" Placeholder="{Binding MinutesPlaceholder}" />
 
@@ -318,6 +324,12 @@
 
                     <Label Text="{Binding CarbsLabel}" FontAttributes="Bold" FontSize="12" />
                     <Entry Text="{Binding EditCarbs}" Keyboard="Numeric" Placeholder="{Binding CarbsPlaceholder}" />
+
+                        <Label Text="{Binding MealTypeLabel}" FontAttributes="Bold" FontSize="12" />
+                        <Picker ItemsSource="{Binding MealTypeChoices}"
+                            ItemDisplayBinding="{Binding Label}"
+                            SelectedItem="{Binding SelectedEditMealType}"
+                            Title="{Binding MealTypeLabel}" />
 
                     <Border Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
                         <VerticalStackLayout Spacing="4">

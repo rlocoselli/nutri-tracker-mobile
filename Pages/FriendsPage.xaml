@@ -16,6 +16,7 @@
                         <VerticalStackLayout Grid.Column="1" Spacing="2">
                             <Label Text="{Binding TitleText}" Style="{StaticResource H2}" />
                             <Label Text="{Binding EmptyFriendsHelpText}" Style="{StaticResource BodyMuted}" />
+                            <Button Text="{Binding ShareAppText}" Style="{StaticResource SecondaryButton}" Command="{Binding ShareAppCommand}" />
                         </VerticalStackLayout>
 
                         <Grid x:Name="NotificationBellHost" Grid.Column="2" WidthRequest="52" HeightRequest="44">

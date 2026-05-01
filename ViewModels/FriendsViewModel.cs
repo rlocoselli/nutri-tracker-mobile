@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Maui.ApplicationModel.DataTransfer;
 using Microsoft.Maui.Controls;
 using NutritionTracker.Services;
 
@@ -54,6 +55,7 @@ public partial class FriendsViewModel : ObservableObject
     public string IncomingSectionText => T("incoming_invites_title");
     public string OutgoingSectionText => T("outgoing_invites_title");
     public string SuggestionsHintText => T("suggestions_hint");
+    public string ShareAppText => T("share_app_button");
     public string FriendsSearchLocalPlaceholder => T("friends_local_search_placeholder");
     public string EmptyRequestsText => T("friends_requests_empty");
     public string EmptySuggestionsText => T("friends_suggestions_empty");
@@ -126,6 +128,7 @@ public partial class FriendsViewModel : ObservableObject
         OnPropertyChanged(nameof(IncomingSectionText));
         OnPropertyChanged(nameof(OutgoingSectionText));
         OnPropertyChanged(nameof(SuggestionsHintText));
+        OnPropertyChanged(nameof(ShareAppText));
         OnPropertyChanged(nameof(FriendsSearchLocalPlaceholder));
         OnPropertyChanged(nameof(EmptyRequestsText));
         OnPropertyChanged(nameof(EmptySuggestionsText));
@@ -174,6 +177,25 @@ public partial class FriendsViewModel : ObservableObject
     private async Task Refresh()
     {
         await ReloadAsync();
+    }
+
+    [RelayCommand]
+    private async Task ShareApp()
+    {
+        try
+        {
+            await Share.Default.RequestAsync(new ShareTextRequest
+            {
+                Title = T("share_app_title"),
+                Text = T("share_app_message"),
+                Uri = "https://www.nutritiontracker.fr",
+            });
+            StatusText = T("share_app_button");
+        }
+        catch
+        {
+            StatusText = T("error_title");
+        }
     }
 
     [RelayCommand]

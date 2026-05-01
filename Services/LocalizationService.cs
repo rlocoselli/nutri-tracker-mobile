@@ -100,8 +100,14 @@ public static class LocalizationService
         ["manual_name_title"] = "Repas manuel",
         ["manual_name_msg"] = "Nom du repas",
         ["manual_name_placeholder"] = "ex : Sandwich maison",
+        ["meal_type_title"] = "Type de repas",
+        ["meal_type_label"] = "Choisir le type",
+        ["meal_type_breakfast"] = "Petit-déjeuner",
+        ["meal_type_lunch"] = "Déjeuner",
+        ["meal_type_dinner"] = "Dîner",
+        ["meal_type_snack"] = "Collation",
         ["meal_label"] = "Repas",
-        ["calories_label"] = "Calories",
+        ["calories_label"] = "Calorias",
         ["protein_label"] = "Protéines",
         ["carbs_label"] = "Glucides",
         ["steps_label"] = "Pas Google Fit (test)",
@@ -487,8 +493,14 @@ public static class LocalizationService
         ["manual_name_title"] = "Manual meal",
         ["manual_name_msg"] = "Meal name",
         ["manual_name_placeholder"] = "ex: Homemade sandwich",
+        ["meal_type_title"] = "Meal type",
+        ["meal_type_label"] = "Choose meal type",
+        ["meal_type_breakfast"] = "Breakfast",
+        ["meal_type_lunch"] = "Lunch",
+        ["meal_type_dinner"] = "Dinner",
+        ["meal_type_snack"] = "Snack",
         ["meal_label"] = "Meal",
-        ["calories_label"] = "Calories",
+        ["calories_label"] = "Calorías",
         ["protein_label"] = "Protein",
         ["carbs_label"] = "Carbs",
         ["steps_label"] = "Google Fit steps (test)",
@@ -878,6 +890,12 @@ public static class LocalizationService
         ["manual_name_title"] = "Refeição manual",
         ["manual_name_msg"] = "Nome da refeição",
         ["manual_name_placeholder"] = "ex: Sanduíche caseiro",
+        ["meal_type_title"] = "Tipo de refeição",
+        ["meal_type_label"] = "Escolher tipo",
+        ["meal_type_breakfast"] = "Café da manhã",
+        ["meal_type_lunch"] = "Almoço",
+        ["meal_type_dinner"] = "Jantar",
+        ["meal_type_snack"] = "Lanche",
         ["meal_label"] = "Refeição",
         ["calories_label"] = "Calories",
         ["protein_label"] = "Proteínas",
@@ -1261,6 +1279,12 @@ public static class LocalizationService
         ["manual_name_title"] = "Comida manual",
         ["manual_name_msg"] = "Nombre de la comida",
         ["manual_name_placeholder"] = "ej: Sándwich casero",
+        ["meal_type_title"] = "Tipo de comida",
+        ["meal_type_label"] = "Elegir tipo",
+        ["meal_type_breakfast"] = "Desayuno",
+        ["meal_type_lunch"] = "Almuerzo",
+        ["meal_type_dinner"] = "Cena",
+        ["meal_type_snack"] = "Snack",
         ["meal_label"] = "Comida",
         ["calories_label"] = "Calories",
         ["protein_label"] = "Proteínas",
@@ -1566,6 +1590,12 @@ public static class LocalizationService
         ["current_lang_es"] = "Lingua corrente: Spagnolo (LatAm)",
         ["current_lang_it"] = "Lingua corrente: Italiano",
         ["current_lang_de"] = "Lingua corrente: Tedesco",
+        ["meal_type_title"] = "Tipo di pasto",
+        ["meal_type_label"] = "Scegli tipo",
+        ["meal_type_breakfast"] = "Colazione",
+        ["meal_type_lunch"] = "Pranzo",
+        ["meal_type_dinner"] = "Cena",
+        ["meal_type_snack"] = "Spuntino",
     };
 
     private static readonly Dictionary<string, string> De = new(En)
@@ -1585,16 +1615,32 @@ public static class LocalizationService
         ["current_lang_es"] = "Aktuelle Sprache: Spanisch (LatAm)",
         ["current_lang_it"] = "Aktuelle Sprache: Italienisch",
         ["current_lang_de"] = "Aktuelle Sprache: Deutsch",
+        ["meal_type_title"] = "Mahlzeittyp",
+        ["meal_type_label"] = "Typ auswahlen",
+        ["meal_type_breakfast"] = "Frühstück",
+        ["meal_type_lunch"] = "Mittagessen",
+        ["meal_type_dinner"] = "Abendessen",
+        ["meal_type_snack"] = "Snack",
     };
 
     public static void EnsureAppLanguageConfigured()
     {
         var stored = (Preferences.Default.Get("app_lang", "") ?? "").Trim().ToLowerInvariant();
         var normalized = NormalizeSupportedLanguage(stored);
+        var userOverride = Preferences.Default.Get("app_lang_user_override", false);
+
+        if (!userOverride)
+        {
+            // Follow device language when user has not explicitly chosen one.
+            var detected = ResolveLanguageCodeFromDevice();
+            if (!string.Equals(normalized, detected, StringComparison.Ordinal))
+                Preferences.Default.Set("app_lang", detected);
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(normalized))
         {
-            normalized = ResolveLanguageCodeFromDevice();
-            Preferences.Default.Set("app_lang", normalized);
+            Preferences.Default.Set("app_lang", ResolveLanguageCodeFromDevice());
             return;
         }
 

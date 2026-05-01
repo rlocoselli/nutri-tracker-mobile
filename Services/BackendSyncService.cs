@@ -306,6 +306,7 @@ public class BackendSyncService
             description = meal.Description,
             ai_notes = meal.AiNotes,
             photo_url = meal.PhotoPath,
+            meal_type = MealTypeService.Normalize(meal.MealType),
             story_visibility = NormalizeStoryVisibility(meal.StoryVisibility),
             total_calories = meal.TotalCalories,
             total_carbs_g = meal.TotalCarbsG,
@@ -956,6 +957,7 @@ public class BackendSyncService
             description = meal.Description,
             ai_notes = meal.AiNotes,
             photo_url = meal.PhotoPath,
+            meal_type = MealTypeService.Normalize(meal.MealType),
             story_visibility = NormalizeStoryVisibility(meal.StoryVisibility),
             total_calories = meal.TotalCalories,
             total_carbs_g = meal.TotalCarbsG,
@@ -1060,6 +1062,7 @@ public class BackendMeal
     public double overall_confidence { get; set; }
     public double quality_score { get; set; }
     public string quality_label { get; set; } = "";
+    public string meal_type { get; set; } = "snack";
     public string story_visibility { get; set; } = "friends";
     public List<BackendMealItem> items { get; set; } = new();
 }

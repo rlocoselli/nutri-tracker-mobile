@@ -2,11 +2,13 @@ namespace NutritionTracker;
 
 using NutritionTracker.Services;
 using NutritionTracker.Pages;
+using Microsoft.Maui.Storage;
 
 public partial class AppShell : Shell
 {
     private readonly SocialNotificationService _socialNotifications;
     private readonly GoalNudgeService _goalNudges;
+    private bool _backgroundPollersStarted;
 
     public AppShell(SocialNotificationService socialNotifications, GoalNudgeService goalNudges)
     {
@@ -25,7 +27,25 @@ public partial class AppShell : Shell
         StatisticsTab.Title = LocalizationService.T("tab_statistics");
         HelpTab.Title = LocalizationService.T("tab_help");
         ProfileTab.Title = LocalizationService.T("tab_profile");
+    }
 
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        StartBackgroundPollersIfNeeded();
+    }
+
+    private void StartBackgroundPollersIfNeeded()
+    {
+        if (_backgroundPollersStarted)
+            return;
+
+        // Avoid starting periodic network tasks while user is not authenticated.
+        var idToken = Preferences.Default.Get("auth_id_token", "");
+        if (string.IsNullOrWhiteSpace(idToken))
+            return;
+
+        _backgroundPollersStarted = true;
         StartSocialNotifications();
         StartGoalNudges();
     }

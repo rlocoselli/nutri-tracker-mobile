@@ -23,6 +23,7 @@ class MealCreateIn(BaseModel):
     description: str = ""
     ai_notes: str = ""
     photo_url: str = ""
+    meal_type: str = "snack"
     total_calories: float = 0
     total_carbs_g: float = 0
     total_protein_g: float = 0
@@ -54,6 +55,7 @@ class MealOut(BaseModel):
     description: str
     ai_notes: str
     photo_url: str
+    meal_type: str = "snack"
     total_calories: float
     total_carbs_g: float
     total_protein_g: float

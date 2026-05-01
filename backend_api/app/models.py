@@ -75,6 +75,7 @@ class MealEntry(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     ai_notes: Mapped[str] = mapped_column(Text, default="")
     photo_url: Mapped[str] = mapped_column(Text, default="")
+    meal_type: Mapped[str] = mapped_column(String, default="snack")
     story_visibility: Mapped[str] = mapped_column(String, default="friends")
     total_calories: Mapped[float] = mapped_column(Numeric(10, 2), default=0)
     total_carbs_g: Mapped[float] = mapped_column(Numeric(10, 2), default=0)

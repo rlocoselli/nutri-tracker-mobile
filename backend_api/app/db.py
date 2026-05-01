@@ -49,10 +49,13 @@ def ensure_postgres_required_columns() -> None:
     statements = [
         "ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS default_story_visibility TEXT NOT NULL DEFAULT 'friends'",
         "ALTER TABLE IF EXISTS meal_entries ADD COLUMN IF NOT EXISTS story_visibility TEXT NOT NULL DEFAULT 'friends'",
+        "ALTER TABLE IF EXISTS meal_entries ADD COLUMN IF NOT EXISTS meal_type TEXT NOT NULL DEFAULT 'snack'",
         "ALTER TABLE IF EXISTS users DROP CONSTRAINT IF EXISTS chk_users_default_story_visibility",
         "ALTER TABLE IF EXISTS users ADD CONSTRAINT chk_users_default_story_visibility CHECK (default_story_visibility IN ('friends','public','self'))",
         "ALTER TABLE IF EXISTS meal_entries DROP CONSTRAINT IF EXISTS chk_meal_entries_story_visibility",
         "ALTER TABLE IF EXISTS meal_entries ADD CONSTRAINT chk_meal_entries_story_visibility CHECK (story_visibility IN ('friends','public','self'))",
+        "ALTER TABLE IF EXISTS meal_entries DROP CONSTRAINT IF EXISTS chk_meal_entries_meal_type",
+        "ALTER TABLE IF EXISTS meal_entries ADD CONSTRAINT chk_meal_entries_meal_type CHECK (meal_type IN ('breakfast','lunch','dinner','snack'))",
     ]
 
     for statement in statements:

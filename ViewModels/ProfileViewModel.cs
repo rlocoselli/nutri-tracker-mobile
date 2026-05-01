@@ -230,6 +230,7 @@ public partial class ProfileViewModel : ObservableObject
             _ => "fr",
         };
         Preferences.Default.Set("app_lang", lang);
+        Preferences.Default.Set("app_lang_user_override", true);
         CurrentLanguageText = lang switch
         {
             "en" => LocalizationService.T("current_lang_en"),

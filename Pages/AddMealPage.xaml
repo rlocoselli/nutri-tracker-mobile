@@ -18,6 +18,16 @@
 
       <Border Style="{StaticResource Card}">
         <VerticalStackLayout Spacing="6">
+          <Label Text="{Binding MealTypeTitle}" FontAttributes="Bold" />
+          <Picker ItemsSource="{Binding MealTypeOptions}"
+                  ItemDisplayBinding="{Binding Label}"
+                  SelectedItem="{Binding SelectedMealTypeOption}"
+                  Title="{Binding MealTypeLabel}" />
+        </VerticalStackLayout>
+      </Border>
+
+      <Border Style="{StaticResource Card}">
+        <VerticalStackLayout Spacing="6">
           <Label Text="{Binding StoryVisibilityTitle}" FontAttributes="Bold" />
           <Picker ItemsSource="{Binding StoryVisibilityOptions}"
                   ItemDisplayBinding="{Binding Label}"

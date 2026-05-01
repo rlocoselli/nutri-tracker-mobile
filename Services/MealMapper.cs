@@ -40,6 +40,7 @@ public static class MealMapper
             Description = description,
             AiNotes = r.meal.notes?.Trim() ?? "",
             PhotoPath = photoPath ?? "",
+            MealType = MealTypeService.DetectByLocalTime(dt.ToLocalTime()),
             TotalCalories = r.meal.totals.calories,
             TotalCarbsG = r.meal.totals.carbs_g,
             TotalProteinG = r.meal.totals.protein_g,

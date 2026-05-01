@@ -18,6 +18,13 @@ def _normalize_story_visibility(value: str | None, fallback: str = "friends") ->
     return fallback if fallback in {"friends", "public", "self"} else "friends"
 
 
+def _normalize_meal_type(value: str | None) -> str:
+    normalized = (value or "").strip().lower()
+    if normalized in {"breakfast", "lunch", "dinner", "snack"}:
+        return normalized
+    return "snack"
+
+
 @router.post("")
 def create_meal(payload: MealCreateIn, user_id: uuid.UUID = Depends(get_current_user_id), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
@@ -32,6 +39,7 @@ def create_meal(payload: MealCreateIn, user_id: uuid.UUID = Depends(get_current_
         description=payload.description,
         ai_notes=payload.ai_notes,
         photo_url=payload.photo_url,
+        meal_type=_normalize_meal_type(payload.meal_type),
         story_visibility=story_visibility,
         total_calories=payload.total_calories,
         total_carbs_g=payload.total_carbs_g,
@@ -107,6 +115,7 @@ def list_meals(
             description=row.description,
             ai_notes=row.ai_notes,
             photo_url=row.photo_url,
+            meal_type=_normalize_meal_type(getattr(row, "meal_type", "snack")),
             total_calories=float(row.total_calories),
             total_carbs_g=float(row.total_carbs_g),
             total_protein_g=float(row.total_protein_g),
@@ -181,6 +190,7 @@ def patch_meal(meal_id: uuid.UUID, payload: MealCreateIn, user_id: uuid.UUID = D
     row.description = payload.description
     row.ai_notes = payload.ai_notes
     row.photo_url = payload.photo_url
+    row.meal_type = _normalize_meal_type(payload.meal_type)
     row.story_visibility = _normalize_story_visibility(payload.story_visibility, row.story_visibility or "friends")
     row.total_calories = payload.total_calories
     row.total_carbs_g = payload.total_carbs_g

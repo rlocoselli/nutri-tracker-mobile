@@ -41,6 +41,7 @@ public partial class DiaryViewModel : ObservableObject
     [ObservableProperty] private string manualCalories = "";
     [ObservableProperty] private string manualProtein = "";
     [ObservableProperty] private string manualCarbs = "";
+    [ObservableProperty] private MealTypeChoice? selectedManualMealType;
     [ObservableProperty] private string manualGoogleFitSteps = "";
     [ObservableProperty] private string manualExerciseMinutes = "";
     [ObservableProperty] private string manualBurnPreviewText = "";
@@ -50,6 +51,7 @@ public partial class DiaryViewModel : ObservableObject
     [ObservableProperty] private string editCalories = "";
     [ObservableProperty] private string editProtein = "";
     [ObservableProperty] private string editCarbs = "";
+    [ObservableProperty] private MealTypeChoice? selectedEditMealType;
     [ObservableProperty] private string editQualityPreviewText = "";
     [ObservableProperty] private string editBadgePreviewText = "";
     [ObservableProperty] private string editSemaphorePreviewText = "";
@@ -61,6 +63,7 @@ public partial class DiaryViewModel : ObservableObject
     public string CaloriesLabel => T("calories_label");
     public string ProteinLabel => T("protein_label");
     public string CarbsLabel => T("carbs_label");
+    public string MealTypeLabel => T("meal_type_label");
     public string StepsLabel => T("steps_label");
     public string MinutesLabel => T("minutes_label");
     public string ManualMealPlaceholder => T("manual_name_placeholder");
@@ -104,6 +107,7 @@ public partial class DiaryViewModel : ObservableObject
     public string NutritionSplitTitle => T("nutrition_split_title");
     public string DailyGoalTitle => T("daily_goal_title");
     public string LoadingText => LocalizationService.T("main_loading");
+    public ObservableCollection<MealTypeChoice> MealTypeChoices { get; } = new();
 
     public DiaryViewModel(PointsService points, HealthyTipService tips, GamificationCoachService gamification, BackendSyncService sync)
     {
@@ -115,6 +119,7 @@ public partial class DiaryViewModel : ObservableObject
         RebuildDayTabs();
         RebuildMetricTabs();
         RebuildPeriodTabs();
+        RebuildMealTypeChoices();
     }
 
     partial void OnSelectedDayLocalChanged(DateTime value)
@@ -196,6 +201,7 @@ public partial class DiaryViewModel : ObservableObject
         OnPropertyChanged(nameof(CaloriesLabel));
         OnPropertyChanged(nameof(ProteinLabel));
         OnPropertyChanged(nameof(CarbsLabel));
+        OnPropertyChanged(nameof(MealTypeLabel));
         OnPropertyChanged(nameof(StepsLabel));
         OnPropertyChanged(nameof(MinutesLabel));
         OnPropertyChanged(nameof(ManualMealPlaceholder));
@@ -218,6 +224,7 @@ public partial class DiaryViewModel : ObservableObject
         OnPropertyChanged(nameof(LoadingText));
         RebuildMetricTabs();
         RebuildPeriodTabs();
+        RebuildMealTypeChoices();
         RebuildDayTabs();
 
         var token = Preferences.Default.Get("auth_id_token", "");
@@ -260,6 +267,11 @@ public partial class DiaryViewModel : ObservableObject
         ManualProtein = "25";
         ManualCarbs = "40";
         ManualExerciseMinutes = "30";
+        var baseLocal = SelectedDayLocal.Date == DateTime.Now.Date
+            ? DateTime.Now
+            : SelectedDayLocal.Date.AddHours(12);
+        var detectedType = MealTypeService.DetectByLocalTime(baseLocal);
+        SelectedManualMealType = MealTypeChoices.FirstOrDefault(x => x.Value == detectedType) ?? MealTypeChoices.FirstOrDefault();
         RecomputeBurnPreview();
         IsManualPopupVisible = true;
     }
@@ -325,6 +337,7 @@ public partial class DiaryViewModel : ObservableObject
             QualityScore = manualQuality.score,
             QualityLabel = manualQuality.label,
             PhotoPath = "",
+            MealType = MealTypeService.Normalize(SelectedManualMealType?.Value ?? MealTypeService.DetectByLocalTime(baseLocal)),
             StoryVisibility = BackendSyncService.NormalizeStoryVisibility(Preferences.Default.Get("story_visibility_default", "friends"))
         };
 
@@ -398,6 +411,7 @@ public partial class DiaryViewModel : ObservableObject
         EditCalories = item.TotalCalories.ToString("0");
         EditProtein = item.TotalProteinG.ToString("0");
         EditCarbs = item.TotalCarbsG.ToString("0");
+        SelectedEditMealType = MealTypeChoices.FirstOrDefault(x => x.Value == item.MealType) ?? MealTypeChoices.FirstOrDefault();
         RecomputeEditQualityPreview();
         IsManualPopupVisible = false;
         IsEditPopupVisible = true;
@@ -462,6 +476,7 @@ public partial class DiaryViewModel : ObservableObject
             OverallConfidence = _editingMeal.OverallConfidence,
             QualityScore = quality.score,
             QualityLabel = quality.label,
+            MealType = MealTypeService.Normalize(SelectedEditMealType?.Value ?? _editingMeal.MealType),
             StoryVisibility = _editingMeal.StoryVisibility
         };
 
@@ -975,6 +990,15 @@ public partial class DiaryViewModel : ObservableObject
         PeriodTabs.Add(new DiaryToggleItem { Key = "Month", Label = T("period_month"), IsSelected = SelectedPeriod == "Month" });
     }
 
+    private void RebuildMealTypeChoices()
+    {
+        MealTypeChoices.Clear();
+        MealTypeChoices.Add(new MealTypeChoice("breakfast", MealTypeService.Label("breakfast")));
+        MealTypeChoices.Add(new MealTypeChoice("lunch", MealTypeService.Label("lunch")));
+        MealTypeChoices.Add(new MealTypeChoice("dinner", MealTypeService.Label("dinner")));
+        MealTypeChoices.Add(new MealTypeChoice("snack", MealTypeService.Label("snack")));
+    }
+
     private void RebuildDayTabs()
     {
         DayTabs.Clear();
@@ -1012,6 +1036,7 @@ public partial class DiaryViewModel : ObservableObject
             OverallConfidence = meal.overall_confidence,
             QualityScore = meal.quality_score,
             QualityLabel = meal.quality_label,
+            MealType = MealTypeService.Normalize(meal.meal_type),
             StoryVisibility = BackendSyncService.NormalizeStoryVisibility(meal.story_visibility),
         };
     }
@@ -1097,6 +1122,22 @@ public class DiaryToggleItem
     public bool IsSelected { get; set; }
 }
 
+public class MealTypeChoice
+{
+    public string Value { get; set; } = "snack";
+    public string Label { get; set; } = "";
+
+    public MealTypeChoice()
+    {
+    }
+
+    public MealTypeChoice(string value, string label)
+    {
+        Value = MealTypeService.Normalize(value);
+        Label = label;
+    }
+}
+
 public class DiaryMealItem
 {
     public string Id { get; set; } = "";
@@ -1114,6 +1155,7 @@ public class DiaryMealItem
     public double OverallConfidence { get; set; }
     public double QualityScore { get; set; }
     public string QualityLabel { get; set; } = "";
+    public string MealType { get; set; } = "snack";
     public string StoryVisibility { get; set; } = "friends";
 
     public string Title { get; set; } = "";
@@ -1136,6 +1178,7 @@ public class DiaryMealItem
     {
         var lang = Preferences.Default.Get("app_lang", "fr");
         var local = e.DateUtc.ToLocalTime();
+        var mealTypeLabel = MealTypeService.Label(e.MealType);
         var displayDescription = string.IsNullOrWhiteSpace(e.Description) ? e.RawText : e.Description;
         var fallbackTitle = lang switch
         {
@@ -1185,9 +1228,10 @@ public class DiaryMealItem
             OverallConfidence = e.OverallConfidence,
             QualityScore = e.QualityScore,
             QualityLabel = e.QualityLabel,
+            MealType = MealTypeService.Normalize(e.MealType),
             StoryVisibility = BackendSyncService.NormalizeStoryVisibility(e.StoryVisibility),
             Title = title,
-            Subtitle = local.ToString("dddd dd MMM · HH:mm", CultureInfo.CurrentCulture),
+            Subtitle = $"{mealTypeLabel} · {local.ToString("dddd dd MMM · HH:mm", CultureInfo.CurrentCulture)}",
             DescriptionText = displayDescription,
             AnalysisText = analysisText,
             QualityBadgeText = badgeText,

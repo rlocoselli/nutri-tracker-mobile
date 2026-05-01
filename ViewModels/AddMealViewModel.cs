@@ -21,6 +21,7 @@ public partial class AddMealViewModel : ObservableObject
     [ObservableProperty] private byte[]? photoBytes;
     [ObservableProperty] private string photoMime = "image/jpeg";
     [ObservableProperty] private StoryVisibilityOption? selectedStoryVisibilityOption;
+    [ObservableProperty] private MealTypeOption? selectedMealTypeOption;
 
     [ObservableProperty] private bool hasResult;
     [ObservableProperty] private string resultSummary = "";
@@ -48,10 +49,13 @@ public partial class AddMealViewModel : ObservableObject
     public string ResultTitle => T("result");
     public string StoryVisibilityTitle => T("story_visibility_title");
     public string StoryVisibilityLabel => T("story_visibility_label");
+    public string MealTypeTitle => T("meal_type_title");
+    public string MealTypeLabel => T("meal_type_label");
     public bool HasTip => !string.IsNullOrWhiteSpace(ResultTipMessage);
     public bool HasScoreWhy => !string.IsNullOrWhiteSpace(ResultScoreWhy);
 
     public ObservableCollection<StoryVisibilityOption> StoryVisibilityOptions { get; } = new();
+    public ObservableCollection<MealTypeOption> MealTypeOptions { get; } = new();
 
     public bool HasPhoto => !string.IsNullOrWhiteSpace(PhotoPath);
 
@@ -65,8 +69,11 @@ public partial class AddMealViewModel : ObservableObject
         _voiceInput = voiceInput;
 
         RebuildStoryVisibilityOptions();
+        RebuildMealTypeOptions();
         var defaultVisibility = BackendSyncService.NormalizeStoryVisibility(Preferences.Default.Get("story_visibility_default", "friends"));
         SelectedStoryVisibilityOption = StoryVisibilityOptions.FirstOrDefault(x => x.Value == defaultVisibility) ?? StoryVisibilityOptions.FirstOrDefault();
+        var detectedType = MealTypeService.DetectByLocalTime(DateTime.Now);
+        SelectedMealTypeOption = MealTypeOptions.FirstOrDefault(x => x.Value == detectedType) ?? MealTypeOptions.FirstOrDefault();
     }
 
     partial void OnPhotoPathChanged(string value) => OnPropertyChanged(nameof(HasPhoto));
@@ -113,6 +120,8 @@ public partial class AddMealViewModel : ObservableObject
 
         var defaultVisibility = BackendSyncService.NormalizeStoryVisibility(Preferences.Default.Get("story_visibility_default", "friends"));
         SelectedStoryVisibilityOption = StoryVisibilityOptions.FirstOrDefault(x => x.Value == defaultVisibility) ?? StoryVisibilityOptions.FirstOrDefault();
+        var detectedType = MealTypeService.DetectByLocalTime(DateTime.Now);
+        SelectedMealTypeOption = MealTypeOptions.FirstOrDefault(x => x.Value == detectedType) ?? MealTypeOptions.FirstOrDefault();
     }
 
     [RelayCommand]
@@ -171,6 +180,9 @@ public partial class AddMealViewModel : ObservableObject
 
             entry.StoryVisibility = SelectedStoryVisibilityOption?.Value
                 ?? BackendSyncService.NormalizeStoryVisibility(Preferences.Default.Get("story_visibility_default", "friends"));
+            entry.MealType = MealTypeService.Normalize(
+                SelectedMealTypeOption?.Value
+                ?? MealTypeService.DetectByLocalTime(entry.DateUtc.ToLocalTime()));
 
             var identityOk = await _sync.EnsureBackendIdentityAsync(idToken);
             if (!identityOk)
@@ -288,6 +300,15 @@ public partial class AddMealViewModel : ObservableObject
         StoryVisibilityOptions.Add(new StoryVisibilityOption("friends", T("story_visibility_friends")));
         StoryVisibilityOptions.Add(new StoryVisibilityOption("public", T("story_visibility_public")));
         StoryVisibilityOptions.Add(new StoryVisibilityOption("self", T("story_visibility_self")));
+    }
+
+    private void RebuildMealTypeOptions()
+    {
+        MealTypeOptions.Clear();
+        MealTypeOptions.Add(new MealTypeOption("breakfast", MealTypeService.Label("breakfast")));
+        MealTypeOptions.Add(new MealTypeOption("lunch", MealTypeService.Label("lunch")));
+        MealTypeOptions.Add(new MealTypeOption("dinner", MealTypeService.Label("dinner")));
+        MealTypeOptions.Add(new MealTypeOption("snack", MealTypeService.Label("snack")));
     }
 
     private async Task PromptShareToFriendAsync(string notes, double calories, double protein, double carbs)
@@ -413,6 +434,18 @@ public sealed class StoryVisibilityOption
     public string Label { get; }
 
     public StoryVisibilityOption(string value, string label)
+    {
+        Value = value;
+        Label = label;
+    }
+}
+
+public sealed class MealTypeOption
+{
+    public string Value { get; }
+    public string Label { get; }
+
+    public MealTypeOption(string value, string label)
     {
         Value = value;
         Label = label;
