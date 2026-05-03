@@ -43,8 +43,6 @@ public partial class DiaryViewModel : ObservableObject
     [ObservableProperty] private string manualCarbs = "";
     [ObservableProperty] private MealTypeChoice? selectedManualMealType;
     [ObservableProperty] private string manualGoogleFitSteps = "";
-    [ObservableProperty] private string manualExerciseMinutes = "";
-    [ObservableProperty] private string manualBurnPreviewText = "";
 
     [ObservableProperty] private bool isEditPopupVisible;
     [ObservableProperty] private string editMealName = "";
@@ -65,13 +63,11 @@ public partial class DiaryViewModel : ObservableObject
     public string CarbsLabel => T("carbs_label");
     public string MealTypeLabel => T("meal_type_label");
     public string StepsLabel => T("steps_label");
-    public string MinutesLabel => T("minutes_label");
     public string ManualMealPlaceholder => T("manual_name_placeholder");
     public string CaloriesPlaceholder => T("cal_placeholder");
     public string ProteinPlaceholder => T("protein_placeholder");
     public string CarbsPlaceholder => T("carbs_placeholder");
     public string StepsPlaceholder => T("steps_placeholder");
-    public string MinutesPlaceholder => T("minutes_placeholder");
     public string SaveText => T("save");
     public string CancelText => T("cancel");
     public string EditPopupTitle => T("edit_popup_title");
@@ -156,6 +152,7 @@ public partial class DiaryViewModel : ObservableObject
 
         SelectedDayLocal = tab.DayLocal.Date;
         await LoadDayAsync(SelectedDayLocal);
+        await LoadStoriesAsync();
         await LoadChartAsync();
     }
 
@@ -203,13 +200,11 @@ public partial class DiaryViewModel : ObservableObject
         OnPropertyChanged(nameof(CarbsLabel));
         OnPropertyChanged(nameof(MealTypeLabel));
         OnPropertyChanged(nameof(StepsLabel));
-        OnPropertyChanged(nameof(MinutesLabel));
         OnPropertyChanged(nameof(ManualMealPlaceholder));
         OnPropertyChanged(nameof(CaloriesPlaceholder));
         OnPropertyChanged(nameof(ProteinPlaceholder));
         OnPropertyChanged(nameof(CarbsPlaceholder));
         OnPropertyChanged(nameof(StepsPlaceholder));
-        OnPropertyChanged(nameof(MinutesPlaceholder));
         OnPropertyChanged(nameof(SaveText));
         OnPropertyChanged(nameof(CancelText));
         OnPropertyChanged(nameof(EditPopupTitle));
@@ -266,13 +261,11 @@ public partial class DiaryViewModel : ObservableObject
         ManualCalories = "450";
         ManualProtein = "25";
         ManualCarbs = "40";
-        ManualExerciseMinutes = "30";
         var baseLocal = SelectedDayLocal.Date == DateTime.Now.Date
             ? DateTime.Now
             : SelectedDayLocal.Date.AddHours(12);
         var detectedType = MealTypeService.DetectByLocalTime(baseLocal);
         SelectedManualMealType = MealTypeChoices.FirstOrDefault(x => x.Value == detectedType) ?? MealTypeChoices.FirstOrDefault();
-        RecomputeBurnPreview();
         IsManualPopupVisible = true;
     }
 
@@ -294,9 +287,6 @@ public partial class DiaryViewModel : ObservableObject
         if (!double.TryParse(ManualCalories, out var calories)) calories = 0;
         if (!double.TryParse(ManualProtein, out var protein)) protein = 0;
         if (!double.TryParse(ManualCarbs, out var carbs)) carbs = 0;
-        if (!double.TryParse(ManualExerciseMinutes, out var minutes)) minutes = 0;
-
-        var burned = EstimateBurnedCalories(minutes);
 
         var baseLocal = SelectedDayLocal.Date == DateTime.Now.Date
             ? DateTime.Now
@@ -336,7 +326,10 @@ public partial class DiaryViewModel : ObservableObject
             OverallConfidence = 1.0,
             QualityScore = manualQuality.score,
             QualityLabel = manualQuality.label,
-            PhotoPath = "",
+            PhotoPath = MealIllustrationService.GenerateDataUri(
+                ManualMealName,
+                SelectedManualMealType?.Value ?? "",
+                Preferences.Default.Get("app_lang", "fr")),
             MealType = MealTypeService.Normalize(SelectedManualMealType?.Value ?? MealTypeService.DetectByLocalTime(baseLocal)),
             StoryVisibility = BackendSyncService.NormalizeStoryVisibility(Preferences.Default.Get("story_visibility_default", "friends"))
         };
@@ -355,6 +348,8 @@ public partial class DiaryViewModel : ObservableObject
             await Application.Current!.MainPage!.DisplayAlert(T("error_title"), T("backend_save_error"), "OK");
             return;
         }
+
+        Preferences.Default.Set("last_meal_logged_day_local", entry.DateUtc.ToLocalTime().ToString("yyyy-MM-dd"));
 
         IsManualPopupVisible = false;
         var manualPoints = string.Equals(entry.StoryVisibility, "self", StringComparison.OrdinalIgnoreCase) ? 8 : 10;
@@ -565,6 +560,7 @@ public partial class DiaryViewModel : ObservableObject
     {
         SelectedDayLocal = SelectedDayLocal.AddDays(1);
         await LoadDayAsync(SelectedDayLocal);
+        await LoadStoriesAsync();
         await LoadChartAsync();
     }
 
@@ -648,9 +644,15 @@ public partial class DiaryViewModel : ObservableObject
             return;
 
         var feed = await _sync.GetFriendsFeedAsync(days: 3, limit: 40);
+        var selectedDate = SelectedDayLocal.Date;
         var meUserId = Preferences.Default.Get("backend_user_id", "").Trim();
         var myProfileName = Preferences.Default.Get("profile_name", "").Trim();
-        foreach (var s in feed)
+        var appLang = Preferences.Default.Get("app_lang", "fr");
+
+        foreach (var s in feed
+            .Where(x => !string.IsNullOrWhiteSpace(meUserId) && string.Equals((x.user_id ?? "").Trim(), meUserId, StringComparison.OrdinalIgnoreCase))
+            .Where(x => x.date_utc.ToLocalTime().Date == selectedDate)
+            .OrderByDescending(x => x.date_utc))
         {
             StoryPosts.Add(new StoryPostItem
             {
@@ -658,8 +660,12 @@ public partial class DiaryViewModel : ObservableObject
                 PostedAtText = s.date_utc.ToLocalTime().ToString("dd/MM HH:mm"),
                 Caption = string.IsNullOrWhiteSpace(s.raw_text) ? T("story_meal") : s.raw_text,
                 NutritionText = $"{Math.Round(s.total_calories)} kcal · P {Math.Round(s.total_protein_g)}g · C {Math.Round(s.total_carbs_g)}g",
+                CaloriesText = $"{Math.Round(s.total_calories)} kcal",
+                ProteinText = $"P {Math.Round(s.total_protein_g)}g",
+                CarbsText = $"C {Math.Round(s.total_carbs_g)}g",
                 QualityText = string.IsNullOrWhiteSpace(s.quality_label) ? "" : $"IA: {s.quality_label}",
-                PhotoSource = PhotoSourceHelper.Build(s.photo_url),
+                PhotoSource = PhotoSourceHelper.Build(s.photo_url)
+                    ?? PhotoSourceHelper.Build(MealIllustrationService.GenerateDataUri(s.raw_text, null, appLang)),
             });
         }
 
@@ -1060,23 +1066,9 @@ public partial class DiaryViewModel : ObservableObject
             .ToList();
     }
 
-    partial void OnManualExerciseMinutesChanged(string value) => RecomputeBurnPreview();
     partial void OnEditCaloriesChanged(string value) => RecomputeEditQualityPreview();
     partial void OnEditProteinChanged(string value) => RecomputeEditQualityPreview();
     partial void OnEditCarbsChanged(string value) => RecomputeEditQualityPreview();
-
-    private void RecomputeBurnPreview()
-    {
-        if (!double.TryParse(ManualExerciseMinutes, out var minutes)) minutes = 0;
-        var burned = EstimateBurnedCalories(minutes);
-        ManualBurnPreviewText = $"{T("burn")}: {Math.Round(burned)} kcal";
-    }
-
-    private static double EstimateBurnedCalories(double minutes)
-    {
-        var exerciseBurn = Math.Max(0, minutes) * 5.0;
-        return exerciseBurn;
-    }
 
     private void RecomputeEditQualityPreview()
     {
@@ -1285,6 +1277,9 @@ public class StoryPostItem
     public string PostedAtText { get; set; } = "";
     public string Caption { get; set; } = "";
     public string NutritionText { get; set; } = "";
+    public string CaloriesText { get; set; } = "";
+    public string ProteinText { get; set; } = "";
+    public string CarbsText { get; set; } = "";
     public string QualityText { get; set; } = "";
     public ImageSource? PhotoSource { get; set; }
     public bool HasPhoto => PhotoSource != null;

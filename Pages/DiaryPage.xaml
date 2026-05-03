@@ -15,12 +15,14 @@
         <!-- Day navigation -->
         <Grid ColumnDefinitions="Auto,*,Auto" VerticalOptions="Center">
             <Button Text="‹" Style="{StaticResource IconButton}" FontSize="22"
+                    ImageSource="{x:Null}"
                     Command="{Binding PrevDayCommand}" />
             <VerticalStackLayout Grid.Column="1" Spacing="2" HorizontalOptions="Center">
                 <Label Text="{Binding SelectedDayText}" FontAttributes="Bold" FontSize="16" HorizontalTextAlignment="Center" />
                 <Label Text="{Binding DayTotalsText}" FontSize="12" TextColor="{StaticResource Muted}" HorizontalTextAlignment="Center" />
             </VerticalStackLayout>
             <Button Grid.Column="2" Text="›" Style="{StaticResource IconButton}" FontSize="22"
+                    ImageSource="{x:Null}"
                     Command="{Binding NextDayCommand}" />
         </Grid>
 
@@ -64,7 +66,17 @@
                                         <Label Text="{Binding Author}" FontAttributes="Bold" FontSize="12" LineBreakMode="TailTruncation" />
                                         <Label Text="{Binding PostedAtText}" FontSize="10" TextColor="{StaticResource Muted}" />
                                         <Label Text="{Binding Caption}" FontSize="11" LineBreakMode="TailTruncation" MaxLines="2" />
-                                        <Label Text="{Binding NutritionText}" FontSize="11" FontAttributes="Bold" />
+                                        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6">
+                                            <Border Style="{StaticResource Card}" Padding="6,4" Background="{StaticResource Card2Brush}">
+                                                <Label Text="{Binding CaloriesText}" FontSize="10" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                                            </Border>
+                                            <Border Grid.Column="1" Style="{StaticResource Card}" Padding="6,4" Background="{StaticResource Card2Brush}">
+                                                <Label Text="{Binding ProteinText}" FontSize="10" FontAttributes="Bold" TextColor="{StaticResource MacroProtein}" HorizontalTextAlignment="Center" />
+                                            </Border>
+                                            <Border Grid.Column="2" Style="{StaticResource Card}" Padding="6,4" Background="{StaticResource Card2Brush}">
+                                                <Label Text="{Binding CarbsText}" FontSize="10" FontAttributes="Bold" TextColor="{StaticResource MacroCarbs}" HorizontalTextAlignment="Center" />
+                                            </Border>
+                                        </Grid>
                                     </VerticalStackLayout>
                                 </Grid>
                             </Border>
@@ -283,11 +295,6 @@
                             ItemDisplayBinding="{Binding Label}"
                             SelectedItem="{Binding SelectedManualMealType}"
                             Title="{Binding MealTypeLabel}" />
-
-                    <Label Text="{Binding MinutesLabel}" FontAttributes="Bold" FontSize="12" />
-                    <Entry Text="{Binding ManualExerciseMinutes}" Keyboard="Numeric" Placeholder="{Binding MinutesPlaceholder}" />
-
-                    <Label Text="{Binding ManualBurnPreviewText}" Style="{StaticResource BodyMuted}" />
 
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
                         <Button Text="{Binding SaveText}" Command="{Binding SaveManualPopupCommand}" />

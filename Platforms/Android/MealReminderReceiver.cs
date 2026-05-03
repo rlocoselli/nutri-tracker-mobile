@@ -9,6 +9,7 @@ namespace NutritionTracker.Platforms.Android;
 public class MealReminderReceiver : BroadcastReceiver
 {
     private const string ChannelId = "meal_reminders";
+    private const string LastMealLoggedDayKey = "last_meal_logged_day_local";
 
     public override void OnReceive(Context? context, Intent? intent)
     {
@@ -21,6 +22,13 @@ public class MealReminderReceiver : BroadcastReceiver
         var message = intent?.GetStringExtra("notif_message") ?? "Pense à enregistrer ton repas.";
         var hour = intent?.GetIntExtra("hour", 8) ?? 8;
         var minute = intent?.GetIntExtra("minute", 0) ?? 0;
+        var skipIfMealLoggedToday = intent?.GetBooleanExtra("skip_if_meal_logged_today", false) ?? false;
+
+        if (skipIfMealLoggedToday && HasMealLoggedToday())
+        {
+            ScheduleNextDay(context, id, hour, minute, title, message, skipIfMealLoggedToday);
+            return;
+        }
 
         var openIntent = new Intent(context, typeof(MainActivity));
         openIntent.SetFlags(ActivityFlags.SingleTop | ActivityFlags.ClearTop);
@@ -41,10 +49,10 @@ public class MealReminderReceiver : BroadcastReceiver
             .Build();
 
         NotificationManagerCompat.From(context).Notify(id, notification);
-        ScheduleNextDay(context, id, hour, minute, title, message);
+        ScheduleNextDay(context, id, hour, minute, title, message, skipIfMealLoggedToday);
     }
 
-    private static void ScheduleNextDay(Context context, int id, int hour, int minute, string title, string message)
+    private static void ScheduleNextDay(Context context, int id, int hour, int minute, string title, string message, bool skipIfMealLoggedToday)
     {
         var alarmManager = (AlarmManager?)context.GetSystemService(Context.AlarmService);
         if (alarmManager == null) return;
@@ -55,6 +63,7 @@ public class MealReminderReceiver : BroadcastReceiver
         intent.PutExtra("notif_message", message);
         intent.PutExtra("hour", hour);
         intent.PutExtra("minute", minute);
+        intent.PutExtra("skip_if_meal_logged_today", skipIfMealLoggedToday);
 
         var flags = PendingIntentFlags.UpdateCurrent;
         if (OperatingSystem.IsAndroidVersionAtLeast(23))
@@ -80,6 +89,13 @@ public class MealReminderReceiver : BroadcastReceiver
         }
 
         alarmManager.Set(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
+    }
+
+    private static bool HasMealLoggedToday()
+    {
+        var todayKey = DateTime.Now.ToString("yyyy-MM-dd");
+        var lastMealDay = Preferences.Default.Get(LastMealLoggedDayKey, "").Trim();
+        return string.Equals(todayKey, lastMealDay, StringComparison.Ordinal);
     }
 
     private static void CreateNotificationChannel(Context context)

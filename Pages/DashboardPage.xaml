@@ -45,6 +45,22 @@
                 </Border>
             </Grid>
 
+            <Border Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="{Binding GamificationTitleText}" FontAttributes="Bold" FontSize="12" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="{Binding GamificationScoreLabelText}" Style="{StaticResource BodyMuted}" />
+                            <Label Text="{Binding GamificationScoreText}" FontAttributes="Bold" FontSize="18" TextColor="{StaticResource Primary}" />
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="1" Spacing="2">
+                            <Label Text="{Binding GamificationLevelLabelText}" Style="{StaticResource BodyMuted}" />
+                            <Label Text="{Binding GamificationLevelText}" FontAttributes="Bold" FontSize="18" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Spacing="8">
                     <Label Text="{Binding MacroChartTitle}" FontAttributes="Bold" FontSize="12" />
@@ -94,6 +110,7 @@
                         </VerticalStackLayout>
                         <Button Grid.Column="1"
                                 Text="i"
+                                ImageSource="ic_help.svg"
                                 Style="{StaticResource SecondaryButton}"
                                 Command="{Binding ShowBalanceInfoCommand}" />
                     </Grid>

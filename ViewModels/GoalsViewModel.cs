@@ -84,6 +84,19 @@ public partial class GoalsViewModel : ObservableObject
         var balance = _points.Award(5);
         var streakDays = await ComputeBalancedStreakAsync();
         await RewardPopupService.ShowAsync(5, balance, streakDays);
+
+        _ = _sync.TryPostGamificationEventAsync(
+            eventType: "goals_updated",
+            title: "Goals updated",
+            message: "Nutrition goals saved",
+            metadata: new Dictionary<string, object>
+            {
+                ["points_earned"] = 5,
+                ["calories_target"] = cal,
+                ["protein_target"] = prot,
+                ["carbs_target"] = carbs,
+            });
+
         if (Shell.Current?.Navigation != null)
             await Shell.Current.Navigation.PopAsync();
     }

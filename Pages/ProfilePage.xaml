@@ -48,7 +48,55 @@
 
                     <Label Text="{Binding AdviceTitle}" FontAttributes="Bold" />
                     <Label Text="{Binding AdviceHint}" Style="{StaticResource BodyMuted}" />
-                    <Button Text="{Binding GenerateRecoText}" Command="{Binding OpenRecommendationsCommand}" />
+                    <Button Text="{Binding GenerateRecoText}"
+                        ImageSource="ic_goals.svg"
+                        ContentLayout="Left,10"
+                        Command="{Binding OpenRecommendationsCommand}" />
+
+                    <Label Text="{Binding GamificationTitle}" FontAttributes="Bold" Margin="0,10,0,0" />
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                        <Border Style="{StaticResource Card}">
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="{Binding TotalXpLabel}" FontSize="12" Style="{StaticResource BodyMuted}" />
+                                <Label Text="{Binding TotalXp}" FontSize="18" FontAttributes="Bold" />
+                            </VerticalStackLayout>
+                        </Border>
+                        <Border Grid.Column="1" Style="{StaticResource Card}">
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="{Binding LevelLabel}" FontSize="12" Style="{StaticResource BodyMuted}" />
+                                <Label Text="{Binding PlayerLevel}" FontSize="18" FontAttributes="Bold" />
+                            </VerticalStackLayout>
+                        </Border>
+                        <Border Grid.Column="2" Style="{StaticResource Card}">
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="{Binding NextLevelLabel}" FontSize="12" Style="{StaticResource BodyMuted}" />
+                                <Label Text="{Binding XpToNextLevel}" FontSize="18" FontAttributes="Bold" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </Grid>
+
+                    <Label Text="{Binding GamificationStatusText}" Style="{StaticResource BodyMuted}" />
+                    <Label Text="{Binding BadgesTitle}" FontAttributes="Bold" />
+                    <CollectionView ItemsSource="{Binding ProfileBadges}" SelectionMode="None">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource Card}" Margin="0,0,0,8">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" VerticalOptions="Center">
+                                        <Image Source="{Binding IconSource}" WidthRequest="26" HeightRequest="26" VerticalOptions="Center" />
+                                        <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                            <Label Text="{Binding Title}" FontAttributes="Bold" />
+                                            <Label Text="{Binding Description}" Style="{StaticResource BodyMuted}" />
+                                            <Label Text="{Binding ProgressText}" FontSize="12" TextColor="{StaticResource Text}" />
+                                        </VerticalStackLayout>
+                                        <Label Grid.Column="2"
+                                            Text="{Binding StateIcon}"
+                                            FontSize="18"
+                                            VerticalOptions="Center" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
 
                     <Label Text="{Binding ReminderTitle}" FontAttributes="Bold" Margin="0,10,0,0" />
                     <HorizontalStackLayout Spacing="8">
@@ -56,7 +104,7 @@
                         <Switch IsToggled="{Binding RemindersEnabled}" />
                     </HorizontalStackLayout>
 
-                    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="8" ColumnSpacing="10">
+                    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="8" ColumnSpacing="10">
                         <Label Text="{Binding ReminderBreakfastText}" />
                         <TimePicker Grid.Column="1" Time="{Binding BreakfastReminder}" Format="HH:mm" />
 
@@ -65,9 +113,19 @@
 
                         <Label Grid.Row="2" Text="{Binding ReminderDinnerText}" />
                         <TimePicker Grid.Row="2" Grid.Column="1" Time="{Binding DinnerReminder}" Format="HH:mm" />
+
+                        <Label Grid.Row="3" Text="{Binding ReminderSocialEngagementText}" />
+                        <TimePicker Grid.Row="3" Grid.Column="1" Time="{Binding SocialEngagementReminder}" Format="HH:mm" />
+
+                        <Label Grid.Row="4" Text="{Binding ReminderNoMealWarningText}" />
+                        <TimePicker Grid.Row="4" Grid.Column="1" Time="{Binding NoMealWarningReminder}" Format="HH:mm" />
                     </Grid>
 
-                    <Button Text="{Binding SaveReminderText}" Style="{StaticResource SecondaryButton}" Command="{Binding SaveRemindersCommand}" />
+                    <Button Text="{Binding SaveReminderText}"
+                        Style="{StaticResource SecondaryButton}"
+                        ImageSource="ic_diary.svg"
+                        ContentLayout="Left,10"
+                        Command="{Binding SaveRemindersCommand}" />
                     <Label Text="{Binding ReminderStatusText}" Style="{StaticResource BodyMuted}" />
 
                         <Label Text="{Binding StoryVisibilityTitle}" FontAttributes="Bold" Margin="0,10,0,0" />
@@ -78,6 +136,8 @@
                             SelectedItem="{Binding SelectedDefaultStoryVisibility}" />
                         <Button Text="{Binding SaveStoryPrivacyText}"
                             Style="{StaticResource SecondaryButton}"
+                            ImageSource="ic_help.svg"
+                            ContentLayout="Left,10"
                             Command="{Binding SaveStoryPrivacyCommand}" />
                         <Label Text="{Binding StoryPrivacyStatusText}" Style="{StaticResource BodyMuted}" />
                         </VerticalStackLayout>
@@ -99,11 +159,15 @@
                                                 Text="{Binding Source={x:Reference ProfileRoot}, Path=BindingContext.AcceptText}"
                                                 IsVisible="{Binding IsPending}"
                                                 Style="{StaticResource SecondaryButton}"
+                                            ImageSource="ic_add.svg"
+                                            ContentLayout="Left,8"
                                                 Command="{Binding Source={x:Reference ProfileRoot}, Path=BindingContext.AcceptFriendCommand}"
                                                 CommandParameter="{Binding .}" />
                                         <Button Grid.Column="3"
                                                 Text="{Binding Source={x:Reference ProfileRoot}, Path=BindingContext.RemoveText}"
                                                 Style="{StaticResource SecondaryButton}"
+                                            ImageSource="ic_diary.svg"
+                                            ContentLayout="Left,8"
                                                 Command="{Binding Source={x:Reference ProfileRoot}, Path=BindingContext.RemoveFriendCommand}"
                                                 CommandParameter="{Binding .}" />
                                     </Grid>
@@ -135,14 +199,20 @@
                             <Label Text="{Binding SubscriptionStatusText}" Style="{StaticResource BodyMuted}" />
                             <Button Text="{Binding StartFreeTrialText}"
                                 Style="{StaticResource SecondaryButton}"
+                                ImageSource="ic_add.svg"
+                                ContentLayout="Left,10"
                                 IsVisible="{Binding CanStartFreeTrial}"
                                 Command="{Binding StartFreeTrialCommand}" />
                             <Button Text="{Binding SubscribeGoogleText}"
                                 Style="{StaticResource SecondaryButton}"
+                                ImageSource="ic_google.svg"
+                                ContentLayout="Left,10"
                                 IsVisible="{Binding CanSubscribe}"
                                 Command="{Binding SubscribeWithGoogleCommand}" />
                             <Button Text="{Binding ConfirmGoogleText}"
                                 Style="{StaticResource SecondaryButton}"
+                                ImageSource="ic_google.svg"
+                                ContentLayout="Left,10"
                                 IsVisible="{Binding CanSubscribe}"
                                 Command="{Binding ConfirmGoogleSubscriptionCommand}" />
                             </VerticalStackLayout>
@@ -150,9 +220,13 @@
                         <Label Text="{Binding AccountSecurityTitle}" FontAttributes="Bold" Margin="0,10,0,0" />
                         <Button Text="{Binding ScoreHistoryButtonText}"
                             Style="{StaticResource SecondaryButton}"
+                            ImageSource="ic_stats.svg"
+                            ContentLayout="Left,10"
                             Command="{Binding OpenScoreHistoryCommand}" />
                         <Button Text="{Binding PrivacyMenuText}"
                             Style="{StaticResource SecondaryButton}"
+                            ImageSource="ic_help.svg"
+                            ContentLayout="Left,10"
                             Command="{Binding OpenPrivacyMenuCommand}" />
 
                         <VerticalStackLayout Spacing="8" IsVisible="{Binding IsEmailAccount}">
@@ -162,6 +236,8 @@
                         <Entry Text="{Binding NewPassword}" IsPassword="True" />
                         <Button Text="{Binding ChangePasswordButton}"
                             Style="{StaticResource SecondaryButton}"
+                            ImageSource="ic_profile.svg"
+                            ContentLayout="Left,10"
                             Command="{Binding ChangePasswordCommand}" />
                         </VerticalStackLayout>
 
@@ -170,12 +246,18 @@
                         <Entry Text="{Binding DeletePassword}" IsPassword="True" IsVisible="{Binding IsEmailAccount}" Placeholder="{Binding CurrentPasswordLabel}" />
                         <Button Text="{Binding DeleteAccountButton}"
                             Style="{StaticResource SecondaryButton}"
+                            ImageSource="ic_diary.svg"
+                            ContentLayout="Left,10"
                             Command="{Binding DeleteAccountCommand}" />
                         <Label Text="{Binding AccountActionStatusText}" Style="{StaticResource BodyMuted}" />
                 </VerticalStackLayout>
             </Border>
 
-            <Button Text="{Binding LogoutText}" Style="{StaticResource SecondaryButton}" Command="{Binding LogoutCommand}" />
+            <Button Text="{Binding LogoutText}"
+                Style="{StaticResource SecondaryButton}"
+                ImageSource="ic_home.svg"
+                ContentLayout="Left,10"
+                Command="{Binding LogoutCommand}" />
 
         </VerticalStackLayout>
     </ScrollView>

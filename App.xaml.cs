@@ -14,4 +14,10 @@ public partial class App : Application
         var mainPage = services.GetRequiredService<MainPage>();
         MainPage = new NavigationPage(mainPage);
     }
+
+    protected override void OnResume()
+    {
+        base.OnResume();
+        LocalizationService.EnsureAppLanguageConfigured();
+    }
 }

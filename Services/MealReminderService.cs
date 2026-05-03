@@ -12,8 +12,16 @@ public class MealReminderService : IMealReminderService
     private const int BreakfastNotificationId = 2101;
     private const int LunchNotificationId = 2102;
     private const int DinnerNotificationId = 2103;
+    private const int NoMealWarningNotificationId = 2104;
+    private const int SocialEngagementNotificationId = 2105;
 
-    public async Task<bool> ScheduleDailyMealRemindersAsync(bool enabled, TimeSpan breakfastTime, TimeSpan lunchTime, TimeSpan dinnerTime)
+    public async Task<bool> ScheduleDailyMealRemindersAsync(
+        bool enabled,
+        TimeSpan breakfastTime,
+        TimeSpan lunchTime,
+        TimeSpan dinnerTime,
+        TimeSpan? socialEngagementTime = null,
+        TimeSpan? noMealWarningTime = null)
     {
 #if ANDROID
         try
@@ -43,12 +51,16 @@ public class MealReminderService : IMealReminderService
                 Cancel(BreakfastNotificationId);
                 Cancel(LunchNotificationId);
                 Cancel(DinnerNotificationId);
+                Cancel(NoMealWarningNotificationId);
+                Cancel(SocialEngagementNotificationId);
                 return true;
             }
 
             ScheduleDaily(BreakfastNotificationId, breakfastTime, "Rappel petit-déjeuner", "Pense à enregistrer ton repas du matin.");
             ScheduleDaily(LunchNotificationId, lunchTime, "Rappel déjeuner", "Pense à enregistrer ton repas de midi.");
             ScheduleDaily(DinnerNotificationId, dinnerTime, "Rappel dîner", "Pense à enregistrer ton repas du soir.");
+            ScheduleNoMealWarning(noMealWarningTime ?? new TimeSpan(21, 0, 0));
+            ScheduleSocialEngagementNudge(socialEngagementTime ?? new TimeSpan(18, 30, 0));
             return true;
         }
         catch
@@ -95,6 +107,57 @@ public class MealReminderService : IMealReminderService
         intent.PutExtra("notif_message", message);
         intent.PutExtra("hour", timeOfDay.Hours);
         intent.PutExtra("minute", timeOfDay.Minutes);
+
+        var flags = PendingIntentFlags.UpdateCurrent;
+        if (OperatingSystem.IsAndroidVersionAtLeast(23))
+            flags |= PendingIntentFlags.Immutable;
+
+        var pendingIntent = PendingIntent.GetBroadcast(context, id, intent, flags);
+        if (pendingIntent == null) return;
+
+        alarmManager.Cancel(pendingIntent);
+
+        var triggerAt = NextTriggerUtcMillis(timeOfDay);
+        SetBestAlarm(alarmManager, triggerAt, pendingIntent);
+    }
+
+        private static void ScheduleNoMealWarning(TimeSpan time)
+    {
+        var title = LocalizationService.T("notif_no_meal_title");
+        var message = LocalizationService.T("notif_no_meal_body");
+        ScheduleDailyWithOptions(
+            NoMealWarningNotificationId,
+            time,
+            title,
+            message,
+            skipIfMealLoggedToday: true);
+    }
+
+        private static void ScheduleSocialEngagementNudge(TimeSpan time)
+    {
+        var title = LocalizationService.T("notif_social_engage_title");
+        var message = LocalizationService.T("notif_social_engage_body");
+        ScheduleDailyWithOptions(
+            SocialEngagementNotificationId,
+            time,
+            title,
+            message,
+            skipIfMealLoggedToday: false);
+    }
+
+    private static void ScheduleDailyWithOptions(int id, TimeSpan timeOfDay, string title, string message, bool skipIfMealLoggedToday)
+    {
+        var context = Android.App.Application.Context;
+        var alarmManager = (AlarmManager?)context.GetSystemService(Context.AlarmService);
+        if (alarmManager == null) return;
+
+        var intent = new Intent(context, Java.Lang.Class.FromType(typeof(Platforms.Android.MealReminderReceiver)));
+        intent.PutExtra("notif_id", id);
+        intent.PutExtra("notif_title", title);
+        intent.PutExtra("notif_message", message);
+        intent.PutExtra("hour", timeOfDay.Hours);
+        intent.PutExtra("minute", timeOfDay.Minutes);
+        intent.PutExtra("skip_if_meal_logged_today", skipIfMealLoggedToday);
 
         var flags = PendingIntentFlags.UpdateCurrent;
         if (OperatingSystem.IsAndroidVersionAtLeast(23))

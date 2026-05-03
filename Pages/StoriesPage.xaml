@@ -17,7 +17,11 @@
                                 <Label Text="{Binding HeaderTitle}" Style="{StaticResource H2}" />
                                 <Label Text="{Binding HeaderSubtitle}" Style="{StaticResource BodyMuted}" />
                             </VerticalStackLayout>
-                            <Button Grid.Column="2" Text="↻" Style="{StaticResource IconButton}" Command="{Binding RefreshCommand}" />
+                                <Button Grid.Column="2"
+                                    Text=""
+                                    ImageSource="ic_stories.svg"
+                                    Style="{StaticResource IconButton}"
+                                    Command="{Binding RefreshCommand}" />
                         </Grid>
                     </Border>
 
@@ -27,6 +31,7 @@
                         </Border>
                         <Button Grid.Column="1"
                                 Text="{Binding ClearFilterText}"
+                            ImageSource="{x:Null}"
                                 Style="{StaticResource SecondaryButton}"
                                 Command="{Binding ClearFilterCommand}"
                                 IsVisible="{Binding HasActiveAuthorFilter}" />
@@ -78,11 +83,31 @@
                                     <Image Source="{Binding PhotoSource}" Aspect="AspectFill" HeightRequest="220" IsVisible="{Binding HasPhoto}" />
 
                                     <Label Text="{Binding Caption}" FontAttributes="Bold" />
-                                    <Label Text="{Binding NutritionText}" />
+
+                                    <Border Style="{StaticResource Card}" Background="{StaticResource Card2Brush}" Padding="10,8">
+                                        <VerticalStackLayout Spacing="6">
+                                            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                                                <Border Style="{StaticResource Card}" Padding="8,6" Background="{StaticResource CardBrush}">
+                                                    <Label Text="{Binding CaloriesText}" FontSize="11" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                                                </Border>
+                                                <Border Grid.Column="1" Style="{StaticResource Card}" Padding="8,6" Background="{StaticResource CardBrush}">
+                                                    <Label Text="{Binding ProteinText}" FontSize="11" FontAttributes="Bold" HorizontalTextAlignment="Center" TextColor="{StaticResource MacroProtein}" />
+                                                </Border>
+                                                <Border Grid.Column="2" Style="{StaticResource Card}" Padding="8,6" Background="{StaticResource CardBrush}">
+                                                    <Label Text="{Binding CarbsText}" FontSize="11" FontAttributes="Bold" HorizontalTextAlignment="Center" TextColor="{StaticResource MacroCarbs}" />
+                                                </Border>
+                                            </Grid>
+                                            <Label Text="{Binding QualityText, StringFormat='IA: {0}'}"
+                                                   FontSize="11"
+                                                   TextColor="{StaticResource Primary}"
+                                                  IsVisible="{Binding HasQualityText}" />
+                                        </VerticalStackLayout>
+                                    </Border>
 
                                     <Grid ColumnDefinitions="*" ColumnSpacing="8">
                                         <Button Grid.Column="0"
                                                 Text="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.LikeText}"
+                                            ImageSource="ic_stories.svg"
                                                 Style="{StaticResource SecondaryButton}"
                                                 Command="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.ToggleLikeCommand}"
                                                 CommandParameter="{Binding .}" />
@@ -119,6 +144,7 @@
                                                Placeholder="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.CommentPlaceholder}" />
                                         <Button Grid.Column="1"
                                                 Text="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.SendText}"
+                                            ImageSource="ic_add.svg"
                                                 Style="{StaticResource SecondaryButton}"
                                                 Command="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.AddCommentCommand}"
                                                 CommandParameter="{Binding .}" />
@@ -126,6 +152,7 @@
 
                                     <Button Text="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.ViewAllCommentsText}"
                                             IsVisible="{Binding HasMoreComments}"
+                                            ImageSource="ic_diary.svg"
                                             Style="{StaticResource SecondaryButton}"
                                             Command="{Binding Source={x:Reference StoriesRoot}, Path=BindingContext.ViewCommentsCommand}"
                                             CommandParameter="{Binding .}" />

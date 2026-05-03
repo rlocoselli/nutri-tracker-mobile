@@ -1,4 +1,9 @@
 using System.Text.Json;
+#if ANDROID
+using Android.App;
+using Android.Content;
+using AndroidX.Core.App;
+#endif
 
 namespace NutritionTracker.Services;
 
@@ -144,26 +149,14 @@ public class SocialNotificationService
 
             var body = string.Join("\n", notifications.Take(5));
             _isShowing = true;
-            await MainThread.InvokeOnMainThreadAsync(async () =>
+            try
             {
-                try
-                {
-                    var page = Application.Current?.Windows.Count > 0
-                        ? Application.Current.Windows[0].Page
-                        : null;
-                    if (page == null)
-                        return;
-
-                    await page.DisplayAlert(
-                        LocalizationService.T("social_notify_title"),
-                        body,
-                        "OK");
-                }
-                finally
-                {
-                    _isShowing = false;
-                }
-            });
+                await ShowSocialNotificationAsync(LocalizationService.T("social_notify_title"), body);
+            }
+            finally
+            {
+                _isShowing = false;
+            }
         }
         finally
         {
@@ -248,4 +241,73 @@ public class SocialNotificationService
         public int like_count { get; set; }
         public int comment_count { get; set; }
     }
+
+    private static async Task ShowSocialNotificationAsync(string title, string body)
+    {
+#if ANDROID
+        await MainThread.InvokeOnMainThreadAsync(() =>
+        {
+            var context = Android.App.Application.Context;
+            if (context == null)
+                return;
+
+            const string channelId = "social_updates";
+            EnsureSocialChannel(context, channelId);
+
+            var openIntent = new Intent(context, Java.Lang.Class.FromType(typeof(MainActivity)));
+            openIntent.SetFlags(ActivityFlags.SingleTop | ActivityFlags.ClearTop);
+
+            var flags = PendingIntentFlags.UpdateCurrent;
+            if (OperatingSystem.IsAndroidVersionAtLeast(23))
+                flags |= PendingIntentFlags.Immutable;
+
+            var pendingOpen = PendingIntent.GetActivity(context, 8801, openIntent, flags);
+
+            var notification = new NotificationCompat.Builder(context, channelId)
+                .SetContentTitle(title)
+                .SetContentText(body)
+                .SetStyle(new NotificationCompat.BigTextStyle().BigText(body))
+                .SetSmallIcon(Android.Resource.Drawable.IcDialogInfo)
+                .SetAutoCancel(true)
+                .SetPriority((int)NotificationPriority.High)
+                .SetContentIntent(pendingOpen)
+                .Build();
+
+            NotificationManagerCompat.From(context).Notify(8801, notification);
+        });
+#else
+        await MainThread.InvokeOnMainThreadAsync(async () =>
+        {
+            var page = Application.Current?.Windows.Count > 0
+                ? Application.Current.Windows[0].Page
+                : null;
+            if (page == null)
+                return;
+
+            await page.DisplayAlert(title, body, "OK");
+        });
+#endif
+    }
+
+#if ANDROID
+    private static void EnsureSocialChannel(Context context, string channelId)
+    {
+        if (!OperatingSystem.IsAndroidVersionAtLeast(26))
+            return;
+
+        var manager = (NotificationManager?)context.GetSystemService(Context.NotificationService);
+        if (manager == null)
+            return;
+
+        if (manager.GetNotificationChannel(channelId) != null)
+            return;
+
+        var channel = new NotificationChannel(channelId, "Social updates", NotificationImportance.Default)
+        {
+            Description = "Social and interaction notifications"
+        };
+
+        manager.CreateNotificationChannel(channel);
+    }
+#endif
 }

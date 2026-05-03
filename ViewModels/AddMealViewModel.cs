@@ -184,6 +184,11 @@ public partial class AddMealViewModel : ObservableObject
                 SelectedMealTypeOption?.Value
                 ?? MealTypeService.DetectByLocalTime(entry.DateUtc.ToLocalTime()));
 
+            if (PhotoBytes is not { Length: > 0 } && string.IsNullOrWhiteSpace(entry.PhotoPath))
+            {
+                entry.PhotoPath = MealIllustrationService.GenerateDataUri(Text, entry.MealType, appLang);
+            }
+
             var identityOk = await _sync.EnsureBackendIdentityAsync(idToken);
             if (!identityOk)
                 throw new Exception(T("backend_identity_error"));
@@ -191,6 +196,8 @@ public partial class AddMealViewModel : ObservableObject
             var backendId = await _sync.CreateMealAsync(entry, items);
             if (string.IsNullOrWhiteSpace(backendId))
                 throw new Exception(T("backend_save_error"));
+
+            Preferences.Default.Set("last_meal_logged_day_local", entry.DateUtc.ToLocalTime().ToString("yyyy-MM-dd"));
 
             ResultSummary = $"Calories: {Math.Round(resp.meal.totals.calories)} | Carbs: {Math.Round(resp.meal.totals.carbs_g)}g | Protein: {Math.Round(resp.meal.totals.protein_g)}g";
             ResultNotes = resp.meal.notes;
@@ -252,6 +259,7 @@ public partial class AddMealViewModel : ObservableObject
                 });
 
             await PromptShareToFriendAsync(resp.meal.notes, entry.TotalCalories, entry.TotalProteinG, entry.TotalCarbsG);
+            ClearInputForNextMeal();
         }
         catch (Exception ex)
         {
@@ -261,6 +269,18 @@ public partial class AddMealViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    private void ClearInputForNextMeal()
+    {
+        Text = "";
+        PhotoPath = "";
+        PhotoBytes = null;
+        PhotoMime = "image/jpeg";
+        var defaultVisibility = BackendSyncService.NormalizeStoryVisibility(Preferences.Default.Get("story_visibility_default", "friends"));
+        SelectedStoryVisibilityOption = StoryVisibilityOptions.FirstOrDefault(x => x.Value == defaultVisibility) ?? StoryVisibilityOptions.FirstOrDefault();
+        var detectedType = MealTypeService.DetectByLocalTime(DateTime.Now);
+        SelectedMealTypeOption = MealTypeOptions.FirstOrDefault(x => x.Value == detectedType) ?? MealTypeOptions.FirstOrDefault();
     }
 
     private static string T(string key)

@@ -172,7 +172,6 @@ public partial class StoriesViewModel : ObservableObject
 
             var feed = await _sync.GetFriendsFeedAsync(days: 14, limit: _currentFeedLimit);
             var ordered = feed
-                .Where(x => !string.IsNullOrWhiteSpace(x.photo_url))
                 .OrderByDescending(x => x.date_utc)
                 .ToList();
 
@@ -186,7 +185,11 @@ public partial class StoriesViewModel : ObservableObject
                 if (!reset && existingIds.Contains(row.meal_id))
                     continue;
 
-                var photo = StoriesPhotoSourceHelper.Build(row.photo_url);
+                var photo = StoriesPhotoSourceHelper.Build(row.photo_url)
+                    ?? StoriesPhotoSourceHelper.Build(MealIllustrationService.GenerateDataUri(
+                        row.raw_text,
+                        null,
+                        Preferences.Default.Get("app_lang", "fr")));
                 if (photo == null)
                     continue;
 
@@ -202,6 +205,9 @@ public partial class StoriesViewModel : ObservableObject
                     PostedAtText = row.date_utc.ToLocalTime().ToString("dd/MM HH:mm"),
                     Caption = string.IsNullOrWhiteSpace(row.raw_text) ? T("story_meal") : row.raw_text,
                     NutritionText = $"{Math.Round(row.total_calories)} kcal · P {Math.Round(row.total_protein_g)}g · C {Math.Round(row.total_carbs_g)}g",
+                    CaloriesText = $"{Math.Round(row.total_calories)} kcal",
+                    ProteinText = $"P {Math.Round(row.total_protein_g)}g",
+                    CarbsText = $"C {Math.Round(row.total_carbs_g)}g",
                     QualityText = string.IsNullOrWhiteSpace(row.quality_label) ? "" : row.quality_label,
                     LikeCount = row.like_count,
                     CommentCount = row.comment_count,
@@ -465,7 +471,11 @@ public class StoryFeedItem
     public string PostedAtText { get; set; } = "";
     public string Caption { get; set; } = "";
     public string NutritionText { get; set; } = "";
+    public string CaloriesText { get; set; } = "";
+    public string ProteinText { get; set; } = "";
+    public string CarbsText { get; set; } = "";
     public string QualityText { get; set; } = "";
+    public bool HasQualityText => !string.IsNullOrWhiteSpace(QualityText);
     public int LikeCount { get; set; }
     public int CommentCount { get; set; }
     public bool IsLiked { get; set; }

@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System.Text.Json;
 using NutritionTracker.Models;
 using NutritionTracker.Services;
 
@@ -29,6 +30,8 @@ public partial class DashboardViewModel : ObservableObject
     [ObservableProperty] private string balanceStatusText = "";
     [ObservableProperty] private string recordingStreakText = "0 jours";
     [ObservableProperty] private string coinsText = "0";
+    [ObservableProperty] private string gamificationScoreText = "0 XP";
+    [ObservableProperty] private string gamificationLevelText = "1";
     [ObservableProperty] private string weeklyMissionStatusText = "";
     [ObservableProperty] private bool isLoading;
 
@@ -65,6 +68,9 @@ public partial class DashboardViewModel : ObservableObject
     public string BalanceInfoTitleText => LocalizationService.T("balance_info_title");
     public string RecordingStreakTitleText => LocalizationService.T("recording_streak_title");
     public string CoinsTitleText => LocalizationService.T("coins_balance");
+    public string GamificationTitleText => LocalizationService.T("dashboard_gamification_title");
+    public string GamificationScoreLabelText => LocalizationService.T("dashboard_gamification_score");
+    public string GamificationLevelLabelText => LocalizationService.T("dashboard_gamification_level");
     public string WeeklyMissionTitleText => LocalizationService.T("weekly_mission_title");
     public bool ShowGoogleFitUi => FeatureFlags.EnableGoogleFit;
 
@@ -113,6 +119,9 @@ public partial class DashboardViewModel : ObservableObject
         OnPropertyChanged(nameof(BalanceInfoTitleText));
         OnPropertyChanged(nameof(RecordingStreakTitleText));
         OnPropertyChanged(nameof(CoinsTitleText));
+        OnPropertyChanged(nameof(GamificationTitleText));
+        OnPropertyChanged(nameof(GamificationScoreLabelText));
+        OnPropertyChanged(nameof(GamificationLevelLabelText));
         OnPropertyChanged(nameof(WeeklyMissionTitleText));
         OnPropertyChanged(nameof(ShowGoogleFitUi));
 
@@ -260,6 +269,23 @@ public partial class DashboardViewModel : ObservableObject
 
         try
         {
+            var events = await _sync.GetGamificationEventsAsync(limit: 120);
+            var eventsXp = events.Sum(ExtractPointsFromEvent);
+            var totalXp = Math.Max(_points.GetBalance(), eventsXp);
+            var level = (totalXp / 100) + 1;
+            GamificationScoreText = $"{totalXp} XP";
+            GamificationLevelText = level.ToString();
+        }
+        catch
+        {
+            var totalXp = Math.Max(0, _points.GetBalance());
+            var level = (totalXp / 100) + 1;
+            GamificationScoreText = $"{totalXp} XP";
+            GamificationLevelText = level.ToString();
+        }
+
+        try
+        {
             var startOfWeekLocal = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek + (int)DayOfWeek.Monday);
             if (DateTime.Today.DayOfWeek == DayOfWeek.Sunday)
                 startOfWeekLocal = DateTime.Today.AddDays(-6);
@@ -324,6 +350,58 @@ public partial class DashboardViewModel : ObservableObject
         }
 
         return streak;
+    }
+
+    private static int ExtractPointsFromEvent(BackendGamificationEvent ev)
+    {
+        if (ev.metadata_json == null || ev.metadata_json.Count == 0)
+            return 0;
+
+        if (TryReadInt(ev.metadata_json, "points_earned", out var pointsEarned))
+            return Math.Max(0, pointsEarned);
+        if (TryReadInt(ev.metadata_json, "points", out var points))
+            return Math.Max(0, points);
+        if (TryReadInt(ev.metadata_json, "xp", out var xp))
+            return Math.Max(0, xp);
+
+        return 0;
+    }
+
+    private static bool TryReadInt(Dictionary<string, object> metadata, string key, out int value)
+    {
+        value = 0;
+        if (!metadata.TryGetValue(key, out var raw) || raw == null)
+            return false;
+
+        switch (raw)
+        {
+            case int intVal:
+                value = intVal;
+                return true;
+            case long longVal:
+                value = (int)longVal;
+                return true;
+            case double doubleVal:
+                value = (int)Math.Round(doubleVal);
+                return true;
+            case decimal decimalVal:
+                value = (int)Math.Round(decimalVal);
+                return true;
+            case JsonElement json:
+                if (json.ValueKind == JsonValueKind.Number && json.TryGetInt32(out var jsonInt))
+                {
+                    value = jsonInt;
+                    return true;
+                }
+                if (json.ValueKind == JsonValueKind.String && int.TryParse(json.GetString(), out var parsed))
+                {
+                    value = parsed;
+                    return true;
+                }
+                return false;
+            default:
+                return int.TryParse(raw.ToString(), out value);
+        }
     }
 
     private async Task<int> ComputeRecordingStreakAsync(int maxDays = 30, bool identityAlreadyEnsured = false)
