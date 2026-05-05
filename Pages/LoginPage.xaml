@@ -23,14 +23,13 @@
       <Entry Placeholder="{local:Translate Key=login_name_placeholder}"
              Text="{Binding DisplayName}" />
 
-      <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
-        <Button Grid.Column="0"
-                Text="{local:Translate Key=login_email_button}"
+            <VerticalStackLayout Spacing="10">
+        <Button Text="{local:Translate Key=login_email_button}"
           Command="{Binding LoginEmailCommand}" />
-        <Button Grid.Column="1"
-                Text="{local:Translate Key=login_register_button}"
+        <Button Text="{local:Translate Key=login_register_button}"
+          Style="{StaticResource SecondaryButton}"
           Command="{Binding RegisterEmailCommand}" />
-      </Grid>
+            </VerticalStackLayout>
 
       <Button
           Text="{local:Translate Key=login_google}"
@@ -40,14 +39,20 @@
 
             <Button Text="{local:Translate Key=open_activation_screen_button}"
               Style="{StaticResource SecondaryButton}"
+              ImageSource="ic_help.svg"
+              ContentLayout="Left,10"
               Command="{Binding OpenActivationCommand}" />
 
             <Button Text="{local:Translate Key=resend_activation_from_login_button}"
               Style="{StaticResource SecondaryButton}"
+              ImageSource="ic_diary.svg"
+              ContentLayout="Left,10"
               Command="{Binding ResendActivationFromLoginCommand}" />
 
                   <Button Text="{local:Translate Key=forgot_password_button}"
                     Style="{StaticResource SecondaryButton}"
+                    ImageSource="ic_help.svg"
+                    ContentLayout="Left,10"
                     Command="{Binding OpenForgotPasswordCommand}" />
 
       <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />

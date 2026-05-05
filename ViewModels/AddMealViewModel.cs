@@ -184,7 +184,7 @@ public partial class AddMealViewModel : ObservableObject
                 SelectedMealTypeOption?.Value
                 ?? MealTypeService.DetectByLocalTime(entry.DateUtc.ToLocalTime()));
 
-            if (PhotoBytes is not { Length: > 0 } && string.IsNullOrWhiteSpace(entry.PhotoPath))
+            if (PhotoBytes is not { Length: > 0 })
             {
                 entry.PhotoPath = MealIllustrationService.GenerateDataUri(Text, entry.MealType, appLang);
             }

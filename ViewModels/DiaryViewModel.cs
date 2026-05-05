@@ -1203,6 +1203,8 @@ public class DiaryMealItem
         var badgeText = $"{MealQualityService.GetBadge(e.QualityScore, lang)} · {MealQualityService.GetFoodStyleBadge(e.QualityScore, lang)}";
         var tigerCatMoodText = MealQualityService.GetTigerCatMood(e.QualityScore, lang);
         var semaphoreText = MealQualityService.GetSemaphore(e.QualityScore, lang);
+        var photoSource = PhotoSourceHelper.Build(e.PhotoPath)
+            ?? PhotoSourceHelper.Build(MealIllustrationService.GenerateDataUri(e.RawText, e.MealType, lang));
 
         return new DiaryMealItem
         {
@@ -1211,7 +1213,7 @@ public class DiaryMealItem
             Description = e.Description,
             AiNotes = e.AiNotes,
             PhotoPath = e.PhotoPath,
-            PhotoSource = PhotoSourceHelper.Build(e.PhotoPath),
+            PhotoSource = photoSource,
             DateUtc = e.DateUtc,
             DayKeyUtc = e.DayKeyUtc,
             TotalCalories = e.TotalCalories,
