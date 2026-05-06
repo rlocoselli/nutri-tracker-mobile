@@ -1,14 +1,19 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:NutritionTracker.Controls"
              xmlns:local="clr-namespace:NutritionTracker.Services"
              x:Class="NutritionTracker.Pages.MainPage"
              Title="NutritionTracker"
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False"
              BackgroundColor="{StaticResource Background}">
 
   <Grid Padding="24" RowDefinitions="Auto,*,Auto">
 
-    <Label Text="NutritionTracker" FontSize="28" FontAttributes="Bold" />
+    <controls:StravaTopBar TitleText="NutritionTracker" />
+
+    <Label Grid.Row="0" Margin="0,54,0,0" Text="NutritionTracker" FontSize="28" FontAttributes="Bold" />
 
     <VerticalStackLayout Grid.Row="1" Spacing="12" VerticalOptions="Center">
       <ActivityIndicator IsRunning="True" />

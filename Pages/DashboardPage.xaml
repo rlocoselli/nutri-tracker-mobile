@@ -4,13 +4,14 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:controls="clr-namespace:NutritionTracker.Controls"
     x:Class="NutritionTracker.Pages.DashboardPage"
-    Title="{Binding DailySummaryText}"
+    Shell.NavBarIsVisible="False"
     BackgroundColor="{StaticResource Background}">
 
     <Grid>
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="12">
-            <Label Text="{Binding DailySummaryText}" Style="{StaticResource H1}" />
+        <VerticalStackLayout Padding="20,12,20,20" Spacing="12">
+            <controls:StravaTopBar TitleText="{Binding HomeTitleText}" />
+
             <Label Text="{Binding TodayOnlyHintText}" Style="{StaticResource BodyMuted}" />
 
             <Label Text="{Binding KpiSectionTitle}" FontAttributes="Bold" FontSize="12" />

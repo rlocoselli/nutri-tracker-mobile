@@ -77,7 +77,7 @@ public class SocialNotificationService
                         if (deltaComments > 0)
                             parts.Add($"+{deltaComments} 💬");
 
-                        notifications.Add(string.Join(" ", parts));
+                        notifications.Add($"✨ {string.Join(" ", parts)}");
                     }
                 }
 
@@ -137,7 +137,7 @@ public class SocialNotificationService
                     if (string.IsNullOrWhiteSpace(who))
                         who = LocalizationService.T("friend_message");
 
-                    notifications.Add(string.Format(LocalizationService.T("friend_invite_notification"), who));
+                    notifications.Add($"📩 {string.Format(LocalizationService.T("friend_invite_notification"), who)}");
                 }
             }
 
@@ -147,11 +147,11 @@ public class SocialNotificationService
             if (notifications.Count == 0 || _isShowing)
                 return;
 
-            var body = string.Join("\n", notifications.Take(5));
+            var body = string.Join("\n", notifications.Take(5).Select(x => x.StartsWith("✨") || x.StartsWith("📩") ? x : $"🔔 {x}"));
             _isShowing = true;
             try
             {
-                await ShowSocialNotificationAsync(LocalizationService.T("social_notify_title"), body);
+                await ShowSocialNotificationAsync($"📣 {LocalizationService.T("social_notify_title")}", body);
             }
             finally
             {
@@ -302,9 +302,9 @@ public class SocialNotificationService
         if (manager.GetNotificationChannel(channelId) != null)
             return;
 
-        var channel = new NotificationChannel(channelId, "Social updates", NotificationImportance.Default)
+        var channel = new NotificationChannel(channelId, LocalizationService.T("notif_channel_social_name"), NotificationImportance.Default)
         {
-            Description = "Social and interaction notifications"
+            Description = LocalizationService.T("notif_channel_social_desc")
         };
 
         manager.CreateNotificationChannel(channel);

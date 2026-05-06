@@ -7,8 +7,7 @@ public static class MealMapper
 {
     public static (MealEntry entry, List<MealItem> items) MapToDb(AnalyzeResponse r, string rawText, string photoPath)
     {
-        var dt = DateTime.TryParse(r.datetime_utc, out var parsedUtc) ? parsedUtc : DateTime.UtcNow;
-        dt = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+        var dt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
         var cleanedRaw = rawText?.Trim() ?? "";
         var fallbackFromItems = string.Join(", ",
             r.meal.items

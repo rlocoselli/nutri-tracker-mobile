@@ -1,19 +1,37 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:NutritionTracker.Controls"
              x:Class="NutritionTracker.Pages.AddMealPage"
-             Title="Ajouter"
+             Shell.NavBarIsVisible="False"
              BackgroundColor="{StaticResource Background}">
 
-  <Grid>
-    <ScrollView>
+  <Grid RowDefinitions="Auto,*">
+    <Grid Grid.Row="0" Padding="20,10,20,0" ColumnDefinitions="*,*" ColumnSpacing="12" BackgroundColor="{StaticResource Background}">
+      <Button Text="{Binding AnalyzeText}" Command="{Binding AnalyzeCommand}" />
+      <Button Grid.Column="1" Text="{Binding ClearText}" Style="{StaticResource SecondaryButton}" Command="{Binding ClearCommand}" />
+    </Grid>
+
+    <ScrollView Grid.Row="1">
       <VerticalStackLayout Padding="20" Spacing="16">
+
+      <controls:StravaTopBar TitleText="{Binding TitleText}" />
 
       <Label Text="{Binding TitleText}" Style="{StaticResource H1}" />
       <Label Text="{Binding SubtitleText}" Style="{StaticResource BodyMuted}" />
 
       <Border Style="{StaticResource Card}">
         <Editor Text="{Binding Text}" AutoSize="TextChanges" Placeholder="{Binding EditorPlaceholder}" HeightRequest="120" />
+      </Border>
+
+      <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
+        <Button Text="" ImageSource="ic_gallery_action.svg" Style="{StaticResource IconButton}" Command="{Binding PickPhotoCommand}" />
+        <Button Text="" ImageSource="ic_camera_action.svg" Style="{StaticResource IconButton}" Command="{Binding CapturePhotoCommand}" />
+        <Button Text="" ImageSource="ic_mic_action.svg" Style="{StaticResource IconButton}" Command="{Binding VoiceInputCommand}" />
+      </HorizontalStackLayout>
+
+      <Border IsVisible="{Binding HasPhoto}" BackgroundColor="{StaticResource Primary}" Padding="14,10" StrokeThickness="0">
+        <Label Text="{Binding PhotoSelectedHint}" TextColor="White" HorizontalTextAlignment="Center" FontSize="13" LineBreakMode="WordWrap" />
       </Border>
 
       <Border Style="{StaticResource Card}">
@@ -36,26 +54,28 @@
         </VerticalStackLayout>
       </Border>
 
-      <Button Text="{Binding VoiceInputText}" Style="{StaticResource SecondaryButton}" Command="{Binding VoiceInputCommand}" />
-
-      <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-        <Button Text="{Binding PickPhotoText}" Style="{StaticResource SecondaryButton}" Command="{Binding PickPhotoCommand}" />
-        <Button Grid.Column="1" Text="{Binding CapturePhotoText}" Style="{StaticResource SecondaryButton}" Command="{Binding CapturePhotoCommand}" />
-      </Grid>
-
-      <Border Style="{StaticResource Card}" IsVisible="{Binding HasPhoto}">
-        <Image Source="{Binding PhotoPath}" Aspect="AspectFill" HeightRequest="220" />
+      <Border Style="{StaticResource Card}">
+        <Image Source="{Binding MealPreviewSource}" Aspect="AspectFill" HeightRequest="220" />
       </Border>
 
-      <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-        <Button Text="{Binding AnalyzeText}" Command="{Binding AnalyzeCommand}" />
-        <Button Grid.Column="1" Text="{Binding ClearText}" Style="{StaticResource SecondaryButton}" Command="{Binding ClearCommand}" />
-      </Grid>
 
-        <Border Style="{StaticResource Card}" IsVisible="{Binding HasResult}">
-          <VerticalStackLayout Spacing="6">
-            <Label Text="{Binding ResultTitle}" FontAttributes="Bold" />
-            <Label Text="{Binding ResultSummary}" />
+
+      </VerticalStackLayout>
+    </ScrollView>
+
+    <!-- Result overlay — shown after a successful analysis, covers the whole page -->
+    <Grid Grid.RowSpan="2" IsVisible="{Binding HasResult}" BackgroundColor="{StaticResource Background}">
+      <Grid RowDefinitions="Auto,*">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Padding="16,12" BackgroundColor="{StaticResource Background}">
+          <Label Grid.Column="0" Text="{Binding ResultTitle}" Style="{StaticResource H1}" VerticalOptions="Center" />
+          <Button Grid.Column="1" Text="✕" Command="{Binding CloseResultCommand}"
+                  Style="{StaticResource SecondaryButton}"
+                  WidthRequest="44" HeightRequest="44" Padding="0"
+                  FontSize="18" FontAttributes="Bold" />
+        </Grid>
+        <ScrollView Grid.Row="1">
+          <VerticalStackLayout Padding="20" Spacing="16">
+            <Label Text="{Binding ResultSummary}" FontAttributes="Bold" FontSize="16" />
             <Label Text="{Binding ResultQuality}" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
             <Label Text="{Binding ResultBadge}" FontAttributes="Bold" />
             <Label Text="{Binding ResultTigerCatMood}" FontAttributes="Bold" />
@@ -79,10 +99,9 @@
             </Border>
             <Label Text="{Binding ResultNotes}" FontSize="12" Opacity="0.7" />
           </VerticalStackLayout>
-        </Border>
-
-      </VerticalStackLayout>
-    </ScrollView>
+        </ScrollView>
+      </Grid>
+    </Grid>
 
     <Grid IsVisible="{Binding IsBusy}"
           BackgroundColor="#80000000"

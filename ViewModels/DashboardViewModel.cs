@@ -17,6 +17,14 @@ public partial class DashboardViewModel : ObservableObject
     [ObservableProperty] private string userPictureUrl = "";
     [ObservableProperty] private string userName = "";
     [ObservableProperty] private string greeting = "Bonjour";
+    public ImageSource ProfilePhotoSource => string.IsNullOrWhiteSpace(UserPictureUrl)
+        ? ImageSource.FromFile("ic_profile.svg")
+        : ImageSource.FromUri(new Uri(UserPictureUrl));
+
+    partial void OnUserPictureUrlChanged(string value)
+    {
+        OnPropertyChanged(nameof(ProfilePhotoSource));
+    }
 
     [ObservableProperty] private string todayCaloriesText = "0 / 0";
     [ObservableProperty] private string todayProteinText = "0 / 0 g";
@@ -45,6 +53,7 @@ public partial class DashboardViewModel : ObservableObject
     public IList<WeeklyMissionItem> WeeklyMissions { get; private set; } = Array.Empty<WeeklyMissionItem>();
 
     public string HelloText => LocalizationService.T("hello");
+    public string HomeTitleText => LocalizationService.T("dashboard_title");
     public string RecordMealText => LocalizationService.T("record_meal_plus");
     public string AdviceText => LocalizationService.T("advice");
     public string GoalsText => LocalizationService.T("goals");
@@ -96,6 +105,7 @@ public partial class DashboardViewModel : ObservableObject
         UserPictureUrl = Preferences.Default.Get("profile_picture", "");
 
         OnPropertyChanged(nameof(HelloText));
+        OnPropertyChanged(nameof(HomeTitleText));
         OnPropertyChanged(nameof(RecordMealText));
         OnPropertyChanged(nameof(AdviceText));
         OnPropertyChanged(nameof(GoalsText));
@@ -425,6 +435,24 @@ public partial class DashboardViewModel : ObservableObject
     private async Task AddMeal()
     {
         await Shell.Current.GoToAsync("//add");
+    }
+
+    [RelayCommand]
+    private async Task OpenProfile()
+    {
+        await Shell.Current.GoToAsync("//profile");
+    }
+
+    [RelayCommand]
+    private async Task OpenMessages()
+    {
+        await Shell.Current.GoToAsync("//friends");
+    }
+
+    [RelayCommand]
+    private async Task OpenNotifications()
+    {
+        await Shell.Current.GoToAsync("//stories");
     }
 
     [RelayCommand]

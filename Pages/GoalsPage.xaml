@@ -2,13 +2,17 @@
 <ContentPage
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:NutritionTracker.Controls"
     xmlns:local="clr-namespace:NutritionTracker.Services"
     x:Class="NutritionTracker.Pages.GoalsPage"
     Title="{local:Translate Key=goals_title}"
+    Shell.NavBarIsVisible="False"
     BackgroundColor="{StaticResource Background}">
 
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="16">
+
+            <controls:StravaTopBar TitleText="{local:Translate Key=goals_title}" />
 
             <Label Text="{local:Translate Key=goals_title}" Style="{StaticResource H1}" />
 

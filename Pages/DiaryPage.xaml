@@ -6,11 +6,16 @@
     x:Class="NutritionTracker.Pages.DiaryPage"
     x:Name="DiaryRoot"
     Title="Journal"
+    Shell.NavBarIsVisible="False"
     BackgroundColor="{StaticResource Background}">
 
     <Grid>
         <ScrollView>
-            <Grid Padding="20" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="14">
+            <VerticalStackLayout Padding="20" Spacing="14">
+
+            <controls:StravaTopBar TitleText="{Binding MealsTitle}" />
+
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="14">
 
         <!-- Day navigation -->
         <Grid ColumnDefinitions="Auto,*,Auto" VerticalOptions="Center">
@@ -260,6 +265,7 @@
                 </BindableLayout.ItemTemplate>
             </VerticalStackLayout>
             </Grid>
+            </VerticalStackLayout>
         </ScrollView>
 
         <Grid IsVisible="{Binding IsManualPopupVisible}"

@@ -61,7 +61,7 @@ public partial class LoginViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            await Application.Current!.MainPage!.DisplayAlert("Connexion échouée", ex.Message, "OK");
+            await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("login_failed"), ex.Message, "OK");
         }
         finally
         {

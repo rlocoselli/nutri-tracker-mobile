@@ -3,6 +3,7 @@ namespace NutritionTracker;
 using NutritionTracker.Services;
 using NutritionTracker.Pages;
 using Microsoft.Maui.Storage;
+using Microsoft.Maui.Graphics;
 
 public partial class AppShell : Shell
 {
@@ -15,9 +16,19 @@ public partial class AppShell : Shell
         _socialNotifications = socialNotifications;
         _goalNudges = goalNudges;
         InitializeComponent();
+        Shell.SetBackgroundColor(this, Color.FromArgb("#FFFFFF"));
+        Shell.SetForegroundColor(this, Color.FromArgb("#2F855A"));
+        Shell.SetTitleColor(this, Color.FromArgb("#2F855A"));
+        Shell.SetUnselectedColor(this, Color.FromArgb("#7A8A91"));
         Routing.RegisterRoute(nameof(ResetPasswordPage), typeof(ResetPasswordPage));
         Routing.RegisterRoute(nameof(FriendChatPage), typeof(FriendChatPage));
         Routing.RegisterRoute(nameof(ScoreHistoryPage), typeof(ScoreHistoryPage));
+        Routing.RegisterRoute(nameof(RecommendationsPage), typeof(RecommendationsPage));
+        RefreshLocalizedText();
+    }
+
+    public void RefreshLocalizedText()
+    {
         DashboardTab.Title = LocalizationService.T("tab_dashboard");
         DiaryTab.Title = LocalizationService.T("tab_diary");
         AddTab.Title = LocalizationService.T("tab_add");

@@ -2,6 +2,7 @@ using Android.App;
 using Android.Content;
 using Android.OS;
 using AndroidX.Core.App;
+using NutritionTracker.Services;
 
 namespace NutritionTracker.Platforms.Android;
 
@@ -18,8 +19,9 @@ public class MealReminderReceiver : BroadcastReceiver
         CreateNotificationChannel(context);
 
         var id = intent?.GetIntExtra("notif_id", 3001) ?? 3001;
-        var title = intent?.GetStringExtra("notif_title") ?? "Rappel repas";
-        var message = intent?.GetStringExtra("notif_message") ?? "Pense à enregistrer ton repas.";
+        var fallbackTitle = intent?.GetStringExtra("notif_title") ?? LocalizationService.T("reminder_title");
+        var fallbackMessage = intent?.GetStringExtra("notif_message") ?? LocalizationService.T("notif_dinner_body");
+        var (title, message) = ResolveNotificationText(id, fallbackTitle, fallbackMessage);
         var hour = intent?.GetIntExtra("hour", 8) ?? 8;
         var minute = intent?.GetIntExtra("minute", 0) ?? 0;
         var skipIfMealLoggedToday = intent?.GetBooleanExtra("skip_if_meal_logged_today", false) ?? false;
@@ -109,11 +111,24 @@ public class MealReminderReceiver : BroadcastReceiver
         var existing = manager.GetNotificationChannel(ChannelId);
         if (existing != null) return;
 
-        var channel = new NotificationChannel(ChannelId, "Meal reminders", NotificationImportance.Default)
+        var channel = new NotificationChannel(ChannelId, LocalizationService.T("notif_channel_meal_name"), NotificationImportance.Default)
         {
-            Description = "Rappels quotidiens pour enregistrer les repas"
+            Description = LocalizationService.T("notif_channel_meal_desc")
         };
 
         manager.CreateNotificationChannel(channel);
+    }
+
+    private static (string Title, string Message) ResolveNotificationText(int id, string fallbackTitle, string fallbackMessage)
+    {
+        return id switch
+        {
+            2101 => (LocalizationService.T("notif_breakfast_title"), LocalizationService.T("notif_breakfast_body")),
+            2102 => (LocalizationService.T("notif_lunch_title"), LocalizationService.T("notif_lunch_body")),
+            2103 => (LocalizationService.T("notif_dinner_title"), LocalizationService.T("notif_dinner_body")),
+            2104 => (LocalizationService.T("notif_no_meal_title"), LocalizationService.T("notif_no_meal_body")),
+            2105 => (LocalizationService.T("notif_social_engage_title"), LocalizationService.T("notif_social_engage_body")),
+            _ => (fallbackTitle, fallbackMessage)
+        };
     }
 }

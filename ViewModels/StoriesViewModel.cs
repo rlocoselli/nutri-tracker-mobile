@@ -186,10 +186,7 @@ public partial class StoriesViewModel : ObservableObject
                     continue;
 
                 var photo = StoriesPhotoSourceHelper.Build(row.photo_url)
-                    ?? StoriesPhotoSourceHelper.Build(MealIllustrationService.GenerateDataUri(
-                        row.raw_text,
-                        null,
-                        Preferences.Default.Get("app_lang", "fr")));
+                    ?? ImageSource.FromFile("story_food_default.svg");
                 if (photo == null)
                     continue;
 

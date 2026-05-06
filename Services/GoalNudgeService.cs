@@ -58,7 +58,7 @@ public sealed class GoalNudgeService
                 if (page == null)
                     return;
 
-                await page.DisplayAlert(LocalizationService.T("goal_nudge_title"), nudge, "OK");
+                await page.DisplayAlert($"🎯 {LocalizationService.T("goal_nudge_title")}", nudge, "OK");
             });
         }
         finally
@@ -125,17 +125,17 @@ public sealed class GoalNudgeService
         {
             return max.Type switch
             {
-                "protein" => $"{slot.Label}: You are behind on protein. Add a protein-first snack or dinner to stay on target.",
-                "calories" => $"{slot.Label}: You are below your energy target. Add a balanced meal to avoid late cravings.",
-                _ => $"{slot.Label}: Carbs look low. Add quality carbs (fruit, oats, legumes) to keep your day balanced."
+                "protein" => $"{slot.Label} • 💪 You are behind on protein. Add a protein-first snack or dinner to stay on target.",
+                "calories" => $"{slot.Label} • ⚡ You are below your energy target. Add a balanced meal to avoid late cravings.",
+                _ => $"{slot.Label} • 🌾 Carbs look low. Add quality carbs (fruit, oats, legumes) to keep your day balanced."
             };
         }
 
         return max.Type switch
         {
-            "protein" => $"{slot.Label}: Tu es en retard sur les proteines. Ajoute une collation ou un repas riche en proteines.",
-            "calories" => $"{slot.Label}: Tu es sous ton objectif calorique. Ajoute un repas equilibre pour eviter les fringales tardives.",
-            _ => $"{slot.Label}: Les glucides semblent bas. Ajoute des glucides de qualite (fruits, avoine, legumes)."
+            "protein" => $"{slot.Label} • 💪 Tu es en retard sur les proteines. Ajoute une collation ou un repas riche en proteines.",
+            "calories" => $"{slot.Label} • ⚡ Tu es sous ton objectif calorique. Ajoute un repas equilibre pour eviter les fringales tardives.",
+            _ => $"{slot.Label} • 🌾 Les glucides semblent bas. Ajoute des glucides de qualite (fruits, avoine, legumes)."
         };
     }
 

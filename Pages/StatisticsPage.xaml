@@ -6,11 +6,14 @@
     x:Class="NutritionTracker.Pages.StatisticsPage"
     x:Name="StatsRoot"
     Title="{Binding TitleText}"
+    Shell.NavBarIsVisible="False"
     BackgroundColor="{StaticResource Background}">
 
     <Grid>
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="14">
+            <controls:StravaTopBar TitleText="{Binding TitleText}" />
+
             <Label Text="{Binding TitleText}" Style="{StaticResource H1}" />
             <Label Text="{Binding SubtitleText}" Style="{StaticResource BodyMuted}" />
 
