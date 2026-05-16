@@ -743,7 +743,10 @@ public class BackendSyncService
             return new List<BackendStory>();
 
         var parsed = await resp.Content.ReadFromJsonAsync<List<BackendStory>>();
-        return parsed ?? new List<BackendStory>();
+        _cachedFriendsFeedKey = cacheKey;
+        _cachedFriendsFeedFetchedUtc = DateTime.UtcNow;
+        _cachedFriendsFeed = parsed ?? new List<BackendStory>();
+        return _cachedFriendsFeed.ToList();
     }
 
     public async Task<List<BackendStory>> GetPublicFeedAsync(int days = 14, int limit = 5, bool includePhoto = false)
@@ -763,10 +766,7 @@ public class BackendSyncService
             return new List<BackendStory>();
 
         var parsed = await resp.Content.ReadFromJsonAsync<List<BackendStory>>();
-        _cachedFriendsFeedKey = cacheKey;
-        _cachedFriendsFeedFetchedUtc = DateTime.UtcNow;
-        _cachedFriendsFeed = parsed ?? new List<BackendStory>();
-        return _cachedFriendsFeed.ToList();
+        return parsed ?? new List<BackendStory>();
     }
 
     public async Task<string> GetStoryVisibilityDefaultAsync()

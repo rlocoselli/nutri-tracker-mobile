@@ -90,6 +90,63 @@ public class AuthService
         return await LoginWithScopeAsync(BaseScope);
     }
 
+    public async Task<GoogleAuthResult?> TryRefreshAsync(string refreshToken)
+    {
+        var token = (refreshToken ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(token))
+            return null;
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, "https://oauth2.googleapis.com/token")
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["client_id"] = AndroidClientId,
+                ["grant_type"] = "refresh_token",
+                ["refresh_token"] = token,
+            })
+        };
+
+        using var resp = await _http.SendAsync(req);
+        var json = await resp.Content.ReadAsStringAsync();
+        if (!resp.IsSuccessStatusCode)
+            return null;
+
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        var access = root.TryGetProperty("access_token", out var at) ? at.GetString() ?? "" : "";
+        var idt = root.TryGetProperty("id_token", out var it) ? it.GetString() ?? "" : "";
+        var returnedRefresh = root.TryGetProperty("refresh_token", out var rt) ? rt.GetString() ?? "" : "";
+        var effectiveRefresh = string.IsNullOrWhiteSpace(returnedRefresh) ? token : returnedRefresh;
+
+        if (string.IsNullOrWhiteSpace(access) || string.IsNullOrWhiteSpace(idt))
+            return null;
+
+        var profile = new GoogleAuthResult
+        {
+            IdToken = idt,
+            AccessToken = access,
+            RefreshToken = effectiveRefresh,
+        };
+
+        try
+        {
+            _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", profile.AccessToken);
+            var userInfoJson = await _http.GetStringAsync("https://www.googleapis.com/oauth2/v3/userinfo");
+            using var userDoc = JsonDocument.Parse(userInfoJson);
+            var user = userDoc.RootElement;
+            profile.Email = user.TryGetProperty("email", out var em) ? em.GetString() ?? "" : "";
+            profile.Name = user.TryGetProperty("name", out var nm) ? nm.GetString() ?? "" : "";
+            profile.PictureUrl = user.TryGetProperty("picture", out var pc) ? pc.GetString() ?? "" : "";
+        }
+        catch
+        {
+            // Keep refreshed tokens even if userinfo fails temporarily.
+        }
+
+        return profile;
+    }
+
     private async Task<GoogleAuthResult> LoginWithScopeAsync(string scope)
     {
         var (verifier, challenge) = CreatePkce();

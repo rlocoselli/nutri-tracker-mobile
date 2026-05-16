@@ -14,6 +14,33 @@
         <VerticalStackLayout Padding="20,12,20,20" Spacing="12">
             <controls:StravaTopBar TitleText="{Binding HomeTitleText}" />
 
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Button Grid.Column="0"
+                        Text="{Binding IndicatorsTabText}"
+                        Style="{StaticResource SecondaryButton}"
+                        Command="{Binding SelectIndicatorsTabCommand}">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button" Binding="{Binding IsIndicatorsTabSelected}" Value="True">
+                            <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+                            <Setter Property="TextColor" Value="White" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                </Button>
+                <Button Grid.Column="1"
+                        Text="{Binding StoriesTabText}"
+                        Style="{StaticResource SecondaryButton}"
+                        Command="{Binding SelectStoriesTabCommand}">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button" Binding="{Binding IsStoriesTabSelected}" Value="True">
+                            <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+                            <Setter Property="TextColor" Value="White" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                </Button>
+            </Grid>
+
+            <VerticalStackLayout Spacing="12" IsVisible="{Binding ShowIndicatorsTabContent}">
+
             <Label Text="{Binding TodayOnlyHintText}" Style="{StaticResource BodyMuted}" />
 
             <Label Text="{Binding KpiSectionTitle}" FontAttributes="Bold" FontSize="12" />
@@ -165,34 +192,38 @@
                 </VerticalStackLayout>
             </Border>
 
-            <Border Style="{StaticResource Card}" IsVisible="{Binding ShowPublicStoriesSection}">
+            </VerticalStackLayout>
+
+            <Border Style="{StaticResource Card}" IsVisible="{Binding ShowStoriesTabContent}">
                 <VerticalStackLayout Spacing="8">
                     <Label Text="{Binding PublicStoriesTitleText}" FontAttributes="Bold" FontSize="12" />
                     <Label Text="{Binding PublicStoriesSubtitleText}" Style="{StaticResource BodyMuted}" />
 
-                    <CollectionView ItemsSource="{Binding PublicStories}" SelectionMode="None" HeightRequest="268" IsVisible="{Binding HasPublicStories}">
-                        <CollectionView.ItemsLayout>
-                            <LinearItemsLayout Orientation="Horizontal" ItemSpacing="10" />
-                        </CollectionView.ItemsLayout>
+                    <CollectionView ItemsSource="{Binding PublicStories}" SelectionMode="None" IsVisible="{Binding HasPublicStories}" HeightRequest="520">
                         <CollectionView.ItemTemplate>
                             <DataTemplate>
-                                <Border Style="{StaticResource Card}" WidthRequest="190" Padding="0">
-                                    <Border.GestureRecognizers>
-                                        <TapGestureRecognizer
-                                            Command="{Binding Source={x:Reference DashboardRoot}, Path=BindingContext.OpenPublicStoryAuthorStoriesCommand}"
-                                            CommandParameter="{Binding .}" />
-                                    </Border.GestureRecognizers>
-                                    <Grid RowDefinitions="150,Auto" HeightRequest="248">
-                                        <Image Source="{Binding PhotoSource}" Aspect="AspectFill" />
-                                        <VerticalStackLayout Grid.Row="1" Spacing="6" Padding="10">
-                                            <Label Text="{Binding AuthorName}" FontAttributes="Bold" LineBreakMode="TailTruncation" MaxLines="1" />
-                                            <Label Text="{Binding Caption}" FontSize="11" LineBreakMode="TailTruncation" MaxLines="2" />
-                                            <Label Text="{Binding NutritionText}" FontSize="10" TextColor="{StaticResource Muted}" LineBreakMode="TailTruncation" MaxLines="1" />
-                                            <Button Text="{Binding Source={x:Reference DashboardRoot}, Path=BindingContext.AddFriendQuickText}"
-                                                    Style="{StaticResource SecondaryButton}"
-                                                    Command="{Binding Source={x:Reference DashboardRoot}, Path=BindingContext.AddPublicStoryAuthorCommand}"
-                                                    CommandParameter="{Binding .}" />
-                                        </VerticalStackLayout>
+                                <Border Style="{StaticResource Card}" Margin="0,0,0,10" Padding="10">
+                                    <Grid ColumnDefinitions="92,*" ColumnSpacing="10">
+                                        <Border WidthRequest="92" HeightRequest="92" StrokeShape="RoundRectangle 10" StrokeThickness="0">
+                                            <Image Source="{Binding PhotoSource}" Aspect="AspectFill" />
+                                        </Border>
+                                        <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="4">
+                                            <Label Grid.Row="0" Text="{Binding AuthorName}" FontAttributes="Bold" LineBreakMode="TailTruncation" MaxLines="1" />
+                                            <Label Grid.Row="1" Text="{Binding Caption}" FontSize="11" LineBreakMode="TailTruncation" MaxLines="2" />
+                                            <Label Grid.Row="2" Text="{Binding NutritionText}" FontSize="10" TextColor="{StaticResource Muted}" LineBreakMode="TailTruncation" MaxLines="1" />
+                                            <HorizontalStackLayout Grid.Row="3" Spacing="8">
+                                                <Button Text="{Binding Source={x:Reference DashboardRoot}, Path=BindingContext.AddFriendQuickText}"
+                                                        Style="{StaticResource SecondaryButton}"
+                                                        Padding="10,4"
+                                                        Command="{Binding Source={x:Reference DashboardRoot}, Path=BindingContext.AddPublicStoryAuthorCommand}"
+                                                        CommandParameter="{Binding .}" />
+                                                <Button Text="{Binding Source={x:Reference DashboardRoot}, Path=BindingContext.OpenStoryQuickText}"
+                                                        Style="{StaticResource SecondaryButton}"
+                                                        Padding="10,4"
+                                                        Command="{Binding Source={x:Reference DashboardRoot}, Path=BindingContext.OpenPublicStoryAuthorStoriesCommand}"
+                                                        CommandParameter="{Binding .}" />
+                                            </HorizontalStackLayout>
+                                        </Grid>
                                     </Grid>
                                 </Border>
                             </DataTemplate>

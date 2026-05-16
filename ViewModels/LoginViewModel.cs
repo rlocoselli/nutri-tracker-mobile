@@ -48,6 +48,7 @@ public partial class LoginViewModel : ObservableObject
             // Persist auth + profile
             Preferences.Default.Set("auth_id_token", result.IdToken);
             Preferences.Default.Set("auth_access_token", result.AccessToken);
+            Preferences.Default.Set("auth_refresh_token", result.RefreshToken);
             Preferences.Default.Set("profile_name", result.Name);
             Preferences.Default.Set("profile_email", result.Email);
             Preferences.Default.Set("profile_picture", result.PictureUrl);
@@ -88,6 +89,7 @@ public partial class LoginViewModel : ObservableObject
 
             Preferences.Default.Remove("auth_id_token");
             Preferences.Default.Remove("auth_access_token");
+            Preferences.Default.Remove("auth_refresh_token");
             Preferences.Default.Set("profile_name", name);
             Preferences.Default.Set("profile_email", (Email ?? "").Trim().ToLowerInvariant());
             Preferences.Default.Set("profile_picture", "");

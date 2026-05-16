@@ -44,6 +44,7 @@ public partial class DashboardViewModel : ObservableObject
     [ObservableProperty] private string gamificationLevelText = "1";
     [ObservableProperty] private string weeklyMissionStatusText = "";
     [ObservableProperty] private bool isLoading;
+    [ObservableProperty] private bool isStoriesTabSelected;
 
     [ObservableProperty] private double caloriesProgress;
     [ObservableProperty] private double proteinProgress;
@@ -87,11 +88,24 @@ public partial class DashboardViewModel : ObservableObject
     public string PublicStoriesTitleText => LocalizationService.T("dashboard_public_stories_title");
     public string PublicStoriesSubtitleText => LocalizationService.T("dashboard_public_stories_subtitle");
     public string PublicStoriesEmptyText => LocalizationService.T("dashboard_public_stories_empty");
-    public string AddFriendQuickText => LocalizationService.T("dashboard_add_friend_quick");
+    public string IndicatorsTabText => LocalizationService.T("dashboard_kpis_title");
+    public string StoriesTabText => LocalizationService.T("stories_tab_title");
+    public string AddFriendQuickText => LocalizationService.T("dashboard_add_friend_short");
+    public string OpenStoryQuickText => LocalizationService.T("dashboard_open_story");
     public bool HasPublicStories => PublicStories.Count > 0;
     public bool IsPublicStoriesEmpty => !HasPublicStories;
+    public bool IsIndicatorsTabSelected => !IsStoriesTabSelected;
+    public bool ShowIndicatorsTabContent => IsIndicatorsTabSelected;
+    public bool ShowStoriesTabContent => IsStoriesTabSelected && ShowPublicStoriesSection;
     public bool ShowPublicStoriesSection => FeatureFlags.EnableDashboardPublicStories;
     public bool ShowGoogleFitUi => FeatureFlags.EnableGoogleFit;
+
+    partial void OnIsStoriesTabSelectedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsIndicatorsTabSelected));
+        OnPropertyChanged(nameof(ShowIndicatorsTabContent));
+        OnPropertyChanged(nameof(ShowStoriesTabContent));
+    }
 
     public DashboardViewModel(GoogleFitService googleFit, IServiceProvider sp, PointsService points, BackendSyncService sync, WeeklyMissionService missions)
     {
@@ -146,9 +160,15 @@ public partial class DashboardViewModel : ObservableObject
         OnPropertyChanged(nameof(PublicStoriesTitleText));
         OnPropertyChanged(nameof(PublicStoriesSubtitleText));
         OnPropertyChanged(nameof(PublicStoriesEmptyText));
+        OnPropertyChanged(nameof(IndicatorsTabText));
+        OnPropertyChanged(nameof(StoriesTabText));
         OnPropertyChanged(nameof(AddFriendQuickText));
+        OnPropertyChanged(nameof(OpenStoryQuickText));
         OnPropertyChanged(nameof(HasPublicStories));
         OnPropertyChanged(nameof(IsPublicStoriesEmpty));
+        OnPropertyChanged(nameof(IsIndicatorsTabSelected));
+        OnPropertyChanged(nameof(ShowIndicatorsTabContent));
+        OnPropertyChanged(nameof(ShowStoriesTabContent));
         OnPropertyChanged(nameof(ShowPublicStoriesSection));
         OnPropertyChanged(nameof(ShowGoogleFitUi));
 
@@ -497,6 +517,18 @@ public partial class DashboardViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void SelectIndicatorsTab()
+    {
+        IsStoriesTabSelected = false;
+    }
+
+    [RelayCommand]
+    private void SelectStoriesTab()
+    {
+        IsStoriesTabSelected = true;
+    }
+
+    [RelayCommand]
     private async Task AddPublicStoryAuthor(DashboardPublicStoryItem? item)
     {
         if (item == null || string.IsNullOrWhiteSpace(item.AuthorEmail) || item.IsInvited)
@@ -552,11 +584,11 @@ public partial class DashboardViewModel : ObservableObject
         }
 
         var lang = Preferences.Default.Get("app_lang", "fr");
-        var rows = await _sync.GetPublicFeedAsync(days: 21, limit: 5, includePhoto: false);
+        var rows = await _sync.GetPublicFeedAsync(days: 21, limit: 5, includePhoto: true);
         foreach (var row in rows)
         {
-            var fallback = DashboardStoryPhotoSourceHelper.Build(MealIllustrationService.GenerateDataUri(row.raw_text, null, lang))
-                ?? ImageSource.FromFile("ic_profile.svg");
+            var photo = DashboardStoryPhotoSourceHelper.Build(row.photo_url);
+            var fallback = DashboardStoryPhotoSourceHelper.Build(MealIllustrationService.GenerateDataUri(row.raw_text, null, lang));
 
             var item = new DashboardPublicStoryItem
             {
@@ -565,7 +597,7 @@ public partial class DashboardViewModel : ObservableObject
                 AuthorName = ResolvePublicAuthorName(row),
                 AuthorEmail = (row.author_email ?? "").Trim().ToLowerInvariant(),
                 Caption = string.IsNullOrWhiteSpace(row.raw_text) ? LocalizationService.T("story_meal") : row.raw_text,
-                PhotoSource = fallback,
+                PhotoSource = photo ?? fallback ?? ImageSource.FromFile("ic_profile.svg"),
                 NutritionText = $"{Math.Round(row.total_calories)} kcal · P {Math.Round(row.total_protein_g)}g · C {Math.Round(row.total_carbs_g)}g",
             };
 
@@ -574,17 +606,6 @@ public partial class DashboardViewModel : ObservableObject
 
         OnPropertyChanged(nameof(HasPublicStories));
         OnPropertyChanged(nameof(IsPublicStoriesEmpty));
-
-        foreach (var item in PublicStories)
-        {
-            if (string.IsNullOrWhiteSpace(item.MealId))
-                continue;
-
-            var raw = await _sync.GetMealPhotoUrlAsync(item.MealId);
-            var source = DashboardStoryPhotoSourceHelper.Build(raw);
-            if (source != null)
-                item.PhotoSource = source;
-        }
     }
 
     private static string ResolvePublicAuthorName(BackendStory story)

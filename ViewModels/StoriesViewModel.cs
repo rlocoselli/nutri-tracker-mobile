@@ -178,7 +178,7 @@ public partial class StoriesViewModel : ObservableObject
                     _avatarByUserId[meUserId] = StoriesPhotoSourceHelper.Build(myProfilePicture) ?? ImageSource.FromFile("ic_profile.svg");
             }
 
-            var feed = await _sync.GetFriendsFeedAsync(days: 14, limit: _currentFeedLimit, includePhoto: false);
+            var feed = await _sync.GetFriendsFeedAsync(days: 14, limit: _currentFeedLimit, includePhoto: true);
             var ordered = feed
                 .OrderByDescending(x => x.date_utc)
                 .ToList();
@@ -243,7 +243,7 @@ public partial class StoriesViewModel : ObservableObject
 
             _hasMore = _currentFeedLimit < FeedMaxLimit && feed.Count >= _currentFeedLimit;
             ApplyFilters();
-            _ = PrefetchVisibleStoryPhotosAsync();
+            // Feed now includes photo_url for visible stories; avoid owner-only photo endpoint fallback.
         }
         finally
         {

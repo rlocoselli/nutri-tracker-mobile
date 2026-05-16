@@ -25,7 +25,8 @@ public partial class MainPage : ContentPage
         if (_initialized) return;
         _initialized = true;
 
-        if (!_session.HasValidIdToken())
+        var hasSession = await _session.EnsureValidSessionAsync();
+        if (!hasSession)
         {
             _session.ClearAuth();
             await Navigation.PushAsync(_loginPage);

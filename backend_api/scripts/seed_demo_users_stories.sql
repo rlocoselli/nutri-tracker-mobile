@@ -68,7 +68,7 @@ WITH generated_users AS (
         format('https://i.pravatar.cc/400?img=%s', avatar_id),
         lang,
         visibility,
-        NOW() - make_interval(days => ((idx - 1) % 45)),
+        NOW() - make_interval(days => (((idx - 1) % 45)::int)),
         NOW()
     FROM generated_users
     RETURNING id, email
@@ -114,15 +114,22 @@ FROM (
 ) f;
 
 WITH demo_users AS (
-    SELECT id, email
+    SELECT
+        id,
+        email,
+        row_number() OVER (ORDER BY email) AS rn
     FROM users
     WHERE email LIKE 'seed.demo.%@nutritiontracker.local'
 ), meal_seed AS (
     SELECT
         gen_random_uuid() AS id,
         u.id AS user_id,
-        NOW() - make_interval(days => (gs % 21), hours => (gs % 12), mins => ((gs * 7) % 60)) AS date_utc,
-        (ARRAY['breakfast', 'lunch', 'dinner', 'snack'])[((gs - 1) % 4) + 1] AS meal_type,
+        NOW() - make_interval(
+            days => (((u.rn * 3 + gs * 2) % 28)::int),
+            hours => (((u.rn * 5 + gs * 7) % 16)::int),
+            mins => (((u.rn * 11 + gs * 13) % 60)::int)
+        ) AS date_utc,
+        (ARRAY['breakfast', 'lunch', 'dinner', 'snack'])[((u.rn + gs - 1) % 4) + 1] AS meal_type,
         (ARRAY[
             'Salade quinoa avocat saumon',
             'Chicken bowl with rice and greens',
@@ -131,29 +138,67 @@ WITH demo_users AS (
             'Wrap dinde houmous crudites',
             'Greek yogurt granola banana',
             'Tofu salteado con arroz integral y brocoli',
-            'Poke de salmon con mango y edamame'
-        ])[((gs - 1) % 8) + 1] AS raw_text,
+            'Poke de salmon con mango y edamame',
+            'Omelette champignons epinards et pain complet',
+            'Burrito bowl haricots noirs mais avocat',
+            'Riz thai poulet cacahuete et legumes croquants',
+            'Sushi saumon avocat edamame',
+            'Lentil soup with roasted vegetables',
+            'Falafel wrap with tahini and salad',
+            'Paella de mariscos ligera',
+            'Moqueca de peixe com arroz integral',
+            'Chili sin carne con quinoa',
+            'Steak patate douce haricots verts',
+            'Ramen tofu oeuf pak choi',
+            'Couscous pois chiches legumes rotis',
+            'Shakshuka tomate poivron feta',
+            'Crevettes ail citron avec riz basmati',
+            'Pancakes avoine fruits rouges yaourt grec'
+        ])[((u.rn * 17 + gs * 13 - 1) % 23) + 1] AS raw_text,
         (ARRAY[
             'Repas equilibre et colore.',
             'Balanced plate with clean composition.',
             'Plato equilibrado con ingredientes frescos.',
-            'Prato equilibrado com boa apresentacao.'
-        ])[((gs - 1) % 4) + 1] AS description,
+            'Prato equilibrado com boa apresentacao.',
+            'Texture croquante et portion adaptee apres entrainement.',
+            'Meal prep simple, high volume and satiety focused.',
+            'Comida casera con buen equilibrio entre energia y fibra.',
+            'Prato leve para jantar com boa saciedade.'
+        ])[((u.rn * 19 + gs * 5 - 1) % 8) + 1] AS description,
         (ARRAY[
             'Bonne repartition glucides/proteines.',
             'Good macro split for energy and satiety.',
             'Buena distribucion de macros para energia.',
-            'Boa distribuicao de macros para o dia.'
-        ])[((gs - 1) % 4) + 1] AS ai_notes,
-        (ARRAY['friends', 'public', 'friends', 'self'])[((gs - 1) % 4) + 1] AS story_visibility,
-        380 + ((gs * 23) % 420) AS total_calories,
-        22 + ((gs * 11) % 55) AS total_carbs_g,
-        18 + ((gs * 13) % 42) AS total_protein_g,
-        ROUND((0.62 + ((gs % 28) / 100.0))::numeric, 4) AS overall_confidence,
-        48 + ((gs * 5) % 48) AS quality_score,
-        (ARRAY['A', 'B', 'A', 'C'])[((gs - 1) % 4) + 1] AS quality_label
+            'Boa distribuicao de macros para o dia.',
+            'Dense in micronutrients and balanced fats.',
+            'Good recovery meal after cardio session.',
+            'Alta en proteina y vegetales, baja en azucar.',
+            'Boa opcao com fibras e proteina magra.'
+        ])[((u.rn * 23 + gs * 7 - 1) % 8) + 1] AS ai_notes,
+        (ARRAY['friends', 'public', 'friends', 'self', 'public', 'friends'])[((u.rn + gs - 1) % 6) + 1] AS story_visibility,
+        CASE (ARRAY['breakfast', 'lunch', 'dinner', 'snack'])[((u.rn + gs - 1) % 4) + 1]
+            WHEN 'breakfast' THEN 320 + ((u.rn * 7 + gs * 19) % 260)
+            WHEN 'lunch' THEN 480 + ((u.rn * 11 + gs * 23) % 420)
+            WHEN 'dinner' THEN 430 + ((u.rn * 13 + gs * 17) % 390)
+            ELSE 180 + ((u.rn * 5 + gs * 13) % 220)
+        END AS total_calories,
+        CASE (ARRAY['breakfast', 'lunch', 'dinner', 'snack'])[((u.rn + gs - 1) % 4) + 1]
+            WHEN 'breakfast' THEN 28 + ((u.rn * 3 + gs * 5) % 40)
+            WHEN 'lunch' THEN 36 + ((u.rn * 5 + gs * 7) % 60)
+            WHEN 'dinner' THEN 30 + ((u.rn * 7 + gs * 3) % 58)
+            ELSE 14 + ((u.rn * 2 + gs * 4) % 28)
+        END AS total_carbs_g,
+        CASE (ARRAY['breakfast', 'lunch', 'dinner', 'snack'])[((u.rn + gs - 1) % 4) + 1]
+            WHEN 'breakfast' THEN 16 + ((u.rn * 5 + gs * 3) % 28)
+            WHEN 'lunch' THEN 24 + ((u.rn * 7 + gs * 4) % 42)
+            WHEN 'dinner' THEN 22 + ((u.rn * 6 + gs * 5) % 40)
+            ELSE 10 + ((u.rn * 3 + gs * 2) % 18)
+        END AS total_protein_g,
+        ROUND((0.62 + (((u.rn + gs) % 30) / 100.0))::numeric, 4) AS overall_confidence,
+        45 + ((u.rn * 9 + gs * 5) % 53) AS quality_score,
+        (ARRAY['A', 'B', 'A', 'C', 'B', 'A'])[((u.rn * 3 + gs - 1) % 6) + 1] AS quality_label
     FROM demo_users u
-    CROSS JOIN generate_series(1, 4) gs
+    CROSS JOIN generate_series(1, 6) gs
 ), inserted_meals AS (
     INSERT INTO meal_entries (
         id,
@@ -198,7 +243,32 @@ WITH demo_users AS (
 INSERT INTO meal_entry_media (meal_entry_id, photo_url, created_at_utc, updated_at_utc)
 SELECT
     m.id,
-    format('https://loremflickr.com/1080/1080/food?lock=%s', abs(('x' || substr(md5(m.id::text), 1, 8))::bit(32)::int)),
+    (ARRAY[
+        'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/1279330/pexels-photo-1279330.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/461198/pexels-photo-461198.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/262959/pexels-photo-262959.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/1437267/pexels-photo-1437267.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/699953/pexels-photo-699953.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/70497/pexels-photo-70497.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/842571/pexels-photo-842571.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/376464/pexels-photo-376464.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/12737656/pexels-photo-12737656.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/1761279/pexels-photo-1761279.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/3763847/pexels-photo-3763847.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/323682/pexels-photo-323682.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/2097090/pexels-photo-2097090.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/1279330/pexels-photo-1279330.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/357756/pexels-photo-357756.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/8969256/pexels-photo-8969256.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/12737656/pexels-photo-12737656.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/1211887/pexels-photo-1211887.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/315755/pexels-photo-315755.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/704569/pexels-photo-704569.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/1092730/pexels-photo-1092730.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/1435907/pexels-photo-1435907.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.pexels.com/photos/958545/pexels-photo-958545.jpeg?auto=compress&cs=tinysrgb&w=1200'
+    ])[((abs(('x' || substr(md5(m.id::text), 1, 8))::bit(32)::int) % 24) + 1)],
     m.date_utc,
     NOW()
 FROM inserted_meals m;
