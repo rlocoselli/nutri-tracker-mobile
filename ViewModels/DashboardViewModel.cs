@@ -90,6 +90,7 @@ public partial class DashboardViewModel : ObservableObject
     public string AddFriendQuickText => LocalizationService.T("dashboard_add_friend_quick");
     public bool HasPublicStories => PublicStories.Count > 0;
     public bool IsPublicStoriesEmpty => !HasPublicStories;
+    public bool ShowPublicStoriesSection => FeatureFlags.EnableDashboardPublicStories;
     public bool ShowGoogleFitUi => FeatureFlags.EnableGoogleFit;
 
     public DashboardViewModel(GoogleFitService googleFit, IServiceProvider sp, PointsService points, BackendSyncService sync, WeeklyMissionService missions)
@@ -148,6 +149,7 @@ public partial class DashboardViewModel : ObservableObject
         OnPropertyChanged(nameof(AddFriendQuickText));
         OnPropertyChanged(nameof(HasPublicStories));
         OnPropertyChanged(nameof(IsPublicStoriesEmpty));
+        OnPropertyChanged(nameof(ShowPublicStoriesSection));
         OnPropertyChanged(nameof(ShowGoogleFitUi));
 
         var accessToken = Preferences.Default.Get("auth_access_token", "");
@@ -336,7 +338,8 @@ public partial class DashboardViewModel : ObservableObject
             OnPropertyChanged(nameof(WeeklyMissions));
         }
 
-        await LoadPublicStoriesAsync(identityAlreadyEnsured: identityOk);
+        if (ShowPublicStoriesSection)
+            await LoadPublicStoriesAsync(identityAlreadyEnsured: identityOk);
         }
         finally
         {
@@ -518,6 +521,22 @@ public partial class DashboardViewModel : ObservableObject
         await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("friends_title"), LocalizationService.T("invite_send_failed"), "OK");
     }
 
+    [RelayCommand]
+    private async Task OpenPublicStoryAuthorStories(DashboardPublicStoryItem? item)
+    {
+        if (item == null || string.IsNullOrWhiteSpace(item.AuthorUserId))
+            return;
+
+        if (_sp.GetService(typeof(Pages.StoriesPage)) is not Pages.StoriesPage storiesPage)
+            return;
+
+        if (storiesPage.BindingContext is not StoriesViewModel storiesVm)
+            return;
+
+        storiesVm.ConfigureAuthorFilter(item.AuthorUserId, item.AuthorName);
+        await Shell.Current.Navigation.PushAsync(storiesPage);
+    }
+
     private async Task LoadPublicStoriesAsync(bool identityAlreadyEnsured)
     {
         PublicStories.Clear();
@@ -542,6 +561,7 @@ public partial class DashboardViewModel : ObservableObject
             var item = new DashboardPublicStoryItem
             {
                 MealId = row.meal_id,
+                AuthorUserId = row.user_id,
                 AuthorName = ResolvePublicAuthorName(row),
                 AuthorEmail = (row.author_email ?? "").Trim().ToLowerInvariant(),
                 Caption = string.IsNullOrWhiteSpace(row.raw_text) ? LocalizationService.T("story_meal") : row.raw_text,
@@ -625,6 +645,7 @@ public partial class DashboardViewModel : ObservableObject
 public partial class DashboardPublicStoryItem : ObservableObject
 {
     public string MealId { get; set; } = "";
+    public string AuthorUserId { get; set; } = "";
     public string AuthorName { get; set; } = "";
     public string AuthorEmail { get; set; } = "";
     public string Caption { get; set; } = "";
