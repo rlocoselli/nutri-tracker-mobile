@@ -73,8 +73,7 @@ def ensure_postgres_required_columns() -> None:
                 SELECT EXISTS (
                     SELECT 1
                     FROM information_schema.columns
-                    WHERE table_schema = 'public'
-                      AND table_name = 'meal_entries'
+                    WHERE table_name = 'meal_entries'
                       AND column_name = 'photo_url'
                 )
                 """
@@ -83,8 +82,8 @@ def ensure_postgres_required_columns() -> None:
             if has_legacy_photo_column:
                 conn.exec_driver_sql(
                     """
-                    INSERT INTO meal_entry_media (meal_entry_id, photo_url)
-                    SELECT id, COALESCE(photo_url, '')
+                    INSERT INTO meal_entry_media (meal_entry_id, photo_url, created_at_utc, updated_at_utc)
+                    SELECT id, COALESCE(photo_url, ''), NOW(), NOW()
                     FROM meal_entries
                     WHERE COALESCE(photo_url, '') <> ''
                     ON CONFLICT (meal_entry_id)

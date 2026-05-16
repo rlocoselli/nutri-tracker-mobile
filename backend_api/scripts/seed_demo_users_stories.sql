@@ -62,7 +62,7 @@ WITH generated_users AS (
     )
     SELECT
         id,
-        '',
+        NULL,
         format('seed.demo.%s@nutritiontracker.local', lpad(idx::text, 3, '0')),
         trim(first_name || ' ' || last_name),
         format('https://i.pravatar.cc/400?img=%s', avatar_id),
