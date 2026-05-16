@@ -14,6 +14,7 @@ public partial class AddMealViewModel : ObservableObject
     private readonly GamificationCoachService _gamification;
     private readonly BackendSyncService _sync;
     private readonly IVoiceInputService _voiceInput;
+    private readonly IEntryFeedbackService _entryFeedback;
 
     [ObservableProperty] private string text = "";
     [ObservableProperty] private bool isBusy;
@@ -47,6 +48,7 @@ public partial class AddMealViewModel : ObservableObject
     public string AnalyzeText => T("analyze");
     public string ClearText => T("clear");
     public string ResultTitle => T("result");
+    public string PhotoSelectedHint => T("photo_selected_hint");
     public string StoryVisibilityTitle => T("story_visibility_title");
     public string StoryVisibilityLabel => T("story_visibility_label");
     public string MealTypeTitle => T("meal_type_title");
@@ -58,8 +60,11 @@ public partial class AddMealViewModel : ObservableObject
     public ObservableCollection<MealTypeOption> MealTypeOptions { get; } = new();
 
     public bool HasPhoto => !string.IsNullOrWhiteSpace(PhotoPath);
+    public ImageSource MealPreviewSource => string.IsNullOrWhiteSpace(PhotoPath)
+        ? ImageSource.FromFile("story_food_default.svg")
+        : ImageSource.FromFile(PhotoPath);
 
-    public AddMealViewModel(ApiService api, PointsService points, HealthyTipService tips, GamificationCoachService gamification, BackendSyncService sync, IVoiceInputService voiceInput)
+    public AddMealViewModel(ApiService api, PointsService points, HealthyTipService tips, GamificationCoachService gamification, BackendSyncService sync, IVoiceInputService voiceInput, IEntryFeedbackService entryFeedback)
     {
         _api = api;
         _points = points;
@@ -67,6 +72,7 @@ public partial class AddMealViewModel : ObservableObject
         _gamification = gamification;
         _sync = sync;
         _voiceInput = voiceInput;
+        _entryFeedback = entryFeedback;
 
         RebuildStoryVisibilityOptions();
         RebuildMealTypeOptions();
@@ -76,7 +82,11 @@ public partial class AddMealViewModel : ObservableObject
         SelectedMealTypeOption = MealTypeOptions.FirstOrDefault(x => x.Value == detectedType) ?? MealTypeOptions.FirstOrDefault();
     }
 
-    partial void OnPhotoPathChanged(string value) => OnPropertyChanged(nameof(HasPhoto));
+    partial void OnPhotoPathChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasPhoto));
+        OnPropertyChanged(nameof(MealPreviewSource));
+    }
     partial void OnResultTipMessageChanged(string value) => OnPropertyChanged(nameof(HasTip));
     partial void OnResultScoreWhyChanged(string value) => OnPropertyChanged(nameof(HasScoreWhy));
 
@@ -95,6 +105,9 @@ public partial class AddMealViewModel : ObservableObject
         if (r == null) return;
         (PhotoBytes, PhotoMime, PhotoPath) = r.Value;
     }
+
+    [RelayCommand]
+    private void CloseResult() => HasResult = false;
 
     [RelayCommand]
     private void Clear()
@@ -184,10 +197,9 @@ public partial class AddMealViewModel : ObservableObject
                 SelectedMealTypeOption?.Value
                 ?? MealTypeService.DetectByLocalTime(entry.DateUtc.ToLocalTime()));
 
+            // No real photo — leave PhotoPath empty; client-side fallback generates the cartoon placeholder
             if (PhotoBytes is not { Length: > 0 })
-            {
-                entry.PhotoPath = MealIllustrationService.GenerateDataUri(Text, entry.MealType, appLang);
-            }
+                entry.PhotoPath = "";
 
             var identityOk = await _sync.EnsureBackendIdentityAsync(idToken);
             if (!identityOk)
@@ -196,6 +208,8 @@ public partial class AddMealViewModel : ObservableObject
             var backendId = await _sync.CreateMealAsync(entry, items);
             if (string.IsNullOrWhiteSpace(backendId))
                 throw new Exception(T("backend_save_error"));
+
+            await _entryFeedback.PlayEntryAddedAsync();
 
             Preferences.Default.Set("last_meal_logged_day_local", entry.DateUtc.ToLocalTime().ToString("yyyy-MM-dd"));
 

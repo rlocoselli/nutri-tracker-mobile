@@ -19,9 +19,9 @@ public static class LocalizationService
         ["add_meal_title"] = "Enregistrer un repas",
         ["add_meal_subtitle"] = "Décrivez votre repas et/ou ajoutez une photo pour l'analyse IA.",
         ["add_placeholder"] = "Ex : salade de poulet, yaourt grec, pomme...",
-        ["pick_photo"] = "Choisir une photo",
-        ["capture_photo"] = "Prendre une photo",
-        ["voice_input"] = "Reconnaissance vocale",
+        ["pick_photo"] = "Galerie",
+        ["capture_photo"] = "Appareil photo",
+        ["voice_input"] = "Microphone",
         ["analyze"] = "Analyser",
         ["clear"] = "Vider",
         ["result"] = "Résultat",
@@ -41,6 +41,7 @@ public static class LocalizationService
         ["voice_title"] = "Voix",
         ["voice_empty"] = "Aucune phrase reconnue. Réessayez.",
         ["voice_failed"] = "La reconnaissance vocale est indisponible sur cet appareil.",
+        ["ai_api_temp_unavailable"] = "Le service IA est temporairement indisponible. Réessayez dans quelques instants.",
         ["not_logged_in"] = "Vous n'êtes pas connecté. Veuillez vous reconnecter.",
         ["saved_message"] = "Repas enregistré avec succès.",
         ["earned_points"] = "+{0} pièces gagnées · Solde : {1}",
@@ -107,7 +108,7 @@ public static class LocalizationService
         ["meal_type_dinner"] = "Dîner",
         ["meal_type_snack"] = "Collation",
         ["meal_label"] = "Repas",
-        ["calories_label"] = "Calorias",
+        ["calories_label"] = "Calories",
         ["protein_label"] = "Protéines",
         ["carbs_label"] = "Glucides",
         ["steps_label"] = "Pas Google Fit (test)",
@@ -202,6 +203,16 @@ public static class LocalizationService
         ["notif_no_meal_body"] = "Ajoute au moins un repas pour garder ta série active et ton score à jour.",
         ["notif_social_engage_title"] = "Booste ton réseau nutrition",
         ["notif_social_engage_body"] = "Va voir les stories de tes amis, laisse un like ou envoie un message motivant.",
+        ["notif_breakfast_title"] = "Rappel petit-déjeuner",
+        ["notif_breakfast_body"] = "Pense à enregistrer ton repas du matin.",
+        ["notif_lunch_title"] = "Rappel déjeuner",
+        ["notif_lunch_body"] = "Pense à enregistrer ton repas de midi.",
+        ["notif_dinner_title"] = "Rappel dîner",
+        ["notif_dinner_body"] = "Pense à enregistrer ton repas du soir.",
+        ["notif_channel_meal_name"] = "Rappels repas",
+        ["notif_channel_meal_desc"] = "Rappels quotidiens pour enregistrer les repas",
+        ["notif_channel_social_name"] = "Mises à jour sociales",
+        ["notif_channel_social_desc"] = "Notifications sociales et interactions",
         ["story_view_messages"] = "Voir messages",
         ["story_no_messages"] = "Aucun message pour le moment.",
         ["recording_streak_title"] = "Série d'enregistrement",
@@ -394,6 +405,11 @@ public static class LocalizationService
         ["language"] = "Langue",
         ["current_lang_fr"] = "Langue actuelle : Français",
         ["current_lang_en"] = "Langue actuelle : Anglais",
+        ["current_lang_pt"] = "Langue actuelle : Portugais (Brésil)",
+        ["current_lang_es"] = "Langue actuelle : Espagnol (LatAm)",
+        ["current_lang_it"] = "Langue actuelle : Italien",
+        ["current_lang_de"] = "Langue actuelle : Allemand",
+        ["photo_selected_hint"] = "📷 Photo sélectionnée · faites défiler ↓ pour voir l'aperçu, puis appuyez sur Analyser",
         ["steps_today"] = "Pas aujourd'hui",
         ["advice_title"] = "Conseils",
         ["advice_hint"] = "Générez des recommandations basées sur votre historique.",
@@ -482,6 +498,7 @@ public static class LocalizationService
         ["voice_title"] = "Voice",
         ["voice_empty"] = "No speech recognized. Please try again.",
         ["voice_failed"] = "Speech recognition is unavailable on this device.",
+        ["ai_api_temp_unavailable"] = "The AI service is temporarily unavailable. Please try again in a moment.",
         ["not_logged_in"] = "Not logged in. Please login again.",
         ["saved_message"] = "Meal saved successfully.",
         ["earned_points"] = "+{0} coins earned · Balance: {1}",
@@ -643,6 +660,16 @@ public static class LocalizationService
         ["notif_no_meal_body"] = "Log at least one meal to keep your streak and score moving.",
         ["notif_social_engage_title"] = "Boost your nutrition network",
         ["notif_social_engage_body"] = "Check your friends' stories, drop a like, or send a motivating message.",
+        ["notif_breakfast_title"] = "Breakfast reminder",
+        ["notif_breakfast_body"] = "Remember to log your morning meal.",
+        ["notif_lunch_title"] = "Lunch reminder",
+        ["notif_lunch_body"] = "Remember to log your midday meal.",
+        ["notif_dinner_title"] = "Dinner reminder",
+        ["notif_dinner_body"] = "Remember to log your evening meal.",
+        ["notif_channel_meal_name"] = "Meal reminders",
+        ["notif_channel_meal_desc"] = "Daily reminders to log meals",
+        ["notif_channel_social_name"] = "Social updates",
+        ["notif_channel_social_desc"] = "Social and interaction notifications",
         ["story_view_messages"] = "View messages",
         ["story_no_messages"] = "No messages yet.",
             ["recording_streak_title"] = "Logging streak",
@@ -885,6 +912,7 @@ public static class LocalizationService
         ["recommendations_title"] = "Advice",
         ["actions"] = "Actions:",
 
+        ["photo_selected_hint"] = "📷 Photo selected · scroll down ↓ to see the preview, then tap Analyze",
         ["sync_ok"] = "Google Fit synced",
         ["sync_no_token"] = "Sign in again to allow Google Fit",
         ["sync_error"] = "Google Fit sync failed",
@@ -905,9 +933,9 @@ public static class LocalizationService
         ["add_meal_title"] = "Registrar refeição",
         ["add_meal_subtitle"] = "Descreva sua refeição e/ou adicione uma foto para análise de IA.",
         ["add_placeholder"] = "Ex: salada de frango, iogurte grego, maçã...",
-        ["pick_photo"] = "Escolher foto",
-        ["capture_photo"] = "Tirar foto",
-        ["voice_input"] = "Reconhecimento de voz",
+        ["pick_photo"] = "Galeria",
+        ["capture_photo"] = "Câmera",
+        ["voice_input"] = "Microfone",
         ["analyze"] = "Analisar",
         ["clear"] = "Limpar",
         ["result"] = "Resultado",
@@ -927,6 +955,7 @@ public static class LocalizationService
         ["voice_title"] = "Voz",
         ["voice_empty"] = "Nenhuma frase reconhecida. Tente novamente.",
         ["voice_failed"] = "Reconhecimento de voz indisponível neste dispositivo.",
+        ["ai_api_temp_unavailable"] = "O serviço de IA está temporariamente indisponível. Tente novamente em instantes.",
         ["not_logged_in"] = "Você não está conectado. Faça login novamente.",
         ["saved_message"] = "Refeição salva com sucesso.",
         ["earned_points"] = "+{0} moedas ganhas · Saldo: {1}",
@@ -993,7 +1022,7 @@ public static class LocalizationService
         ["meal_type_dinner"] = "Jantar",
         ["meal_type_snack"] = "Lanche",
         ["meal_label"] = "Refeição",
-        ["calories_label"] = "Calories",
+        ["calories_label"] = "Calorias",
         ["protein_label"] = "Proteínas",
         ["carbs_label"] = "Carboidratos",
         ["steps_label"] = "Passos Google Fit (teste)",
@@ -1087,6 +1116,16 @@ public static class LocalizationService
         ["notif_no_meal_body"] = "Registre ao menos uma refeição para manter sua sequência e seu score ativos.",
         ["notif_social_engage_title"] = "Ative sua rede de nutrição",
         ["notif_social_engage_body"] = "Veja os stories dos amigos, deixe um like ou envie uma mensagem motivadora.",
+        ["notif_breakfast_title"] = "Lembrete do café da manhã",
+        ["notif_breakfast_body"] = "Não esqueça de registrar sua refeição da manhã.",
+        ["notif_lunch_title"] = "Lembrete do almoço",
+        ["notif_lunch_body"] = "Não esqueça de registrar sua refeição do meio-dia.",
+        ["notif_dinner_title"] = "Lembrete do jantar",
+        ["notif_dinner_body"] = "Não esqueça de registrar sua refeição da noite.",
+        ["notif_channel_meal_name"] = "Lembretes de refeição",
+        ["notif_channel_meal_desc"] = "Lembretes diários para registrar refeições",
+        ["notif_channel_social_name"] = "Atualizações sociais",
+        ["notif_channel_social_desc"] = "Notificações sociais e interações",
         ["story_view_messages"] = "Ver mensagens",
         ["story_no_messages"] = "Nenhuma mensagem por enquanto.",
         ["recording_streak_title"] = "Sequência de registros",
@@ -1325,6 +1364,7 @@ public static class LocalizationService
         ["sync_ok"] = "Google Fit sincronizado",
         ["sync_no_token"] = "Entre novamente para autorizar Google Fit",
         ["sync_error"] = "Falha na sincronização do Google Fit",
+        ["photo_selected_hint"] = "📷 Foto selecionada · role para baixo ↓ para ver a prévia e depois toque em Analisar",
         ["sync_disabled"] = "Integração com Google Fit temporariamente desativada",
     };
 
@@ -1342,9 +1382,9 @@ public static class LocalizationService
         ["add_meal_title"] = "Registrar comida",
         ["add_meal_subtitle"] = "Describe tu comida y/o agrega una foto para el análisis de IA.",
         ["add_placeholder"] = "Ej: ensalada de pollo, yogur griego, manzana...",
-        ["pick_photo"] = "Elegir foto",
-        ["capture_photo"] = "Tomar foto",
-        ["voice_input"] = "Reconocimiento de voz",
+        ["pick_photo"] = "Galería",
+        ["capture_photo"] = "Cámara",
+        ["voice_input"] = "Micrófono",
         ["analyze"] = "Analizar",
         ["clear"] = "Limpiar",
         ["result"] = "Resultado",
@@ -1364,6 +1404,7 @@ public static class LocalizationService
         ["voice_title"] = "Voz",
         ["voice_empty"] = "No se reconoció voz. Inténtalo de nuevo.",
         ["voice_failed"] = "El reconocimiento de voz no está disponible en este dispositivo.",
+        ["ai_api_temp_unavailable"] = "El servicio de IA no está disponible temporalmente. Inténtalo de nuevo en unos instantes.",
         ["not_logged_in"] = "No has iniciado sesión. Vuelve a iniciar sesión.",
         ["saved_message"] = "Comida guardada correctamente.",
         ["earned_points"] = "+{0} monedas ganadas · Saldo: {1}",
@@ -1430,7 +1471,7 @@ public static class LocalizationService
         ["meal_type_dinner"] = "Cena",
         ["meal_type_snack"] = "Snack",
         ["meal_label"] = "Comida",
-        ["calories_label"] = "Calories",
+        ["calories_label"] = "Calorías",
         ["protein_label"] = "Proteínas",
         ["carbs_label"] = "Carbohidratos",
         ["steps_label"] = "Pasos Google Fit (prueba)",
@@ -1526,6 +1567,16 @@ public static class LocalizationService
         ["notif_social_engage_body"] = "Mira stories de tus amigos, deja un like o envía un mensaje motivador.",
         ["story_view_messages"] = "Ver mensajes",
         ["story_no_messages"] = "No hay mensajes por ahora.",
+        ["notif_breakfast_title"] = "Recordatorio de desayuno",
+        ["notif_breakfast_body"] = "Recuerda registrar tu comida de la mañana.",
+        ["notif_lunch_title"] = "Recordatorio de almuerzo",
+        ["notif_lunch_body"] = "Recuerda registrar tu comida del mediodía.",
+        ["notif_dinner_title"] = "Recordatorio de cena",
+        ["notif_dinner_body"] = "Recuerda registrar tu comida de la noche.",
+        ["notif_channel_meal_name"] = "Recordatorios de comida",
+        ["notif_channel_meal_desc"] = "Recordatorios diarios para registrar comidas",
+        ["notif_channel_social_name"] = "Actualizaciones sociales",
+        ["notif_channel_social_desc"] = "Notificaciones sociales e interacciones",
         ["recording_streak_title"] = "Racha de registro",
         ["coins_balance"] = "Saldo de monedas",
         ["reminder_title"] = "Recordatorios de comida",
@@ -1762,6 +1813,7 @@ public static class LocalizationService
         ["sync_ok"] = "Google Fit sincronizado",
         ["sync_no_token"] = "Inicia sesión de nuevo para autorizar Google Fit",
         ["sync_error"] = "Error de sincronización Google Fit",
+        ["photo_selected_hint"] = "📷 Foto seleccionada · desplázate ↓ para ver la vista previa y pulsa Analizar",
         ["sync_disabled"] = "Integración de Google Fit temporalmente desactivada",
     };
 
@@ -1868,8 +1920,7 @@ public static class LocalizationService
 
     public static string T(string key)
     {
-        EnsureAppLanguageConfigured();
-        var lang = NormalizeSupportedLanguage(Preferences.Default.Get("app_lang", "")) ?? "en";
+        var lang = CurrentLanguageCode();
         var dict = lang switch
         {
             "en" => En,
@@ -1884,6 +1935,12 @@ public static class LocalizationService
         if (En.TryGetValue(key, out var en)) return en;
         if (Fr.TryGetValue(key, out var fr)) return fr;
         return key;
+    }
+
+    public static string CurrentLanguageCode()
+    {
+        EnsureAppLanguageConfigured();
+        return NormalizeSupportedLanguage(Preferences.Default.Get("app_lang", "")) ?? "en";
     }
 
     private static string ResolveLanguageCodeFromDevice()

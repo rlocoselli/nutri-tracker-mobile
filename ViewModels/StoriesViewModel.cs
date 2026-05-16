@@ -193,10 +193,12 @@ public partial class StoriesViewModel : ObservableObject
                 if (!reset && existingIds.Contains(row.meal_id))
                     continue;
 
-                var photo = StoriesPhotoSourceHelper.Build(MealIllustrationService.GenerateDataUri(
+                var photo = StoriesPhotoSourceHelper.Build(row.photo_url)
+                    ?? StoriesPhotoSourceHelper.Build(MealIllustrationService.GenerateDataUri(
                         row.raw_text,
                         null,
-                        Preferences.Default.Get("app_lang", "fr")));
+                        Preferences.Default.Get("app_lang", "fr")))
+                    ?? ImageSource.FromFile("story_food_default.svg");
                 if (photo == null)
                     continue;
 

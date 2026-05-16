@@ -14,6 +14,15 @@ public class BackendSyncService
     private DateTime _cachedGoalsFetchedUtc;
     private List<FriendDirectoryDto>? _cachedFriendDirectory;
     private DateTime _cachedFriendDirectoryFetchedUtc;
+    private string _cachedMealsRangeKey = "";
+    private List<BackendMeal>? _cachedMealsRange;
+    private DateTime _cachedMealsRangeFetchedUtc;
+    private string _cachedDailySummaryKey = "";
+    private List<BackendMealDailySummary>? _cachedDailySummary;
+    private DateTime _cachedDailySummaryFetchedUtc;
+    private string _cachedFriendsFeedKey = "";
+    private List<BackendStory>? _cachedFriendsFeed;
+    private DateTime _cachedFriendsFeedFetchedUtc;
 
     public string BackendBaseUrl => "https://api.nutritiontracker.fr/api";
 
@@ -400,6 +409,14 @@ public class BackendSyncService
 
         var fromDate = fromUtc.Date.ToString("yyyy-MM-dd");
         var toDate = toUtc.AddSeconds(-1).Date.ToString("yyyy-MM-dd");
+        var cacheKey = $"{userId}|{fromDate}|{toDate}";
+
+        if (_cachedMealsRange != null &&
+            string.Equals(_cachedMealsRangeKey, cacheKey, StringComparison.Ordinal) &&
+            DateTime.UtcNow - _cachedMealsRangeFetchedUtc < TimeSpan.FromSeconds(20))
+        {
+            return _cachedMealsRange.ToList();
+        }
 
         var includePhotoQuery = includePhoto ? "true" : "false";
         using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/meals?from={fromDate}&to={toDate}&includePhoto={includePhotoQuery}");
@@ -409,7 +426,10 @@ public class BackendSyncService
             return new List<BackendMeal>();
 
         var parsed = await resp.Content.ReadFromJsonAsync<List<BackendMeal>>();
-        return parsed ?? new List<BackendMeal>();
+        _cachedMealsRangeKey = cacheKey;
+        _cachedMealsRangeFetchedUtc = DateTime.UtcNow;
+        _cachedMealsRange = parsed ?? new List<BackendMeal>();
+        return _cachedMealsRange.ToList();
     }
 
     public async Task<bool> TryPushGoalsAsync(UserGoals goals)
@@ -491,6 +511,14 @@ public class BackendSyncService
         var offsetMinutes = (int)Math.Round(TimeZoneInfo.Local.GetUtcOffset(DateTime.Now).TotalMinutes);
         var fromEncoded = Uri.EscapeDataString(fromUtc.ToUniversalTime().ToString("O"));
         var toEncoded = Uri.EscapeDataString(toUtc.ToUniversalTime().ToString("O"));
+        var cacheKey = $"{userId}|{fromEncoded}|{toEncoded}|{offsetMinutes}";
+
+        if (_cachedDailySummary != null &&
+            string.Equals(_cachedDailySummaryKey, cacheKey, StringComparison.Ordinal) &&
+            DateTime.UtcNow - _cachedDailySummaryFetchedUtc < TimeSpan.FromSeconds(25))
+        {
+            return _cachedDailySummary.ToList();
+        }
 
         using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/meals/daily-summary?fromUtc={fromEncoded}&toUtc={toEncoded}&tzOffsetMinutes={offsetMinutes}");
         req.Headers.Add("X-User-Id", userId);
@@ -499,7 +527,10 @@ public class BackendSyncService
             return new List<BackendMealDailySummary>();
 
         var parsed = await resp.Content.ReadFromJsonAsync<List<BackendMealDailySummary>>();
-        return parsed ?? new List<BackendMealDailySummary>();
+        _cachedDailySummaryKey = cacheKey;
+        _cachedDailySummaryFetchedUtc = DateTime.UtcNow;
+        _cachedDailySummary = parsed ?? new List<BackendMealDailySummary>();
+        return _cachedDailySummary.ToList();
     }
 
     public async Task<bool> TryPushRemindersAsync(bool enabled, TimeSpan breakfast, TimeSpan lunch, TimeSpan dinner)
@@ -587,9 +618,7 @@ public class BackendSyncService
         if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
             return false;
 
-        var lang = Preferences.Default.Get("app_lang", "fr").Trim().ToLowerInvariant();
-        if (lang != "fr" && lang != "en" && lang != "pt" && lang != "es")
-            lang = "fr";
+        var lang = LocalizationService.CurrentLanguageCode();
 
         using var req = new HttpRequestMessage(HttpMethod.Post, $"{ApiBaseUrl}/friends/invites");
         req.Headers.Add("X-User-Id", userId);
@@ -697,6 +726,14 @@ public class BackendSyncService
 
         var safeDays = Math.Clamp(days, 1, 14);
         var safeLimit = Math.Clamp(limit, 1, 120);
+        var cacheKey = $"{userId}|{safeDays}|{safeLimit}";
+
+        if (_cachedFriendsFeed != null &&
+            string.Equals(_cachedFriendsFeedKey, cacheKey, StringComparison.Ordinal) &&
+            DateTime.UtcNow - _cachedFriendsFeedFetchedUtc < TimeSpan.FromSeconds(15))
+        {
+            return _cachedFriendsFeed.ToList();
+        }
 
         var includePhotoQuery = includePhoto ? "true" : "false";
         using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/friends/feed?days={safeDays}&limit={safeLimit}&includePhoto={includePhotoQuery}");
@@ -726,7 +763,10 @@ public class BackendSyncService
             return new List<BackendStory>();
 
         var parsed = await resp.Content.ReadFromJsonAsync<List<BackendStory>>();
-        return parsed ?? new List<BackendStory>();
+        _cachedFriendsFeedKey = cacheKey;
+        _cachedFriendsFeedFetchedUtc = DateTime.UtcNow;
+        _cachedFriendsFeed = parsed ?? new List<BackendStory>();
+        return _cachedFriendsFeed.ToList();
     }
 
     public async Task<string> GetStoryVisibilityDefaultAsync()

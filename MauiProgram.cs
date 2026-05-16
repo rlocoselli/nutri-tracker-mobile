@@ -35,6 +35,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<SubscriptionService>();
         builder.Services.AddSingleton<IMealReminderService, MealReminderService>();
         builder.Services.AddSingleton<IVoiceInputService, AndroidVoiceInputService>();
+        builder.Services.AddSingleton<IEntryFeedbackService, EntryFeedbackService>();
         builder.Services.AddSingleton(sp => new ApiService("https://www.nutritiontracker.fr/api", sp.GetRequiredService<SessionService>()));
 
         // ViewModels

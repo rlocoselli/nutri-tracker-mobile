@@ -2,12 +2,16 @@
 <ContentPage
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:NutritionTracker.Controls"
     x:Class="NutritionTracker.Pages.FriendChatPage"
     BackgroundColor="{StaticResource Background}"
+    Shell.NavBarIsVisible="False"
     Title="{Binding PageTitle}">
 
-    <Grid RowDefinitions="Auto,*,Auto" Padding="16" RowSpacing="10">
-        <Border Grid.Row="0" Style="{StaticResource Card}" Stroke="{StaticResource Primary}" StrokeThickness="1.2">
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Padding="16" RowSpacing="10">
+        <controls:StravaTopBar Grid.Row="0" TitleText="{Binding PageTitle}" />
+
+        <Border Grid.Row="1" Style="{StaticResource Card}" Stroke="{StaticResource Primary}" StrokeThickness="1.2">
             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" VerticalOptions="Center">
                 <Image Source="logo.svg" WidthRequest="44" HeightRequest="44" Aspect="AspectFit" />
                 <VerticalStackLayout Grid.Column="1" Spacing="2">
@@ -17,7 +21,7 @@
             </Grid>
         </Border>
 
-        <CollectionView x:Name="MessagesList" Grid.Row="1" ItemsSource="{Binding Messages}" SelectionMode="None">
+        <CollectionView x:Name="MessagesList" Grid.Row="2" ItemsSource="{Binding Messages}" SelectionMode="None">
             <CollectionView.ItemTemplate>
                 <DataTemplate>
                     <Grid Margin="0,3">
@@ -50,7 +54,7 @@
             </CollectionView.ItemTemplate>
         </CollectionView>
 
-        <VerticalStackLayout Grid.Row="2" Spacing="8">
+        <VerticalStackLayout Grid.Row="3" Spacing="8">
             <Label Text="{Binding StatusText}" Style="{StaticResource BodyMuted}" />
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                 <Button Text="{Binding RefreshText}" Style="{StaticResource SecondaryButton}" Command="{Binding RefreshCommand}" HeightRequest="46" />

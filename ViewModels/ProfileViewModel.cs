@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using NutritionTracker.Pages;
 using NutritionTracker.Services;
+using NutritionTracker;
 
 namespace NutritionTracker.ViewModels;
 
@@ -122,12 +123,14 @@ public partial class ProfileViewModel : ObservableObject
 
     public async Task LoadAsync()
     {
+        LocalizationService.EnsureAppLanguageConfigured();
+
         Name = Preferences.Default.Get("profile_name", "");
         Email = Preferences.Default.Get("profile_email", "");
         PictureUrl = Preferences.Default.Get("profile_picture", "");
         IsEmailAccount = string.Equals(Preferences.Default.Get("auth_method", "google"), "email", StringComparison.OrdinalIgnoreCase);
 
-        var appLang = Preferences.Default.Get("app_lang", "fr");
+        var appLang = LocalizationService.CurrentLanguageCode();
         SelectedLanguage = appLang switch
         {
             "en" => "English",
@@ -265,6 +268,9 @@ public partial class ProfileViewModel : ObservableObject
             "de" => LocalizationService.T("current_lang_de"),
             _ => LocalizationService.T("current_lang_fr"),
         };
+
+        if (Shell.Current is AppShell shell)
+            shell.RefreshLocalizedText();
     }
 
     [RelayCommand]

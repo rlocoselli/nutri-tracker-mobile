@@ -14,6 +14,7 @@ public partial class DiaryViewModel : ObservableObject
     private readonly HealthyTipService _tips;
     private readonly GamificationCoachService _gamification;
     private readonly BackendSyncService _sync;
+    private readonly IEntryFeedbackService _entryFeedback;
 
     public string MetricTitle => T("metric");
     public string PeriodTitle => T("period");
@@ -105,12 +106,13 @@ public partial class DiaryViewModel : ObservableObject
     public string LoadingText => LocalizationService.T("main_loading");
     public ObservableCollection<MealTypeChoice> MealTypeChoices { get; } = new();
 
-    public DiaryViewModel(PointsService points, HealthyTipService tips, GamificationCoachService gamification, BackendSyncService sync)
+    public DiaryViewModel(PointsService points, HealthyTipService tips, GamificationCoachService gamification, BackendSyncService sync, IEntryFeedbackService entryFeedback)
     {
         _points = points;
         _tips = tips;
         _gamification = gamification;
         _sync = sync;
+        _entryFeedback = entryFeedback;
         UpdateSelectedDayText();
         RebuildDayTabs();
         RebuildMetricTabs();
@@ -326,10 +328,7 @@ public partial class DiaryViewModel : ObservableObject
             OverallConfidence = 1.0,
             QualityScore = manualQuality.score,
             QualityLabel = manualQuality.label,
-            PhotoPath = MealIllustrationService.GenerateDataUri(
-                ManualMealName,
-                SelectedManualMealType?.Value ?? "",
-                Preferences.Default.Get("app_lang", "fr")),
+            PhotoPath = "", // client-side fallback shows cartoon placeholder; nothing stored in DB
             MealType = MealTypeService.Normalize(SelectedManualMealType?.Value ?? MealTypeService.DetectByLocalTime(baseLocal)),
             StoryVisibility = BackendSyncService.NormalizeStoryVisibility(Preferences.Default.Get("story_visibility_default", "friends"))
         };
@@ -348,6 +347,8 @@ public partial class DiaryViewModel : ObservableObject
             await Application.Current!.MainPage!.DisplayAlert(T("error_title"), T("backend_save_error"), "OK");
             return;
         }
+
+        await _entryFeedback.PlayEntryAddedAsync();
 
         Preferences.Default.Set("last_meal_logged_day_local", entry.DateUtc.ToLocalTime().ToString("yyyy-MM-dd"));
 
@@ -647,7 +648,6 @@ public partial class DiaryViewModel : ObservableObject
         var selectedDate = SelectedDayLocal.Date;
         var meUserId = Preferences.Default.Get("backend_user_id", "").Trim();
         var myProfileName = Preferences.Default.Get("profile_name", "").Trim();
-        var appLang = Preferences.Default.Get("app_lang", "fr");
 
         foreach (var s in feed
             .Where(x => !string.IsNullOrWhiteSpace(meUserId) && string.Equals((x.user_id ?? "").Trim(), meUserId, StringComparison.OrdinalIgnoreCase))
@@ -665,7 +665,7 @@ public partial class DiaryViewModel : ObservableObject
                 CarbsText = $"C {Math.Round(s.total_carbs_g)}g",
                 QualityText = string.IsNullOrWhiteSpace(s.quality_label) ? "" : $"IA: {s.quality_label}",
                 PhotoSource = PhotoSourceHelper.Build(s.photo_url)
-                    ?? PhotoSourceHelper.Build(MealIllustrationService.GenerateDataUri(s.raw_text, null, appLang)),
+                    ?? ImageSource.FromFile("story_food_default.svg"),
             });
         }
 
@@ -1204,7 +1204,7 @@ public class DiaryMealItem
         var tigerCatMoodText = MealQualityService.GetTigerCatMood(e.QualityScore, lang);
         var semaphoreText = MealQualityService.GetSemaphore(e.QualityScore, lang);
         var photoSource = PhotoSourceHelper.Build(e.PhotoPath)
-            ?? PhotoSourceHelper.Build(MealIllustrationService.GenerateDataUri(e.RawText, e.MealType, lang));
+            ?? ImageSource.FromFile("story_food_default.svg");
 
         return new DiaryMealItem
         {

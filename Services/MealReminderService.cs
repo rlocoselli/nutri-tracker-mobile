@@ -56,9 +56,21 @@ public class MealReminderService : IMealReminderService
                 return true;
             }
 
-            ScheduleDaily(BreakfastNotificationId, breakfastTime, "Rappel petit-déjeuner", "Pense à enregistrer ton repas du matin.");
-            ScheduleDaily(LunchNotificationId, lunchTime, "Rappel déjeuner", "Pense à enregistrer ton repas de midi.");
-            ScheduleDaily(DinnerNotificationId, dinnerTime, "Rappel dîner", "Pense à enregistrer ton repas du soir.");
+            ScheduleDaily(
+                BreakfastNotificationId,
+                breakfastTime,
+                LocalizationService.T("notif_breakfast_title"),
+                LocalizationService.T("notif_breakfast_body"));
+            ScheduleDaily(
+                LunchNotificationId,
+                lunchTime,
+                LocalizationService.T("notif_lunch_title"),
+                LocalizationService.T("notif_lunch_body"));
+            ScheduleDaily(
+                DinnerNotificationId,
+                dinnerTime,
+                LocalizationService.T("notif_dinner_title"),
+                LocalizationService.T("notif_dinner_body"));
             ScheduleNoMealWarning(noMealWarningTime ?? new TimeSpan(21, 0, 0));
             ScheduleSocialEngagementNudge(socialEngagementTime ?? new TimeSpan(18, 30, 0));
             return true;
@@ -87,9 +99,9 @@ public class MealReminderService : IMealReminderService
         var existing = manager.GetNotificationChannel(ChannelId);
         if (existing != null) return;
 
-        var channel = new NotificationChannel(ChannelId, "Meal reminders", NotificationImportance.Default)
+        var channel = new NotificationChannel(ChannelId, LocalizationService.T("notif_channel_meal_name"), NotificationImportance.Default)
         {
-            Description = "Rappels quotidiens pour enregistrer les repas"
+            Description = LocalizationService.T("notif_channel_meal_desc")
         };
 
         manager.CreateNotificationChannel(channel);

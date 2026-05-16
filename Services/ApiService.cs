@@ -33,7 +33,46 @@ public class ApiService
 
     public async Task<AnalyzeResponse> AnalyzeMealAsync(string idToken, string lang, string text, byte[]? imageBytes, string? imageMime)
     {
-        using var req = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/analyze-meal");
+        const int maxAttempts = 2;
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            using var req = BuildAnalyzeRequest(idToken, lang, text, imageBytes, imageMime);
+            using var resp = await SendWithSessionRecoveryAsync(req);
+            var json = await resp.Content.ReadAsStringAsync();
+
+            if (resp.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            {
+                await _session.RedirectToLoginAsync(clearAuth: true);
+                throw new Exception(LocalizationService.T("not_logged_in"));
+            }
+
+            // Retry once on temporary backend/AI failures.
+            if ((int)resp.StatusCode >= 500 && attempt < maxAttempts)
+            {
+                await Task.Delay(450 * attempt);
+                continue;
+            }
+
+            if ((int)resp.StatusCode >= 500)
+                throw new Exception(LocalizationService.T("ai_api_temp_unavailable"));
+
+            if (!resp.IsSuccessStatusCode)
+                throw new Exception($"API error {(int)resp.StatusCode}: {json}");
+
+            var parsed = JsonSerializer.Deserialize<AnalyzeResponse>(json, _jsonOptions);
+            if (parsed == null)
+                throw new Exception("Invalid JSON from API");
+
+            return parsed;
+        }
+
+        throw new Exception(LocalizationService.T("ai_api_temp_unavailable"));
+    }
+
+    private HttpRequestMessage BuildAnalyzeRequest(string idToken, string lang, string text, byte[]? imageBytes, string? imageMime)
+    {
+        var req = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/analyze-meal");
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", idToken);
 
         if (imageBytes == null)
@@ -41,27 +80,19 @@ public class ApiService
             var body = JsonSerializer.Serialize(new { lang, text }, _jsonOptions);
             req.Content = new StringContent(body);
             req.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-        }
-        else
-        {
-            var mp = new MultipartFormDataContent();
-            mp.Add(new StringContent(lang), "lang");
-            mp.Add(new StringContent(text ?? ""), "text");
-
-            var imgContent = new ByteArrayContent(imageBytes);
-            imgContent.Headers.ContentType = new MediaTypeHeaderValue(imageMime ?? "image/jpeg");
-            mp.Add(imgContent, "image", "meal.jpg");
-
-            req.Content = mp;
+            return req;
         }
 
-        using var resp = await SendWithSessionRecoveryAsync(req);
-        var json = await resp.Content.ReadAsStringAsync();
-        await EnsureAuthorizedOrRedirectAsync(resp, json);
+        var mp = new MultipartFormDataContent();
+        mp.Add(new StringContent(lang), "lang");
+        mp.Add(new StringContent(text ?? ""), "text");
 
-        var parsed = JsonSerializer.Deserialize<AnalyzeResponse>(json, _jsonOptions);
-        if (parsed == null) throw new Exception("Invalid JSON from API");
-        return parsed;
+        var imgContent = new ByteArrayContent(imageBytes);
+        imgContent.Headers.ContentType = new MediaTypeHeaderValue(imageMime ?? "image/jpeg");
+        mp.Add(imgContent, "image", "meal.jpg");
+
+        req.Content = mp;
+        return req;
     }
 
     public async Task<RecommendationsResponse> GetRecommendationsAsync(string idToken, object payload)

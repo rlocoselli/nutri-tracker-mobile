@@ -6,12 +6,14 @@
     x:Class="NutritionTracker.Pages.DashboardPage"
     x:Name="DashboardRoot"
     Title="{Binding DailySummaryText}"
+    Shell.NavBarIsVisible="False"
     BackgroundColor="{StaticResource Background}">
 
     <Grid>
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="12">
-            <Label Text="{Binding DailySummaryText}" Style="{StaticResource H1}" />
+        <VerticalStackLayout Padding="20,12,20,20" Spacing="12">
+            <controls:StravaTopBar TitleText="{Binding HomeTitleText}" />
+
             <Label Text="{Binding TodayOnlyHintText}" Style="{StaticResource BodyMuted}" />
 
             <Label Text="{Binding KpiSectionTitle}" FontAttributes="Bold" FontSize="12" />
@@ -163,7 +165,7 @@
                 </VerticalStackLayout>
             </Border>
 
-            <Border Style="{StaticResource Card}">
+            <Border Style="{StaticResource Card}" IsVisible="{Binding ShowPublicStoriesSection}">
                 <VerticalStackLayout Spacing="8">
                     <Label Text="{Binding PublicStoriesTitleText}" FontAttributes="Bold" FontSize="12" />
                     <Label Text="{Binding PublicStoriesSubtitleText}" Style="{StaticResource BodyMuted}" />
@@ -175,6 +177,11 @@
                         <CollectionView.ItemTemplate>
                             <DataTemplate>
                                 <Border Style="{StaticResource Card}" WidthRequest="190" Padding="0">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer
+                                            Command="{Binding Source={x:Reference DashboardRoot}, Path=BindingContext.OpenPublicStoryAuthorStoriesCommand}"
+                                            CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
                                     <Grid RowDefinitions="150,Auto" HeightRequest="248">
                                         <Image Source="{Binding PhotoSource}" Aspect="AspectFill" />
                                         <VerticalStackLayout Grid.Row="1" Spacing="6" Padding="10">
