@@ -142,7 +142,7 @@ public partial class StatisticsViewModel : ObservableObject
         List<BackendWaterPoint> waterPoints;
         if (identityOk)
         {
-            var mealsTask = _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc);
+            var mealsTask = _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc, includePhoto: false);
             var waterTask = _sync.GetWaterIntakeSeriesAsync(fromLocal.Date, toLocalExclusive.Date);
             await Task.WhenAll(mealsTask, waterTask);
             backendMeals = mealsTask.Result;

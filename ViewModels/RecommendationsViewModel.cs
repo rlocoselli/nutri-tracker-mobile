@@ -50,7 +50,7 @@ public partial class RecommendationsViewModel : ObservableObject
             var goals = await _sync.GetGoalsAsync();
             var toUtc = DateTime.UtcNow.AddDays(1);
             var fromUtc = toUtc.AddDays(-14);
-            var meals = (await _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc)).Select(ToMealEntry).ToList();
+            var meals = (await _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc, includePhoto: false)).Select(ToMealEntry).ToList();
             var exercises = new List<Models.ExerciseEntry>();
             var lang = Preferences.Default.Get("app_lang", "fr");
 

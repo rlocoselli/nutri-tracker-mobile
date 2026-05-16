@@ -74,7 +74,6 @@ class MealEntry(Base):
     raw_text: Mapped[str] = mapped_column(Text, default="")
     description: Mapped[str] = mapped_column(Text, default="")
     ai_notes: Mapped[str] = mapped_column(Text, default="")
-    photo_url: Mapped[str] = mapped_column(Text, default="")
     meal_type: Mapped[str] = mapped_column(String, default="snack")
     story_visibility: Mapped[str] = mapped_column(String, default="friends")
     total_calories: Mapped[float] = mapped_column(Numeric(10, 2), default=0)
@@ -83,6 +82,15 @@ class MealEntry(Base):
     overall_confidence: Mapped[float] = mapped_column(Numeric(5, 4), default=0)
     quality_score: Mapped[float] = mapped_column(Numeric(5, 2), default=0)
     quality_label: Mapped[str] = mapped_column(String, default="")
+    created_at_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+
+class MealEntryMedia(Base):
+    __tablename__ = "meal_entry_media"
+
+    meal_entry_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("meal_entries.id", ondelete="CASCADE"), primary_key=True)
+    photo_url: Mapped[str] = mapped_column(Text, default="")
     created_at_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 

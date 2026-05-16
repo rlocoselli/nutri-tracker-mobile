@@ -22,7 +22,7 @@ public sealed class HealthyTipService
         var todayLocal = entry.DateUtc.ToLocalTime().Date;
         var startUtc = DateTime.SpecifyKind(todayLocal, DateTimeKind.Local).ToUniversalTime();
         var endUtc = DateTime.SpecifyKind(todayLocal.AddDays(1), DateTimeKind.Local).ToUniversalTime();
-        var meals = await _sync.GetMealsBetweenUtcAsync(startUtc, endUtc);
+        var meals = await _sync.GetMealsBetweenUtcAsync(startUtc, endUtc, includePhoto: false);
 
         var totalCalories = meals.Sum(x => x.total_calories);
         var totalProtein = meals.Sum(x => x.total_protein_g);

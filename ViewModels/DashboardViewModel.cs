@@ -1,6 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Text.Json;
+using System.Collections.ObjectModel;
+using Microsoft.Maui.Controls;
 using NutritionTracker.Models;
 using NutritionTracker.Services;
 
@@ -43,6 +45,7 @@ public partial class DashboardViewModel : ObservableObject
     [ObservableProperty] private IList<double> goalChartValues = Array.Empty<double>();
     [ObservableProperty] private IList<string> goalChartLabels = Array.Empty<string>();
     public IList<WeeklyMissionItem> WeeklyMissions { get; private set; } = Array.Empty<WeeklyMissionItem>();
+    public ObservableCollection<DashboardPublicStoryItem> PublicStories { get; } = new();
 
     public string HelloText => LocalizationService.T("hello");
     public string RecordMealText => LocalizationService.T("record_meal_plus");
@@ -72,6 +75,12 @@ public partial class DashboardViewModel : ObservableObject
     public string GamificationScoreLabelText => LocalizationService.T("dashboard_gamification_score");
     public string GamificationLevelLabelText => LocalizationService.T("dashboard_gamification_level");
     public string WeeklyMissionTitleText => LocalizationService.T("weekly_mission_title");
+    public string PublicStoriesTitleText => LocalizationService.T("dashboard_public_stories_title");
+    public string PublicStoriesSubtitleText => LocalizationService.T("dashboard_public_stories_subtitle");
+    public string PublicStoriesEmptyText => LocalizationService.T("dashboard_public_stories_empty");
+    public string AddFriendQuickText => LocalizationService.T("dashboard_add_friend_quick");
+    public bool HasPublicStories => PublicStories.Count > 0;
+    public bool IsPublicStoriesEmpty => !HasPublicStories;
     public bool ShowGoogleFitUi => FeatureFlags.EnableGoogleFit;
 
     public DashboardViewModel(GoogleFitService googleFit, IServiceProvider sp, PointsService points, BackendSyncService sync, WeeklyMissionService missions)
@@ -123,6 +132,12 @@ public partial class DashboardViewModel : ObservableObject
         OnPropertyChanged(nameof(GamificationScoreLabelText));
         OnPropertyChanged(nameof(GamificationLevelLabelText));
         OnPropertyChanged(nameof(WeeklyMissionTitleText));
+        OnPropertyChanged(nameof(PublicStoriesTitleText));
+        OnPropertyChanged(nameof(PublicStoriesSubtitleText));
+        OnPropertyChanged(nameof(PublicStoriesEmptyText));
+        OnPropertyChanged(nameof(AddFriendQuickText));
+        OnPropertyChanged(nameof(HasPublicStories));
+        OnPropertyChanged(nameof(IsPublicStoriesEmpty));
         OnPropertyChanged(nameof(ShowGoogleFitUi));
 
         var accessToken = Preferences.Default.Get("auth_access_token", "");
@@ -310,6 +325,8 @@ public partial class DashboardViewModel : ObservableObject
             WeeklyMissionStatusText = "";
             OnPropertyChanged(nameof(WeeklyMissions));
         }
+
+        await LoadPublicStoriesAsync(identityAlreadyEnsured: identityOk);
         }
         finally
         {
@@ -448,6 +465,93 @@ public partial class DashboardViewModel : ObservableObject
             "OK");
     }
 
+    [RelayCommand]
+    private async Task AddPublicStoryAuthor(DashboardPublicStoryItem? item)
+    {
+        if (item == null || string.IsNullOrWhiteSpace(item.AuthorEmail) || item.IsInvited)
+            return;
+
+        var token = Preferences.Default.Get("auth_id_token", "");
+        var identityOk = await _sync.EnsureBackendIdentityAsync(token);
+        if (!identityOk)
+        {
+            await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("friends_title"), LocalizationService.T("friend_action_signin_needed"), "OK");
+            return;
+        }
+
+        var sent = await _sync.TryInviteFriendAsync(item.AuthorEmail);
+        if (sent)
+        {
+            item.IsInvited = true;
+            await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("friends_title"), LocalizationService.T("invite_sent"), "OK");
+            return;
+        }
+
+        await Application.Current!.MainPage!.DisplayAlert(LocalizationService.T("friends_title"), LocalizationService.T("invite_send_failed"), "OK");
+    }
+
+    private async Task LoadPublicStoriesAsync(bool identityAlreadyEnsured)
+    {
+        PublicStories.Clear();
+        OnPropertyChanged(nameof(HasPublicStories));
+        OnPropertyChanged(nameof(IsPublicStoriesEmpty));
+
+        if (!identityAlreadyEnsured)
+        {
+            var token = Preferences.Default.Get("auth_id_token", "");
+            var identityOk = await _sync.EnsureBackendIdentityAsync(token);
+            if (!identityOk)
+                return;
+        }
+
+        var lang = Preferences.Default.Get("app_lang", "fr");
+        var rows = await _sync.GetPublicFeedAsync(days: 21, limit: 5, includePhoto: false);
+        foreach (var row in rows)
+        {
+            var fallback = DashboardStoryPhotoSourceHelper.Build(MealIllustrationService.GenerateDataUri(row.raw_text, null, lang))
+                ?? ImageSource.FromFile("ic_profile.svg");
+
+            var item = new DashboardPublicStoryItem
+            {
+                MealId = row.meal_id,
+                AuthorName = ResolvePublicAuthorName(row),
+                AuthorEmail = (row.author_email ?? "").Trim().ToLowerInvariant(),
+                Caption = string.IsNullOrWhiteSpace(row.raw_text) ? LocalizationService.T("story_meal") : row.raw_text,
+                PhotoSource = fallback,
+                NutritionText = $"{Math.Round(row.total_calories)} kcal · P {Math.Round(row.total_protein_g)}g · C {Math.Round(row.total_carbs_g)}g",
+            };
+
+            PublicStories.Add(item);
+        }
+
+        OnPropertyChanged(nameof(HasPublicStories));
+        OnPropertyChanged(nameof(IsPublicStoriesEmpty));
+
+        foreach (var item in PublicStories)
+        {
+            if (string.IsNullOrWhiteSpace(item.MealId))
+                continue;
+
+            var raw = await _sync.GetMealPhotoUrlAsync(item.MealId);
+            var source = DashboardStoryPhotoSourceHelper.Build(raw);
+            if (source != null)
+                item.PhotoSource = source;
+        }
+    }
+
+    private static string ResolvePublicAuthorName(BackendStory story)
+    {
+        var name = (story.display_name ?? "").Trim();
+        if (!string.IsNullOrWhiteSpace(name) && !string.Equals(name, "new user", StringComparison.OrdinalIgnoreCase))
+            return name;
+
+        var email = (story.author_email ?? "").Trim();
+        if (!string.IsNullOrWhiteSpace(email) && email.Contains('@'))
+            return email.Split('@')[0];
+
+        return LocalizationService.T("story_default_author");
+    }
+
     private async Task<List<MealEntry>> GetMealsForRangeAsync(DateTime fromUtc, DateTime toUtc, bool identityAlreadyEnsured = false)
     {
         if (!identityAlreadyEnsured)
@@ -458,7 +562,7 @@ public partial class DashboardViewModel : ObservableObject
                 return new List<MealEntry>();
         }
 
-        var backendMeals = await _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc);
+        var backendMeals = await _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc, includePhoto: false);
         return backendMeals
             .Select(ToMealEntry)
             .Where(x => x.DateUtc >= fromUtc && x.DateUtc < toUtc)
@@ -487,5 +591,57 @@ public partial class DashboardViewModel : ObservableObject
             QualityScore = meal.quality_score,
             QualityLabel = meal.quality_label,
         };
+    }
+}
+
+public partial class DashboardPublicStoryItem : ObservableObject
+{
+    public string MealId { get; set; } = "";
+    public string AuthorName { get; set; } = "";
+    public string AuthorEmail { get; set; } = "";
+    public string Caption { get; set; } = "";
+    public string NutritionText { get; set; } = "";
+
+    [ObservableProperty] private ImageSource photoSource = ImageSource.FromFile("ic_profile.svg");
+    [ObservableProperty] private bool isInvited;
+}
+
+internal static class DashboardStoryPhotoSourceHelper
+{
+    public static ImageSource? Build(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return null;
+
+        var value = raw.Trim();
+
+        if (value.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+        {
+            var commaIndex = value.IndexOf(',');
+            if (commaIndex > 0 && commaIndex < value.Length - 1)
+            {
+                var base64 = value[(commaIndex + 1)..];
+                try
+                {
+                    var bytes = Convert.FromBase64String(base64);
+                    return ImageSource.FromStream(() => new MemoryStream(bytes));
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+        }
+
+        if ((value.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || value.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            && Uri.TryCreate(value, UriKind.Absolute, out var uri))
+        {
+            return ImageSource.FromUri(uri);
+        }
+
+        if (File.Exists(value))
+            return ImageSource.FromFile(value);
+
+        return null;
     }
 }

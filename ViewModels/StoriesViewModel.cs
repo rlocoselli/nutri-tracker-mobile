@@ -14,6 +14,9 @@ public partial class StoriesViewModel : ObservableObject
     private readonly BackendSyncService _sync;
     private readonly List<StoryFeedItem> _allItems = new();
     private readonly Dictionary<string, ImageSource> _avatarByUserId = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _loadedPhotoMealIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _loadingPhotoMealIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _photoLock = new();
     private int _currentFeedLimit = FeedPageSize;
     private bool _loadedOnce;
     private bool _hasMore = true;
@@ -139,6 +142,11 @@ public partial class StoriesViewModel : ObservableObject
                 StoryBubbles.Clear();
                 _allItems.Clear();
                 _avatarByUserId.Clear();
+                lock (_photoLock)
+                {
+                    _loadedPhotoMealIds.Clear();
+                    _loadingPhotoMealIds.Clear();
+                }
             }
 
             var token = Preferences.Default.Get("auth_id_token", "");
@@ -170,7 +178,7 @@ public partial class StoriesViewModel : ObservableObject
                     _avatarByUserId[meUserId] = StoriesPhotoSourceHelper.Build(myProfilePicture) ?? ImageSource.FromFile("ic_profile.svg");
             }
 
-            var feed = await _sync.GetFriendsFeedAsync(days: 14, limit: _currentFeedLimit);
+            var feed = await _sync.GetFriendsFeedAsync(days: 14, limit: _currentFeedLimit, includePhoto: false);
             var ordered = feed
                 .OrderByDescending(x => x.date_utc)
                 .ToList();
@@ -185,8 +193,7 @@ public partial class StoriesViewModel : ObservableObject
                 if (!reset && existingIds.Contains(row.meal_id))
                     continue;
 
-                var photo = StoriesPhotoSourceHelper.Build(row.photo_url)
-                    ?? StoriesPhotoSourceHelper.Build(MealIllustrationService.GenerateDataUri(
+                var photo = StoriesPhotoSourceHelper.Build(MealIllustrationService.GenerateDataUri(
                         row.raw_text,
                         null,
                         Preferences.Default.Get("app_lang", "fr")));
@@ -234,6 +241,7 @@ public partial class StoriesViewModel : ObservableObject
 
             _hasMore = _currentFeedLimit < FeedMaxLimit && feed.Count >= _currentFeedLimit;
             ApplyFilters();
+            _ = PrefetchVisibleStoryPhotosAsync();
         }
         finally
         {
@@ -243,6 +251,56 @@ public partial class StoriesViewModel : ObservableObject
             OnPropertyChanged(nameof(IsEmpty));
             OnPropertyChanged(nameof(HasBubbles));
             OnPropertyChanged(nameof(CanLoadMore));
+        }
+    }
+
+    private async Task PrefetchVisibleStoryPhotosAsync()
+    {
+        var snapshot = Items
+            .Where(x => !string.IsNullOrWhiteSpace(x.MealId))
+            .Take(FeedPageSize)
+            .ToList();
+
+        foreach (var item in snapshot)
+        {
+            var mealId = item.MealId.Trim();
+            var shouldLoad = false;
+            lock (_photoLock)
+            {
+                if (!_loadedPhotoMealIds.Contains(mealId) && !_loadingPhotoMealIds.Contains(mealId))
+                {
+                    _loadingPhotoMealIds.Add(mealId);
+                    shouldLoad = true;
+                }
+            }
+
+            if (!shouldLoad)
+                continue;
+
+            try
+            {
+                var raw = await _sync.GetMealPhotoUrlAsync(mealId);
+                var source = StoriesPhotoSourceHelper.Build(raw);
+                if (source != null)
+                {
+                    await MainThread.InvokeOnMainThreadAsync(() =>
+                    {
+                        item.PhotoSource = source;
+                    });
+                }
+
+                lock (_photoLock)
+                    _loadedPhotoMealIds.Add(mealId);
+            }
+            catch
+            {
+                // Keep fallback illustration when lazy photo fetch fails.
+            }
+            finally
+            {
+                lock (_photoLock)
+                    _loadingPhotoMealIds.Remove(mealId);
+            }
         }
     }
 
@@ -463,7 +521,7 @@ public partial class StoriesViewModel : ObservableObject
     }
 }
 
-public class StoryFeedItem
+public class StoryFeedItem : ObservableObject
 {
     public string MealId { get; set; } = "";
     public string AuthorUserId { get; set; } = "";
@@ -483,7 +541,16 @@ public class StoryFeedItem
     public ObservableCollection<StoryCommentLine> Comments { get; } = new();
     public bool HasMoreComments { get; set; }
     public bool HasComments => Comments.Count > 0;
-    public ImageSource PhotoSource { get; set; } = ImageSource.FromFile("ic_profile.svg");
+    private ImageSource _photoSource = ImageSource.FromFile("ic_profile.svg");
+    public ImageSource PhotoSource
+    {
+        get => _photoSource;
+        set
+        {
+            if (SetProperty(ref _photoSource, value))
+                OnPropertyChanged(nameof(HasPhoto));
+        }
+    }
     public ImageSource AvatarSource { get; set; } = ImageSource.FromFile("ic_profile.svg");
     public bool HasPhoto => PhotoSource != null;
 }

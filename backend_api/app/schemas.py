@@ -66,6 +66,11 @@ class MealOut(BaseModel):
     items: list[MealItemOut] = Field(default_factory=list)
 
 
+class MealPhotoOut(BaseModel):
+    meal_id: str
+    photo_url: str
+
+
 class GoalsIn(BaseModel):
     calories_target: float
     carbs_g_target: float

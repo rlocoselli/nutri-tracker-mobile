@@ -4,8 +4,8 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from ..db import get_db
-from ..models import MealEntry, MealItem, User
-from ..schemas import MealCreateIn, MealOut, MealItemOut, MealDailySummaryOut
+from ..models import MealEntry, MealEntryMedia, MealItem, User
+from ..schemas import MealCreateIn, MealOut, MealItemOut, MealDailySummaryOut, MealPhotoOut
 from ..security import get_current_user_id
 
 router = APIRouter(prefix="/meals", tags=["meals"])
@@ -38,7 +38,6 @@ def create_meal(payload: MealCreateIn, user_id: uuid.UUID = Depends(get_current_
         raw_text=payload.raw_text,
         description=payload.description,
         ai_notes=payload.ai_notes,
-        photo_url=payload.photo_url,
         meal_type=_normalize_meal_type(payload.meal_type),
         story_visibility=story_visibility,
         total_calories=payload.total_calories,
@@ -50,6 +49,10 @@ def create_meal(payload: MealCreateIn, user_id: uuid.UUID = Depends(get_current_
     )
     db.add(meal)
     db.flush()
+
+    photo_url = (payload.photo_url or "").strip()
+    if photo_url:
+        db.add(MealEntryMedia(meal_entry_id=meal.id, photo_url=photo_url))
 
     for item in payload.items:
         db.add(MealItem(
@@ -73,6 +76,7 @@ def create_meal(payload: MealCreateIn, user_id: uuid.UUID = Depends(get_current_
 def list_meals(
     from_date: date = Query(alias="from"),
     to_date: date = Query(alias="to"),
+    include_photo: bool = Query(True, alias="includePhoto"),
     user_id: uuid.UUID = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
@@ -90,6 +94,14 @@ def list_meals(
 
     meal_ids = [row.id for row in rows]
     item_rows = db.query(MealItem).filter(MealItem.meal_entry_id.in_(meal_ids)).all()
+    photo_by_meal: dict[uuid.UUID, str] = {}
+    if include_photo:
+        media_rows = db.query(MealEntryMedia).filter(MealEntryMedia.meal_entry_id.in_(meal_ids)).all()
+        photo_by_meal = {
+            media.meal_entry_id: (media.photo_url or "")
+            for media in media_rows
+        }
+
     items_by_meal: dict[uuid.UUID, list[MealItemOut]] = {}
     for item in item_rows:
         items_by_meal.setdefault(item.meal_entry_id, []).append(MealItemOut(
@@ -114,7 +126,7 @@ def list_meals(
             raw_text=row.raw_text,
             description=row.description,
             ai_notes=row.ai_notes,
-            photo_url=row.photo_url,
+            photo_url=photo_by_meal.get(row.id, ""),
             meal_type=_normalize_meal_type(getattr(row, "meal_type", "snack")),
             total_calories=float(row.total_calories),
             total_carbs_g=float(row.total_carbs_g),
@@ -127,6 +139,23 @@ def list_meals(
         ))
 
     return out
+
+
+@router.get("/{meal_id}/photo", response_model=MealPhotoOut)
+def get_meal_photo(
+    meal_id: uuid.UUID,
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    meal = db.query(MealEntry).filter(MealEntry.id == meal_id, MealEntry.user_id == user_id).first()
+    if not meal:
+        raise HTTPException(status_code=404, detail="Meal not found")
+
+    media = db.query(MealEntryMedia).filter(MealEntryMedia.meal_entry_id == meal_id).first()
+    return MealPhotoOut(
+        meal_id=str(meal_id),
+        photo_url=(media.photo_url if media else "") or "",
+    )
 
 
 @router.get("/daily-summary", response_model=list[MealDailySummaryOut])
@@ -189,7 +218,6 @@ def patch_meal(meal_id: uuid.UUID, payload: MealCreateIn, user_id: uuid.UUID = D
     row.raw_text = payload.raw_text
     row.description = payload.description
     row.ai_notes = payload.ai_notes
-    row.photo_url = payload.photo_url
     row.meal_type = _normalize_meal_type(payload.meal_type)
     row.story_visibility = _normalize_story_visibility(payload.story_visibility, row.story_visibility or "friends")
     row.total_calories = payload.total_calories
@@ -198,6 +226,18 @@ def patch_meal(meal_id: uuid.UUID, payload: MealCreateIn, user_id: uuid.UUID = D
     row.overall_confidence = payload.overall_confidence
     row.quality_score = payload.quality_score
     row.quality_label = payload.quality_label
+
+    media = db.query(MealEntryMedia).filter(MealEntryMedia.meal_entry_id == meal_id).first()
+    photo_url = (payload.photo_url or "").strip()
+    if photo_url:
+        if media:
+            media.photo_url = photo_url
+            media.updated_at_utc = datetime.utcnow()
+        else:
+            db.add(MealEntryMedia(meal_entry_id=meal_id, photo_url=photo_url))
+    elif media:
+        db.delete(media)
+
     db.commit()
     return {"updated": True}
 

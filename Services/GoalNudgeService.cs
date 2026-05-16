@@ -72,7 +72,7 @@ public sealed class GoalNudgeService
         var localDay = DateTime.Now.Date;
         var fromUtc = DateTime.SpecifyKind(localDay, DateTimeKind.Local).ToUniversalTime();
         var toUtc = DateTime.SpecifyKind(localDay.AddDays(1), DateTimeKind.Local).ToUniversalTime();
-        var backend = await _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc);
+        var backend = await _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc, includePhoto: false);
 
         return backend.Select(x => new MealEntry
         {

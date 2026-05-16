@@ -1,12 +1,12 @@
 import uuid
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_, func
 from sqlalchemy.orm import Session
 from ..db import get_db
 from ..config import APP_COMPANY_NAME, APP_DATA_LOCATION
 from ..mailer import send_email
-from ..models import FriendInvite, Friendship, MealEntry, User, StoryLike, StoryComment, PrivateMessage
+from ..models import FriendInvite, Friendship, MealEntry, MealEntryMedia, User, StoryLike, StoryComment, PrivateMessage
 from ..schemas import InviteIn, FriendStoryOut, StoryLikeOut, StoryCommentIn, StoryCommentOut, StoryCommentPreviewOut, PrivateMessageIn, PrivateMessageOut, FriendDirectoryOut, IncomingInviteOut, StoryVisibilityDefaultIn, StoryVisibilityDefaultOut
 from ..security import get_current_user_id
 
@@ -398,6 +398,7 @@ def set_story_visibility_default(
 def friends_feed(
     days: int = 2,
     limit: int = 40,
+    include_photo: bool = Query(True, alias="includePhoto"),
     user_id: uuid.UUID = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
@@ -430,6 +431,13 @@ def friends_feed(
         return []
 
     meal_ids = [meal.id for meal, _ in visible_rows]
+    photo_by_meal: dict[uuid.UUID, str] = {}
+    if include_photo:
+        media_rows = db.query(MealEntryMedia).filter(MealEntryMedia.meal_entry_id.in_(meal_ids)).all()
+        photo_by_meal = {
+            media.meal_entry_id: (media.photo_url or "")
+            for media in media_rows
+        }
 
     like_count_rows = (
         db.query(StoryLike.meal_entry_id, func.count(StoryLike.id))
@@ -491,7 +499,7 @@ def friends_feed(
                 picture_url=user.picture_url or "",
                 date_utc=meal.date_utc,
                 raw_text=meal.raw_text or "",
-                photo_url=meal.photo_url or "",
+                photo_url=photo_by_meal.get(meal.id, ""),
                 total_calories=float(meal.total_calories or 0),
                 total_carbs_g=float(meal.total_carbs_g or 0),
                 total_protein_g=float(meal.total_protein_g or 0),
@@ -501,6 +509,94 @@ def friends_feed(
                 comment_count=comment_count_by_meal.get(meal.id, 0),
                 liked_by_me=meal.id in liked_by_meal,
                 preview_comments=preview_comments_by_meal.get(meal.id, []),
+            )
+        )
+
+    return out
+
+
+@router.get("/public-feed", response_model=list[FriendStoryOut])
+def public_feed(
+    days: int = 14,
+    limit: int = 5,
+    include_photo: bool = Query(False, alias="includePhoto"),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    safe_days = max(1, min(days, 30))
+    safe_limit = max(1, min(limit, 20))
+
+    cutoff = datetime.utcnow() - timedelta(days=safe_days)
+
+    rows = (
+        db.query(MealEntry, User)
+        .join(User, User.id == MealEntry.user_id)
+        .filter(MealEntry.date_utc >= cutoff)
+        .filter(MealEntry.story_visibility == "public")
+        .filter(MealEntry.user_id != user_id)
+        .order_by(MealEntry.date_utc.desc())
+        .limit(safe_limit)
+        .all()
+    )
+
+    if not rows:
+        return []
+
+    meal_ids = [meal.id for meal, _ in rows]
+
+    photo_by_meal: dict[uuid.UUID, str] = {}
+    if include_photo:
+        media_rows = db.query(MealEntryMedia).filter(MealEntryMedia.meal_entry_id.in_(meal_ids)).all()
+        photo_by_meal = {
+            media.meal_entry_id: (media.photo_url or "")
+            for media in media_rows
+        }
+
+    like_count_rows = (
+        db.query(StoryLike.meal_entry_id, func.count(StoryLike.id))
+        .filter(StoryLike.meal_entry_id.in_(meal_ids))
+        .group_by(StoryLike.meal_entry_id)
+        .all()
+    )
+    like_count_by_meal = {meal_id: int(count or 0) for meal_id, count in like_count_rows}
+
+    comment_count_rows = (
+        db.query(StoryComment.meal_entry_id, func.count(StoryComment.id))
+        .filter(StoryComment.meal_entry_id.in_(meal_ids))
+        .group_by(StoryComment.meal_entry_id)
+        .all()
+    )
+    comment_count_by_meal = {meal_id: int(count or 0) for meal_id, count in comment_count_rows}
+
+    liked_rows = (
+        db.query(StoryLike.meal_entry_id)
+        .filter(StoryLike.user_id == user_id)
+        .filter(StoryLike.meal_entry_id.in_(meal_ids))
+        .all()
+    )
+    liked_by_meal = {meal_id for meal_id, in liked_rows}
+
+    out: list[FriendStoryOut] = []
+    for meal, author in rows:
+        out.append(
+            FriendStoryOut(
+                meal_id=str(meal.id),
+                user_id=str(author.id),
+                display_name=_display_name(author),
+                author_email=(author.email or "").strip().lower(),
+                picture_url=author.picture_url or "",
+                date_utc=meal.date_utc,
+                raw_text=meal.raw_text or "",
+                photo_url=photo_by_meal.get(meal.id, ""),
+                total_calories=float(meal.total_calories or 0),
+                total_carbs_g=float(meal.total_carbs_g or 0),
+                total_protein_g=float(meal.total_protein_g or 0),
+                quality_label=meal.quality_label or "",
+                story_visibility="public",
+                like_count=like_count_by_meal.get(meal.id, 0),
+                comment_count=comment_count_by_meal.get(meal.id, 0),
+                liked_by_me=meal.id in liked_by_meal,
+                preview_comments=[],
             )
         )
 

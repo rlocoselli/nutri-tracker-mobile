@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:controls="clr-namespace:NutritionTracker.Controls"
     x:Class="NutritionTracker.Pages.DashboardPage"
+    x:Name="DashboardRoot"
     Title="{Binding DailySummaryText}"
     BackgroundColor="{StaticResource Background}">
 
@@ -159,6 +160,39 @@
                             </DataTemplate>
                         </CollectionView.ItemTemplate>
                     </CollectionView>
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="{Binding PublicStoriesTitleText}" FontAttributes="Bold" FontSize="12" />
+                    <Label Text="{Binding PublicStoriesSubtitleText}" Style="{StaticResource BodyMuted}" />
+
+                    <CollectionView ItemsSource="{Binding PublicStories}" SelectionMode="None" HeightRequest="268" IsVisible="{Binding HasPublicStories}">
+                        <CollectionView.ItemsLayout>
+                            <LinearItemsLayout Orientation="Horizontal" ItemSpacing="10" />
+                        </CollectionView.ItemsLayout>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource Card}" WidthRequest="190" Padding="0">
+                                    <Grid RowDefinitions="150,Auto" HeightRequest="248">
+                                        <Image Source="{Binding PhotoSource}" Aspect="AspectFill" />
+                                        <VerticalStackLayout Grid.Row="1" Spacing="6" Padding="10">
+                                            <Label Text="{Binding AuthorName}" FontAttributes="Bold" LineBreakMode="TailTruncation" MaxLines="1" />
+                                            <Label Text="{Binding Caption}" FontSize="11" LineBreakMode="TailTruncation" MaxLines="2" />
+                                            <Label Text="{Binding NutritionText}" FontSize="10" TextColor="{StaticResource Muted}" LineBreakMode="TailTruncation" MaxLines="1" />
+                                            <Button Text="{Binding Source={x:Reference DashboardRoot}, Path=BindingContext.AddFriendQuickText}"
+                                                    Style="{StaticResource SecondaryButton}"
+                                                    Command="{Binding Source={x:Reference DashboardRoot}, Path=BindingContext.AddPublicStoryAuthorCommand}"
+                                                    CommandParameter="{Binding .}" />
+                                        </VerticalStackLayout>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+
+                    <Label Text="{Binding PublicStoriesEmptyText}" IsVisible="{Binding IsPublicStoriesEmpty}" Style="{StaticResource BodyMuted}" />
                 </VerticalStackLayout>
             </Border>
 

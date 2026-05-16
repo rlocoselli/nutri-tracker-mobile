@@ -54,7 +54,6 @@ CREATE TABLE IF NOT EXISTS meal_entries (
     raw_text TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
     ai_notes TEXT NOT NULL DEFAULT '',
-    photo_url TEXT NOT NULL DEFAULT '',
     story_visibility TEXT NOT NULL DEFAULT 'friends',
 
     total_calories NUMERIC(10,2) NOT NULL DEFAULT 0,
@@ -81,6 +80,16 @@ ALTER TABLE meal_entries
 
 CREATE INDEX IF NOT EXISTS idx_meal_entries_user_day ON meal_entries(user_id, day_key_utc);
 CREATE INDEX IF NOT EXISTS idx_meal_entries_user_date ON meal_entries(user_id, date_utc);
+
+-- =========================
+-- Meal media (photos)
+-- =========================
+CREATE TABLE IF NOT EXISTS meal_entry_media (
+    meal_entry_id UUID PRIMARY KEY REFERENCES meal_entries(id) ON DELETE CASCADE,
+    photo_url TEXT NOT NULL DEFAULT '',
+    created_at_utc TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at_utc TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 -- =========================
 -- Meal items

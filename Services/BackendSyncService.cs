@@ -376,7 +376,23 @@ public class BackendSyncService
         return resp.IsSuccessStatusCode;
     }
 
-    public async Task<List<BackendMeal>> GetMealsBetweenUtcAsync(DateTime fromUtc, DateTime toUtc)
+    public async Task<string> GetMealPhotoUrlAsync(string mealId)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(mealId))
+            return "";
+
+        using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/meals/{mealId}/photo");
+        req.Headers.Add("X-User-Id", userId);
+        var resp = await _http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode)
+            return "";
+
+        var parsed = await resp.Content.ReadFromJsonAsync<BackendMealPhoto>();
+        return parsed?.photo_url ?? "";
+    }
+
+    public async Task<List<BackendMeal>> GetMealsBetweenUtcAsync(DateTime fromUtc, DateTime toUtc, bool includePhoto = true)
     {
         var userId = Preferences.Default.Get("backend_user_id", "");
         if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
@@ -385,7 +401,8 @@ public class BackendSyncService
         var fromDate = fromUtc.Date.ToString("yyyy-MM-dd");
         var toDate = toUtc.AddSeconds(-1).Date.ToString("yyyy-MM-dd");
 
-        using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/meals?from={fromDate}&to={toDate}");
+        var includePhotoQuery = includePhoto ? "true" : "false";
+        using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/meals?from={fromDate}&to={toDate}&includePhoto={includePhotoQuery}");
         req.Headers.Add("X-User-Id", userId);
         var resp = await _http.SendAsync(req);
         if (!resp.IsSuccessStatusCode)
@@ -672,7 +689,7 @@ public class BackendSyncService
         return parsed ?? new List<FriendDirectoryDto>();
     }
 
-    public async Task<List<BackendStory>> GetFriendsFeedAsync(int days = 2, int limit = 40)
+    public async Task<List<BackendStory>> GetFriendsFeedAsync(int days = 2, int limit = 40, bool includePhoto = true)
     {
         var userId = Preferences.Default.Get("backend_user_id", "");
         if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
@@ -681,7 +698,28 @@ public class BackendSyncService
         var safeDays = Math.Clamp(days, 1, 14);
         var safeLimit = Math.Clamp(limit, 1, 120);
 
-        using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/friends/feed?days={safeDays}&limit={safeLimit}");
+        var includePhotoQuery = includePhoto ? "true" : "false";
+        using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/friends/feed?days={safeDays}&limit={safeLimit}&includePhoto={includePhotoQuery}");
+        req.Headers.Add("X-User-Id", userId);
+        var resp = await _http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode)
+            return new List<BackendStory>();
+
+        var parsed = await resp.Content.ReadFromJsonAsync<List<BackendStory>>();
+        return parsed ?? new List<BackendStory>();
+    }
+
+    public async Task<List<BackendStory>> GetPublicFeedAsync(int days = 14, int limit = 5, bool includePhoto = false)
+    {
+        var userId = Preferences.Default.Get("backend_user_id", "");
+        if (!IsConfigured || string.IsNullOrWhiteSpace(userId))
+            return new List<BackendStory>();
+
+        var safeDays = Math.Clamp(days, 1, 30);
+        var safeLimit = Math.Clamp(limit, 1, 20);
+        var includePhotoQuery = includePhoto ? "true" : "false";
+
+        using var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/friends/public-feed?days={safeDays}&limit={safeLimit}&includePhoto={includePhotoQuery}");
         req.Headers.Add("X-User-Id", userId);
         var resp = await _http.SendAsync(req);
         if (!resp.IsSuccessStatusCode)
@@ -1065,6 +1103,12 @@ public class BackendMeal
     public string meal_type { get; set; } = "snack";
     public string story_visibility { get; set; } = "friends";
     public List<BackendMealItem> items { get; set; } = new();
+}
+
+public class BackendMealPhoto
+{
+    public string meal_id { get; set; } = "";
+    public string photo_url { get; set; } = "";
 }
 
 public class BackendGoalsDto

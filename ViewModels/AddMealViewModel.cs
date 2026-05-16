@@ -300,7 +300,7 @@ public partial class AddMealViewModel : ObservableObject
             {
                 var start = DateTime.SpecifyKind(dayLocal.Date, DateTimeKind.Local).ToUniversalTime();
                 var end = DateTime.SpecifyKind(dayLocal.Date.AddDays(1), DateTimeKind.Local).ToUniversalTime();
-                var meals = await _sync.GetMealsBetweenUtcAsync(start, end);
+                var meals = await _sync.GetMealsBetweenUtcAsync(start, end, includePhoto: false);
                 return (
                     meals.Sum(x => x.total_calories),
                     meals.Sum(x => x.total_carbs_g),

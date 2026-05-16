@@ -41,7 +41,7 @@ public partial class GoalsViewModel : ObservableObject
         var todayLocal = DateTime.Now.Date;
         var fromUtc = DateTime.SpecifyKind(todayLocal, DateTimeKind.Local).ToUniversalTime();
         var toUtc = DateTime.SpecifyKind(todayLocal.AddDays(1), DateTimeKind.Local).ToUniversalTime();
-        var meals = await _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc);
+        var meals = await _sync.GetMealsBetweenUtcAsync(fromUtc, toUtc, includePhoto: false);
         var cal = meals.Sum(x => x.total_calories);
         var carbs = meals.Sum(x => x.total_carbs_g);
         var prot = meals.Sum(x => x.total_protein_g);
@@ -110,7 +110,7 @@ public partial class GoalsViewModel : ObservableObject
             {
                 var start = DateTime.SpecifyKind(dayLocal.Date, DateTimeKind.Local).ToUniversalTime();
                 var end = DateTime.SpecifyKind(dayLocal.Date.AddDays(1), DateTimeKind.Local).ToUniversalTime();
-                var meals = await _sync.GetMealsBetweenUtcAsync(start, end);
+                var meals = await _sync.GetMealsBetweenUtcAsync(start, end, includePhoto: false);
                 return (
                     meals.Sum(x => x.total_calories),
                     meals.Sum(x => x.total_carbs_g),
