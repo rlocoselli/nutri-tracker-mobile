@@ -2,6 +2,8 @@
 using NutritionTracker.Pages;
 using NutritionTracker.Services;
 using NutritionTracker.ViewModels;
+using Plugin.AdMob;
+using Plugin.AdMob.Configuration;
 
 namespace NutritionTracker;
 
@@ -12,11 +14,19 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()
+            .UseAdMob(
+                androidDefaultBannerAdUnitId: AdMobSettings.BannerAdUnitId,
+                androidDefaultInterstitialAdUnitId: AdMobSettings.InterstitialAdUnitId)
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 fonts.AddFont("OpenSans-SemiBold.ttf", "OpenSansSemiBold");
             });
+
+#if DEBUG
+        // Never generate billable impressions while developing or testing.
+        AdConfig.UseTestAdUnitIds = true;
+#endif
 
         // Services
         builder.Services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);

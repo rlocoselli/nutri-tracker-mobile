@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
 using NutritionTracker.Models;
 using NutritionTracker.Services;
+using Plugin.AdMob.Services;
 
 namespace NutritionTracker.ViewModels;
 
@@ -15,6 +16,7 @@ public partial class AddMealViewModel : ObservableObject
     private readonly BackendSyncService _sync;
     private readonly IVoiceInputService _voiceInput;
     private readonly IEntryFeedbackService _entryFeedback;
+    private readonly IInterstitialAdService _interstitialAd;
 
     [ObservableProperty] private string text = "";
     [ObservableProperty] private bool isBusy;
@@ -64,7 +66,7 @@ public partial class AddMealViewModel : ObservableObject
         ? ImageSource.FromFile("story_food_default.svg")
         : ImageSource.FromFile(PhotoPath);
 
-    public AddMealViewModel(ApiService api, PointsService points, HealthyTipService tips, GamificationCoachService gamification, BackendSyncService sync, IVoiceInputService voiceInput, IEntryFeedbackService entryFeedback)
+    public AddMealViewModel(ApiService api, PointsService points, HealthyTipService tips, GamificationCoachService gamification, BackendSyncService sync, IVoiceInputService voiceInput, IEntryFeedbackService entryFeedback, IInterstitialAdService interstitialAd)
     {
         _api = api;
         _points = points;
@@ -73,9 +75,11 @@ public partial class AddMealViewModel : ObservableObject
         _sync = sync;
         _voiceInput = voiceInput;
         _entryFeedback = entryFeedback;
+        _interstitialAd = interstitialAd;
 
         RebuildStoryVisibilityOptions();
         RebuildMealTypeOptions();
+        PrepareInterstitial();
         var defaultVisibility = BackendSyncService.NormalizeStoryVisibility(Preferences.Default.Get("story_visibility_default", "friends"));
         SelectedStoryVisibilityOption = StoryVisibilityOptions.FirstOrDefault(x => x.Value == defaultVisibility) ?? StoryVisibilityOptions.FirstOrDefault();
         var detectedType = MealTypeService.DetectByLocalTime(DateTime.Now);
@@ -273,6 +277,7 @@ public partial class AddMealViewModel : ObservableObject
                 });
 
             await PromptShareToFriendAsync(resp.meal.notes, entry.TotalCalories, entry.TotalProteinG, entry.TotalCarbsG);
+            ShowInterstitialIfReady();
             ClearInputForNextMeal();
         }
         catch (Exception ex)
@@ -282,6 +287,36 @@ public partial class AddMealViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    private void PrepareInterstitial()
+    {
+        if (string.IsNullOrWhiteSpace(AdMobSettings.InterstitialAdUnitId))
+            return;
+
+        try
+        {
+            _interstitialAd.PrepareAd(AdMobSettings.InterstitialAdUnitId);
+        }
+        catch
+        {
+            // Ads are optional and must never block meal logging.
+        }
+    }
+
+    private void ShowInterstitialIfReady()
+    {
+        if (!_interstitialAd.IsAdLoaded)
+            return;
+
+        try
+        {
+            _interstitialAd.ShowAd();
+        }
+        catch
+        {
+            // Ads are optional and must never block meal logging.
         }
     }
 
