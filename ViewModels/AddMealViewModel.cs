@@ -60,6 +60,9 @@ public partial class AddMealViewModel : ObservableObject
 
     public ObservableCollection<StoryVisibilityOption> StoryVisibilityOptions { get; } = new();
     public ObservableCollection<MealTypeOption> MealTypeOptions { get; } = new();
+    public ObservableCollection<AnalyzedMealItem> ResultItems { get; } = new();
+    public string DetectedItemsTitle => T("detected_items_title");
+    public string EstimateDisclaimer => T("nutrition_estimate_disclaimer");
 
     public bool HasPhoto => !string.IsNullOrWhiteSpace(PhotoPath);
     public ImageSource MealPreviewSource => string.IsNullOrWhiteSpace(PhotoPath)
@@ -134,6 +137,7 @@ public partial class AddMealViewModel : ObservableObject
         ResultTipProgress = "";
         ResultSocialStatus = "";
         ResultScoreWhy = "";
+        ResultItems.Clear();
 
         var defaultVisibility = BackendSyncService.NormalizeStoryVisibility(Preferences.Default.Get("story_visibility_default", "friends"));
         SelectedStoryVisibilityOption = StoryVisibilityOptions.FirstOrDefault(x => x.Value == defaultVisibility) ?? StoryVisibilityOptions.FirstOrDefault();
@@ -217,7 +221,22 @@ public partial class AddMealViewModel : ObservableObject
 
             Preferences.Default.Set("last_meal_logged_day_local", entry.DateUtc.ToLocalTime().ToString("yyyy-MM-dd"));
 
-            ResultSummary = $"Calories: {Math.Round(resp.meal.totals.calories)} | Carbs: {Math.Round(resp.meal.totals.carbs_g)}g | Protein: {Math.Round(resp.meal.totals.protein_g)}g";
+            ResultSummary = string.Format(T("nutrition_totals_format"),
+                Math.Round(resp.meal.totals.calories), Math.Round(resp.meal.totals.protein_g),
+                Math.Round(resp.meal.totals.carbs_g), Math.Round(resp.meal.totals.fat_g));
+            ResultItems.Clear();
+            foreach (var item in resp.meal.items)
+            {
+                ResultItems.Add(new AnalyzedMealItem
+                {
+                    Name = item.name,
+                    Portion = item.estimated_grams > 0 ? $"{Math.Round(item.estimated_grams)} g" : $"{item.quantity:0.##} {item.unit}".Trim(),
+                    Calories = $"{Math.Round(item.macros.calories)} kcal",
+                    Protein = $"{T("macro_short_protein")} {Math.Round(item.macros.protein_g)} g",
+                    Carbs = $"{T("macro_short_carbs")} {Math.Round(item.macros.carbs_g)} g",
+                    Fat = $"{T("macro_short_fat")} {Math.Round(item.macros.fat_g)} g"
+                });
+            }
             ResultNotes = resp.meal.notes;
             ResultQuality = T("quality") + $": {entry.QualityLabel} ({Math.Round(entry.QualityScore)}/100)";
             ResultBadge = T("badge") + $": {MealQualityService.GetBadge(entry.QualityScore, appLang)} · {MealQualityService.GetFoodStyleBadge(entry.QualityScore, appLang)}";
@@ -495,6 +514,16 @@ public partial class AddMealViewModel : ObservableObject
 
         return $"Super. +{pointsEarned} pieces. Partage la prochaine entree saine pour booster ta constance.";
     }
+}
+
+public sealed class AnalyzedMealItem
+{
+    public string Name { get; set; } = "";
+    public string Portion { get; set; } = "";
+    public string Calories { get; set; } = "";
+    public string Protein { get; set; } = "";
+    public string Carbs { get; set; } = "";
+    public string Fat { get; set; } = "";
 }
 
 public sealed class StoryVisibilityOption

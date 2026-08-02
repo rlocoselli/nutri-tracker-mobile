@@ -2,6 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:controls="clr-namespace:NutritionTracker.Controls"
+             xmlns:local="clr-namespace:NutritionTracker.Services"
              x:Class="NutritionTracker.Pages.AddMealPage"
              Shell.NavBarIsVisible="False"
              BackgroundColor="{StaticResource Background}">
@@ -76,6 +77,26 @@
         <ScrollView Grid.Row="1">
           <VerticalStackLayout Padding="20" Spacing="16">
             <Label Text="{Binding ResultSummary}" FontAttributes="Bold" FontSize="16" />
+            <Label Text="{Binding EstimateDisclaimer}" Style="{StaticResource BodyMuted}" FontSize="11" />
+            <Label Text="{Binding DetectedItemsTitle}" Style="{StaticResource H2}" />
+            <VerticalStackLayout BindableLayout.ItemsSource="{Binding ResultItems}" Spacing="8">
+              <BindableLayout.ItemTemplate>
+                <DataTemplate>
+                  <Border Style="{StaticResource Card}" Padding="12">
+                    <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="5">
+                      <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="15" />
+                      <Label Grid.Column="1" Text="{Binding Calories}" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
+                      <Label Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Portion}" Style="{StaticResource BodyMuted}" />
+                      <HorizontalStackLayout Grid.Row="2" Grid.ColumnSpan="2" Spacing="12">
+                        <Label Text="{Binding Protein}" TextColor="{StaticResource MacroProtein}" FontSize="12" />
+                        <Label Text="{Binding Carbs}" TextColor="{StaticResource MacroCarbs}" FontSize="12" />
+                        <Label Text="{Binding Fat}" TextColor="{StaticResource MacroFat}" FontSize="12" />
+                      </HorizontalStackLayout>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
             <Label Text="{Binding ResultQuality}" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
             <Label Text="{Binding ResultBadge}" FontAttributes="Bold" />
             <Label Text="{Binding ResultTigerCatMood}" FontAttributes="Bold" />
@@ -113,7 +134,7 @@
               VerticalOptions="Center">
         <VerticalStackLayout Spacing="10" HorizontalOptions="Center">
           <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
-          <Label Text="Analyse en cours..." HorizontalTextAlignment="Center" />
+          <Label Text="{local:Translate Key=analysis_in_progress}" HorizontalTextAlignment="Center" />
         </VerticalStackLayout>
       </Border>
     </Grid>

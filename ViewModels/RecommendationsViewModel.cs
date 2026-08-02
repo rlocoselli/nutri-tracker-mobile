@@ -14,7 +14,8 @@ public partial class RecommendationsViewModel : ObservableObject
     public string TitleText => T("reco_title");
     public string SubtitleText => T("reco_subtitle");
     public string GenerateText => T("generate");
-    public string AnalysisText => T("analysis");
+    public string AnalysisText => LocalizationService.T("analysis");
+    public string EstimateText => LocalizationService.T("recommendation_estimate_disclaimer");
 
     public ObservableCollection<RecommendationItem> Items { get; } = new();
 
@@ -41,7 +42,7 @@ public partial class RecommendationsViewModel : ObservableObject
         {
             var idToken = Preferences.Default.Get("auth_id_token", "");
             if (string.IsNullOrWhiteSpace(idToken))
-                throw new Exception("Not logged in.");
+                throw new Exception(LocalizationService.T("not_logged_in"));
 
             var identityOk = await _sync.EnsureBackendIdentityAsync(idToken);
             if (!identityOk)
@@ -96,16 +97,17 @@ public partial class RecommendationsViewModel : ObservableObject
             var carbsGap = Math.Round(avgCarbs - goals.CarbsGTarget);
             var protGap = Math.Round(avgProt - goals.ProteinGTarget);
 
-            InsightsText = lang == "en"
-                ? $"Avg calories: {avgCal} (gap {Signed(calGap)}), Avg carbs: {avgCarbs}g (gap {Signed(carbsGap)}g), Avg protein: {avgProt}g (gap {Signed(protGap)}g), Avg burn: {avgBurn} kcal"
-                : $"Calories moy.: {avgCal} (écart {Signed(calGap)}), Glucides moy.: {avgCarbs}g (écart {Signed(carbsGap)}g), Protéines moy.: {avgProt}g (écart {Signed(protGap)}g), Débit moyen: {avgBurn} kcal";
+            InsightsText = string.Format(LocalizationService.T("recommendation_insights_format"), avgCal, Signed(calGap), avgCarbs, Signed(carbsGap), avgProt, Signed(protGap), avgBurn);
 
             WarningsText = string.Join("\n", resp.warnings ?? new List<string>());
 
             if (resp.recommendations != null && resp.recommendations.Count > 0)
             {
                 foreach (var it in resp.recommendations)
+                {
+                    it.image = PickIllustration(it.title);
                     Items.Add(it);
+                }
             }
             else
             {
@@ -124,6 +126,14 @@ public partial class RecommendationsViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    private static string PickIllustration(string title)
+    {
+        var value = (title ?? "").ToLowerInvariant();
+        if (value.Contains("protein") || value.Contains("proté")) return "reco_protein.svg";
+        if (value.Contains("water") || value.Contains("hydrat")) return "reco_hydration.svg";
+        return "reco_balance.svg";
     }
 
     private static string Signed(double value)
@@ -213,15 +223,6 @@ public partial class RecommendationsViewModel : ObservableObject
 
     private static string T(string key)
     {
-        var lang = Preferences.Default.Get("app_lang", "fr");
-        return key switch
-        {
-            "reco_title" => lang == "en" ? "Recommendations" : "Recommandations",
-            "reco_subtitle" => lang == "en" ? "Generated from your recent meal history and goals." : "Générées depuis votre historique récent et vos objectifs.",
-            "generate" => lang == "en" ? "Generate" : "Générer",
-            "analysis" => lang == "en" ? "Analysis" : "Analyse",
-            "backend_identity_error" => LocalizationService.T("backend_identity_error"),
-            _ => key,
-        };
+        return LocalizationService.T(key);
     }
 }

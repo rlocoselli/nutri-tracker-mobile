@@ -5,6 +5,17 @@ namespace NutritionTracker.Services;
 
 public static class LocalizationService
 {
+    private static readonly Dictionary<string, Dictionary<string, string>> ProductCopy = new()
+    {
+        ["en"] = new() { ["scan_meal_shortcut"]="Scan my meal", ["scan_meal_hint"]="Take a photo for an instant nutrition estimate", ["detected_items_title"]="Detected foods", ["nutrition_estimate_disclaimer"]="AI estimate only. Portions and nutrients may vary.", ["recommendation_estimate_disclaimer"]="Personalized guidance based on estimates, not medical advice.", ["analysis_in_progress"]="Analyzing your meal…", ["nutrition_totals_format"]="{0} kcal · Protein {1} g · Carbs {2} g · Fat {3} g", ["macro_short_protein"]="P", ["macro_short_carbs"]="C", ["macro_short_fat"]="F", ["recommendation_insights_format"]="Calories {0} (gap {1}) · Carbs {2} g ({3} g) · Protein {4} g ({5} g) · Activity {6} kcal", ["reco_title"]="Recommendations", ["reco_subtitle"]="Personalized from your recent meals and goals.", ["generate"]="Refresh recommendations", ["analysis"]="Your overview", ["privacy_law_message"]="Your personal data is handled under the GDPR. You can access, correct, export or delete it at any time." },
+        ["fr"] = new() { ["scan_meal_shortcut"]="Scanner mon repas", ["scan_meal_hint"]="Prenez une photo pour une estimation nutritionnelle instantanée", ["detected_items_title"]="Aliments détectés", ["nutrition_estimate_disclaimer"]="Estimation IA uniquement. Les portions et nutriments peuvent varier.", ["recommendation_estimate_disclaimer"]="Conseils personnalisés fondés sur des estimations, sans valeur médicale.", ["analysis_in_progress"]="Analyse du repas en cours…", ["nutrition_totals_format"]="{0} kcal · Protéines {1} g · Glucides {2} g · Lipides {3} g", ["macro_short_protein"]="P", ["macro_short_carbs"]="G", ["macro_short_fat"]="L", ["recommendation_insights_format"]="Calories {0} (écart {1}) · Glucides {2} g ({3} g) · Protéines {4} g ({5} g) · Activité {6} kcal", ["reco_title"]="Recommandations", ["reco_subtitle"]="Personnalisées selon vos repas récents et vos objectifs.", ["generate"]="Actualiser les recommandations", ["analysis"]="Votre synthèse", ["privacy_law_message"]="Vos données personnelles sont traitées conformément au RGPD. Vous pouvez y accéder, les rectifier, les exporter ou les supprimer à tout moment." },
+        ["pt"] = new() { ["scan_meal_shortcut"]="Analisar minha refeição", ["scan_meal_hint"]="Tire uma foto para uma estimativa nutricional instantânea", ["detected_items_title"]="Alimentos detectados", ["nutrition_estimate_disclaimer"]="Apenas uma estimativa por IA. Porções e nutrientes podem variar.", ["analysis_in_progress"]="Analisando sua refeição…", ["privacy_law_message"]="Seus dados pessoais são tratados conforme o RGPD. Você pode acessá-los, corrigi-los, exportá-los ou excluí-los a qualquer momento." },
+        ["es"] = new() { ["scan_meal_shortcut"]="Analizar mi comida", ["scan_meal_hint"]="Toma una foto para obtener una estimación nutricional instantánea", ["detected_items_title"]="Alimentos detectados", ["nutrition_estimate_disclaimer"]="Estimación de IA. Las porciones y nutrientes pueden variar.", ["analysis_in_progress"]="Analizando tu comida…", ["privacy_law_message"]="Tus datos personales se tratan conforme al RGPD. Puedes acceder, corregir, exportar o eliminarlos en cualquier momento." },
+        ["it"] = new() { ["scan_meal_shortcut"]="Analizza il mio pasto", ["scan_meal_hint"]="Scatta una foto per una stima nutrizionale immediata", ["detected_items_title"]="Alimenti rilevati", ["nutrition_estimate_disclaimer"]="Solo stima IA. Porzioni e nutrienti possono variare.", ["analysis_in_progress"]="Analisi del pasto…", ["privacy_law_message"]="I tuoi dati personali sono trattati ai sensi del GDPR. Puoi accedervi, correggerli, esportarli o eliminarli in qualsiasi momento." },
+        ["de"] = new() { ["scan_meal_shortcut"]="Meine Mahlzeit scannen", ["scan_meal_hint"]="Foto aufnehmen und sofort Nährwerte schätzen lassen", ["detected_items_title"]="Erkannte Lebensmittel", ["nutrition_estimate_disclaimer"]="Nur KI-Schätzung. Portionen und Nährwerte können abweichen.", ["analysis_in_progress"]="Mahlzeit wird analysiert…", ["privacy_law_message"]="Ihre personenbezogenen Daten werden gemäß DSGVO verarbeitet. Sie können sie jederzeit einsehen, berichtigen, exportieren oder löschen." },
+        ["ro"] = new() { ["scan_meal_shortcut"]="Scanează masa", ["scan_meal_hint"]="Fotografiază pentru o estimare nutrițională instantanee", ["detected_items_title"]="Alimente detectate", ["nutrition_estimate_disclaimer"]="Doar estimare IA. Porțiile și nutrienții pot varia.", ["analysis_in_progress"]="Masa este analizată…", ["privacy_law_message"]="Datele tale personale sunt prelucrate conform RGPD. Le poți accesa, corecta, exporta sau șterge oricând.", ["language"]="Limbă", ["logout"]="Deconectare", ["reco_title"]="Recomandări", ["generate"]="Actualizează recomandările" },
+        ["la"] = new() { ["scan_meal_shortcut"]="Cibum explora", ["scan_meal_hint"]="Imaginem cape ut nutrimenta statim aestimentur", ["detected_items_title"]="Cibi detecti", ["nutrition_estimate_disclaimer"]="Aestimatio IA tantum. Portiones et nutrimenta variari possunt.", ["analysis_in_progress"]="Cibus examinatur…", ["privacy_law_message"]="Data tua personalia secundum GDPR tractantur. Ea inspicere, corrigere, exportare vel delere quandocumque potes.", ["language"]="Lingua", ["logout"]="Exire", ["reco_title"]="Consilia", ["generate"]="Consilia renova" },
+    };
     private static readonly Dictionary<string, string> Fr = new()
     {
         ["tab_dashboard"] = "Tableau",
@@ -1929,6 +1940,8 @@ public static class LocalizationService
     public static string T(string key)
     {
         var lang = CurrentLanguageCode();
+        if (ProductCopy.TryGetValue(lang, out var copy) && copy.TryGetValue(key, out var productValue)) return productValue;
+        if (ProductCopy["en"].TryGetValue(key, out var productFallback)) return productFallback;
         var dict = lang switch
         {
             "en" => En,
@@ -1936,6 +1949,8 @@ public static class LocalizationService
             "es" => Es,
             "it" => It,
             "de" => De,
+            "ro" => En,
+            "la" => En,
             _ => Fr,
         };
 
@@ -1973,6 +1988,8 @@ public static class LocalizationService
         if (normalized.StartsWith("es", StringComparison.Ordinal)) return "es";
         if (normalized.StartsWith("it", StringComparison.Ordinal)) return "it";
         if (normalized.StartsWith("de", StringComparison.Ordinal)) return "de";
+        if (normalized.StartsWith("ro", StringComparison.Ordinal)) return "ro";
+        if (normalized.StartsWith("la", StringComparison.Ordinal)) return "la";
 
         return null;
     }

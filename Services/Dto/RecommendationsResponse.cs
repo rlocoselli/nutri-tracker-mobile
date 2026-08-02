@@ -15,6 +15,7 @@ public class RecommendationItem
     public string title { get; set; } = "";
     public string why { get; set; } = "";
     public List<string> actions { get; set; } = new();
+    public string image { get; set; } = "reco_balance.svg";
 }
 
 public class Insights

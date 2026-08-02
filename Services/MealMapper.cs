@@ -43,6 +43,7 @@ public static class MealMapper
             TotalCalories = r.meal.totals.calories,
             TotalCarbsG = r.meal.totals.carbs_g,
             TotalProteinG = r.meal.totals.protein_g,
+            TotalFatG = r.meal.totals.fat_g,
             OverallConfidence = r.meal.overall_confidence,
             QualityScore = quality.score,
             QualityLabel = quality.label,
@@ -58,6 +59,7 @@ public static class MealMapper
             Calories = i.macros.calories,
             CarbsG = i.macros.carbs_g,
             ProteinG = i.macros.protein_g,
+            FatG = i.macros.fat_g,
             Confidence = i.confidence,
         }).ToList();
 

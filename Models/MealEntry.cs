@@ -23,6 +23,7 @@ public class MealEntry
     public double TotalCalories { get; set; }
     public double TotalCarbsG { get; set; }
     public double TotalProteinG { get; set; }
+    public double TotalFatG { get; set; }
 
     public double OverallConfidence { get; set; }
 

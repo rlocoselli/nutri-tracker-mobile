@@ -320,6 +320,7 @@ public class BackendSyncService
             total_calories = meal.TotalCalories,
             total_carbs_g = meal.TotalCarbsG,
             total_protein_g = meal.TotalProteinG,
+            total_fat_g = meal.TotalFatG,
             overall_confidence = meal.OverallConfidence,
             quality_score = meal.QualityScore,
             quality_label = meal.QualityLabel,
@@ -332,6 +333,7 @@ public class BackendSyncService
                 calories = x.Calories,
                 carbs_g = x.CarbsG,
                 protein_g = x.ProteinG,
+                fat_g = x.FatG,
                 confidence = x.Confidence
             }).ToList()
         };

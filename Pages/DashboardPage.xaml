@@ -3,6 +3,7 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:controls="clr-namespace:NutritionTracker.Controls"
+    xmlns:local="clr-namespace:NutritionTracker.Services"
     xmlns:admob="clr-namespace:Plugin.AdMob;assembly=Plugin.AdMob"
     x:Class="NutritionTracker.Pages.DashboardPage"
     x:Name="DashboardRoot"
@@ -41,6 +42,16 @@
             </Grid>
 
             <VerticalStackLayout Spacing="12" IsVisible="{Binding ShowIndicatorsTabContent}">
+
+            <Border Style="{StaticResource Card}" Background="{StaticResource PrimaryGradient}" Padding="16">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <VerticalStackLayout Spacing="3">
+                        <Label Text="{Binding ScanMealText}" FontSize="18" FontAttributes="Bold" TextColor="White" />
+                        <Label Text="{local:Translate Key=scan_meal_hint}" FontSize="12" TextColor="#EFFFFFFF" />
+                    </VerticalStackLayout>
+                    <Button Grid.Column="1" ImageSource="ic_camera_action.svg" Text="" Style="{StaticResource IconButton}" Command="{Binding ScanMealCommand}" AutomationProperties.Name="{Binding ScanMealText}" />
+                </Grid>
+            </Border>
 
             <Label Text="{Binding TodayOnlyHintText}" Style="{StaticResource BodyMuted}" />
 

@@ -32,6 +32,7 @@ public class Macros
     public double calories { get; set; }
     public double carbs_g { get; set; }
     public double protein_g { get; set; }
+    public double fat_g { get; set; }
 }
 
 public class Totals
@@ -39,4 +40,5 @@ public class Totals
     public double calories { get; set; }
     public double carbs_g { get; set; }
     public double protein_g { get; set; }
+    public double fat_g { get; set; }
 }

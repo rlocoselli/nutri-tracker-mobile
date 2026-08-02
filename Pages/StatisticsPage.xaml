@@ -79,9 +79,9 @@
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Spacing="8">
                     <Label Text="{Binding AvgCaloriesTitle}" FontAttributes="Bold" FontSize="12" />
-                    <controls:BarChart HeightRequest="220"
-                                       Values="{Binding ChartValues}"
-                                       Labels="{Binding ChartLabels}" />
+                    <controls:TrendChart HeightRequest="230"
+                                         Values="{Binding ChartValues}"
+                                         Labels="{Binding ChartLabels}" />
                 </VerticalStackLayout>
             </Border>
 
@@ -112,9 +112,9 @@
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Spacing="8">
                     <Label Text="{Binding HydrationSeriesTitle}" FontAttributes="Bold" FontSize="12" />
-                    <controls:BarChart HeightRequest="220"
-                                       Values="{Binding HydrationValues}"
-                                       Labels="{Binding HydrationLabels}" />
+                    <controls:TrendChart HeightRequest="230"
+                                         Values="{Binding HydrationValues}"
+                                         Labels="{Binding HydrationLabels}" />
                     <HorizontalStackLayout Spacing="8" Margin="0,4,0,0">
                         <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="5" Color="#1E90FF" VerticalOptions="Center" />
                         <Label Text="{Binding ChartLegendHydrationText}" Style="{StaticResource BodyMuted}" FontSize="12" />

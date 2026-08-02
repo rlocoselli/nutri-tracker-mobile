@@ -4,14 +4,14 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
 
     <!-- Brand -->
-    <Color x:Key="Primary">#58CC02</Color>
-    <Color x:Key="PrimaryDark">#46A302</Color>
-    <Color x:Key="Accent">#1CB0F6</Color>
+    <Color x:Key="Primary">#22A06B</Color>
+    <Color x:Key="PrimaryDark">#147A50</Color>
+    <Color x:Key="Accent">#3B82F6</Color>
 
     <!-- Surfaces -->
-    <Color x:Key="Background">#F7FFF1</Color>
-    <Color x:Key="Card2">#EFFFF8</Color>
-    <Color x:Key="Stroke">#D9EFCB</Color>
+    <Color x:Key="Background">#F5F7F6</Color>
+    <Color x:Key="Card2">#ECF8F2</Color>
+    <Color x:Key="Stroke">#DCE7E1</Color>
 
     <!-- Keep Card as a Color (used by BackgroundColor setters) -->
     <Color x:Key="Card">#FFFFFF</Color>
@@ -26,13 +26,13 @@
 
     <!-- Decorative brushes -->
     <LinearGradientBrush x:Key="PageGradient" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#F7FFF1" Offset="0.0" />
-        <GradientStop Color="#E8FCE1" Offset="1.0" />
+        <GradientStop Color="#F7FAF8" Offset="0.0" />
+        <GradientStop Color="#EEF6F2" Offset="1.0" />
     </LinearGradientBrush>
 
     <LinearGradientBrush x:Key="PrimaryGradient" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#7BEF21" Offset="0.0" />
-        <GradientStop Color="#58CC02" Offset="1.0" />
+        <GradientStop Color="#34C98A" Offset="0.0" />
+        <GradientStop Color="#16875B" Offset="1.0" />
     </LinearGradientBrush>
 
     <!-- Macro colors -->

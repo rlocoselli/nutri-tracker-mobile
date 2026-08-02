@@ -15,6 +15,7 @@
 
       <Label Text="{Binding TitleText}" Style="{StaticResource H1}" />
       <Label Text="{Binding SubtitleText}" Style="{StaticResource BodyMuted}" />
+      <Label Text="{Binding EstimateText}" Style="{StaticResource BodyMuted}" FontSize="11" />
 
       <Button Text="{Binding GenerateText}" Command="{Binding GenerateCommand}" />
       <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
@@ -31,7 +32,11 @@
         <CollectionView.ItemTemplate>
           <DataTemplate>
             <Border Style="{StaticResource Card}" Margin="0,0,0,12">
-              <VerticalStackLayout Spacing="6">
+              <Grid ColumnDefinitions="92,*" ColumnSpacing="14">
+                <Border WidthRequest="92" HeightRequest="92" StrokeThickness="0" StrokeShape="RoundRectangle 18" Background="{StaticResource Card2Brush}">
+                  <Image Source="{Binding image}" Aspect="AspectFit" Margin="10" />
+                </Border>
+              <VerticalStackLayout Grid.Column="1" Spacing="6">
                 <Label Text="{Binding title}" FontAttributes="Bold" />
                 <Label Text="{Binding why}" FontSize="12" Opacity="0.75" />
                 <Label Text="{local:Translate Key=actions}" FontAttributes="Bold" FontSize="12" />
@@ -43,6 +48,7 @@
                   </CollectionView.ItemTemplate>
                 </CollectionView>
               </VerticalStackLayout>
+              </Grid>
             </Border>
           </DataTemplate>
         </CollectionView.ItemTemplate>

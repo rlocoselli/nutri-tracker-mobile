@@ -11,6 +11,7 @@ public partial class HelpViewModel : ObservableObject
     public string OpenHelpText => LocalizationService.T("help_open");
     public string PrivacyTitle => LocalizationService.T("privacy_title");
     public string PrivacyIntro => LocalizationService.T("privacy_intro");
+    public string PrivacyLawMessage => LocalizationService.T("privacy_law_message");
     public string PrivacyRetentionTitle => LocalizationService.T("privacy_retention_title");
     public string PrivacyRetentionBody => LocalizationService.T("privacy_retention_body");
     public string PrivacySecurityTitle => LocalizationService.T("privacy_security_title");
@@ -36,6 +37,7 @@ public partial class HelpViewModel : ObservableObject
         OnPropertyChanged(nameof(OpenHelpText));
         OnPropertyChanged(nameof(PrivacyTitle));
         OnPropertyChanged(nameof(PrivacyIntro));
+        OnPropertyChanged(nameof(PrivacyLawMessage));
         OnPropertyChanged(nameof(PrivacyRetentionTitle));
         OnPropertyChanged(nameof(PrivacyRetentionBody));
         OnPropertyChanged(nameof(PrivacySecurityTitle));

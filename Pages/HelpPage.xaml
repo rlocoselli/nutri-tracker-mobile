@@ -30,6 +30,9 @@
                     </HorizontalStackLayout>
 
                     <Label Text="{Binding PrivacyIntro}" Style="{StaticResource BodyMuted}" />
+                    <Border Background="{StaticResource Card2Brush}" Stroke="{StaticResource Primary}" StrokeThickness="1" Padding="12" StrokeShape="RoundRectangle 12">
+                        <Label Text="{Binding PrivacyLawMessage}" FontAttributes="Bold" FontSize="12" />
+                    </Border>
 
                     <Label Text="{Binding PrivacyRetentionTitle}" FontAttributes="Bold" />
                     <Label Text="{Binding PrivacyRetentionBody}" Style="{StaticResource BodyMuted}" />

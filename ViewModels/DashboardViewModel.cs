@@ -59,6 +59,7 @@ public partial class DashboardViewModel : ObservableObject
     public string HelloText => LocalizationService.T("hello");
     public string HomeTitleText => LocalizationService.T("dashboard_title");
     public string RecordMealText => LocalizationService.T("record_meal_plus");
+    public string ScanMealText => LocalizationService.T("scan_meal_shortcut");
     public string AdviceText => LocalizationService.T("advice");
     public string GoalsText => LocalizationService.T("goals");
     public string DailySummaryText => LocalizationService.T("daily_summary");
@@ -475,6 +476,12 @@ public partial class DashboardViewModel : ObservableObject
     private async Task AddMeal()
     {
         await Shell.Current.GoToAsync("//add");
+    }
+
+    [RelayCommand]
+    private async Task ScanMeal()
+    {
+        await Shell.Current.GoToAsync("//add?capture=true");
     }
 
     [RelayCommand]
