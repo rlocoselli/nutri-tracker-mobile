@@ -14,7 +14,7 @@ SERVICE_ACCOUNT_JSON="${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:-}"
 AAB_PATH="${GOOGLE_PLAY_AAB_PATH:-}"
 DRY_RUN="${GOOGLE_PLAY_DRY_RUN:-false}"
 VALIDATE_ONLY="${GOOGLE_PLAY_VALIDATE_ONLY:-false}"
-MIN_TARGET_SDK="${GOOGLE_PLAY_MIN_TARGET_SDK:-35}"
+MIN_TARGET_SDK="${GOOGLE_PLAY_MIN_TARGET_SDK:-36}"
 DEFAULT_LANGUAGE="${GOOGLE_PLAY_DEFAULT_LANGUAGE:-en-US}"
 ADDITIONAL_LANGUAGES_RAW="${GOOGLE_PLAY_ADDITIONAL_LANGUAGES:-fr-FR}"
 EFFECTIVE_ADDITIONAL_LANGUAGES="$ADDITIONAL_LANGUAGES_RAW"
@@ -211,8 +211,8 @@ if [[ "$DRY_RUN" != "true" ]]; then
       -f "$ANDROID_TARGET_FRAMEWORK"
       -c Release
       /p:AndroidPackageFormat=aab
-      /p:AndroidTargetSdkVersion=35
-      /p:AndroidCompileSdkVersion=35
+      /p:AndroidTargetSdkVersion=36
+      /p:AndroidCompileSdkVersion=36
       /p:AndroidKeyStore=true
       /p:AndroidSigningKeyStore="$ANDROID_SIGNING_KEYSTORE_PATH"
       /p:AndroidSigningStorePass="$ANDROID_SIGNING_STORE_PASS"

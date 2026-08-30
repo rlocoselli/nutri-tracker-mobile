@@ -9,9 +9,9 @@
     <Color x:Key="Accent">#3B82F6</Color>
 
     <!-- Surfaces -->
-    <Color x:Key="Background">#F5F7F6</Color>
-    <Color x:Key="Card2">#ECF8F2</Color>
-    <Color x:Key="Stroke">#DCE7E1</Color>
+    <Color x:Key="Background">#F4F8F6</Color>
+    <Color x:Key="Card2">#E8F6EF</Color>
+    <Color x:Key="Stroke">#D7E5DE</Color>
 
     <!-- Keep Card as a Color (used by BackgroundColor setters) -->
     <Color x:Key="Card">#FFFFFF</Color>

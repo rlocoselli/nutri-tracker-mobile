@@ -22,7 +22,8 @@
   <!-- Identité Android -->
   <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
     <ApplicationId>com.audela.nutritiontracker</ApplicationId>
-    <AndroidTargetSdkVersion>35</AndroidTargetSdkVersion>
+    <AndroidTargetSdkVersion>36</AndroidTargetSdkVersion>
+    <AndroidCompileSdkVersion>36</AndroidCompileSdkVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' and '$(Configuration)' == 'Debug'">

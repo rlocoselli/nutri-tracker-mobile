@@ -1,12 +1,15 @@
-name: Deploy Google Play
+name: Deploy Google Play Production
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       track:
         description: "Play track (internal, alpha, beta, production)"
         required: true
-        default: "internal"
+        default: "production"
       first_deploy:
         description: "First deployment (enforce metadata + compliance ack)"
         required: true
@@ -16,13 +19,16 @@ on:
         required: true
         default: "completed"
       rollout_percentage:
-        description: "Staged rollout percentage (1-100). <100 triggers inProgress rollout on supported tracks"
+        description: "Rollout percentage (1-100)"
         required: true
         default: "100"
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    concurrency:
+      group: google-play-production
+      cancel-in-progress: false
 
     steps:
       - name: Checkout
@@ -42,10 +48,10 @@ jobs:
       - name: Setup Android SDK tools
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK 35
+      - name: Install Android SDK 36
         run: |
           yes | sdkmanager --licenses || true
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Install MAUI Android workload
         run: |
@@ -105,9 +111,9 @@ jobs:
         env:
           GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ github.workspace }}/google-play-service-account.json
           GOOGLE_PLAY_PACKAGE_NAME: ${{ vars.GOOGLE_PLAY_PACKAGE_NAME || 'com.audela.nutritiontracker' }}
-          GOOGLE_PLAY_TRACK: ${{ github.event.inputs.track }}
-          GOOGLE_PLAY_RELEASE_STATUS: ${{ github.event.inputs.release_status }}
-          GOOGLE_PLAY_ROLLOUT_PERCENTAGE: ${{ github.event.inputs.rollout_percentage }}
+          GOOGLE_PLAY_TRACK: ${{ github.event_name == 'push' && 'production' || github.event.inputs.track }}
+          GOOGLE_PLAY_RELEASE_STATUS: ${{ github.event_name == 'push' && 'completed' || github.event.inputs.release_status }}
+          GOOGLE_PLAY_ROLLOUT_PERCENTAGE: ${{ github.event_name == 'push' && '100' || github.event.inputs.rollout_percentage }}
           GOOGLE_PLAY_AUTO_BUMP_VERSION: "true"
           GOOGLE_PLAY_DEFAULT_LANGUAGE: 'en-US'
           GOOGLE_PLAY_ADDITIONAL_LANGUAGES: ${{ vars.GOOGLE_PLAY_ADDITIONAL_LANGUAGES || 'fr-FR' }}
