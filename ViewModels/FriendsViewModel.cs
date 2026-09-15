@@ -156,6 +156,29 @@ public partial class FriendsViewModel : ObservableObject
 
     partial void OnFriendsSearchQueryChanged(string value)
     {
+        // Keep the motivational progress visible where people actually browse friends,
+        // not only in the separate league list below.
+        var selfEmailForProgress = Preferences.Default.Get("profile_email", "");
+        var selfNameForProgress = Preferences.Default.Get("profile_name", "");
+        var progressRows = _social.GetLeaderboard(selfEmailForProgress, selfNameForProgress, _points.GetBalance());
+        var progressByEmail = progressRows.ToDictionary(x => x.Email, StringComparer.OrdinalIgnoreCase);
+        var progressRank = 1;
+        foreach (var progress in progressRows)
+        {
+            if (progressByEmail.TryGetValue(progress.Email, out var current))
+            {
+                var friend = Friends.FirstOrDefault(x => string.Equals(x.Email, current.Email, StringComparison.OrdinalIgnoreCase));
+                if (friend != null && !friend.IsPending)
+                {
+                    friend.WeeklyXp = current.WeeklyXp;
+                    friend.StreakDays = current.StreakDays;
+                    friend.RankText = progressRank <= 3 ? new[] { "🥇", "🥈", "🥉" }[progressRank - 1] : $"#{progressRank}";
+                    friend.TierBadge = ResolveTier(current.WeeklyXp, current.StreakDays).Badge;
+                }
+            }
+            progressRank++;
+        }
+
         ApplyFriendsFilter();
     }
 
@@ -971,6 +994,12 @@ public class FriendsInviteRow
     public string CreatedAtText { get; set; } = "";
     public bool IsPending { get; set; }
     public bool HasUnread { get; set; }
+    public int WeeklyXp { get; set; }
+    public int StreakDays { get; set; }
+    public string RankText { get; set; } = "";
+    public string TierBadge { get; set; } = "";
+    public string ProgressText => WeeklyXp > 0 ? $"{RankText}  {WeeklyXp} XP  ·  🔥 {StreakDays}" : "";
+    public bool HasProgress => WeeklyXp > 0;
     public bool IsFriend => !IsPending;
     public bool HasPicture => !string.IsNullOrWhiteSpace(PictureUrl);
     public bool HasNoPicture => !HasPicture;

@@ -5,6 +5,34 @@ namespace NutritionTracker.Services;
 
 public static class LocalizationService
 {
+    private static readonly Dictionary<string, string> PlanCopy = new()
+    {
+        ["plan_title"] = "My weekly plan", ["plan_tab"] = "Plan", ["plan_subtitle"] = "Simple ideas adapted to your goals and current calorie budget.",
+        ["plan_exercises"] = "Exercises to practice", ["plan_recipes"] = "AI weekly menu", ["plan_projection"] = "Projection",
+        ["plan_calories_format"] = "Today: {0} kcal consumed / {1} kcal target · {2} kcal remaining",
+        ["plan_projection_format"] = "With an estimated {0} kcal daily deficit: about {1} kg/week and {2} kg/month.",
+        ["plan_estimate"] = "Estimates only: results depend on portions, activity and your health profile."
+    };
+    private static readonly Dictionary<string, string> PlanCopyFr = new()
+    {
+        ["plan_title"] = "Mon plan de la semaine", ["plan_tab"] = "Plan", ["plan_subtitle"] = "Des idées simples adaptées à vos objectifs et à votre budget calorique.",
+        ["plan_exercises"] = "Exercices à pratiquer", ["plan_recipes"] = "Menu hebdomadaire IA", ["plan_projection"] = "Projection",
+        ["plan_calories_format"] = "Aujourd'hui : {0} kcal consommées / objectif {1} kcal · reste {2} kcal",
+        ["plan_projection_format"] = "Avec un déficit estimé de {0} kcal par jour : environ {1} kg/semaine et {2} kg/mois.",
+        ["plan_estimate"] = "Estimations uniquement : les résultats dépendent des portions, de l'activité et de votre profil de santé."
+    };
+    private static readonly Dictionary<string, string> PlanCopyPt = new()
+    {
+        ["plan_title"]="Meu plano semanal", ["plan_tab"]="Plano", ["plan_subtitle"]="Ideias simples adaptadas às suas metas e ao seu orçamento calórico.", ["plan_exercises"]="Exercícios para praticar", ["plan_recipes"]="Menu semanal com IA", ["plan_projection"]="Projeção", ["plan_calories_format"]="Hoje: {0} kcal consumidas / meta {1} kcal · faltam {2} kcal", ["plan_projection_format"]="Com um déficit estimado de {0} kcal por dia: cerca de {1} kg/semana e {2} kg/mês.", ["plan_estimate"]="São apenas estimativas: os resultados dependem das porções, da atividade e do seu perfil de saúde."
+    };
+    private static readonly Dictionary<string, string> PlanCopyIt = new()
+    {
+        ["plan_title"]="Il mio piano settimanale", ["plan_tab"]="Piano", ["plan_subtitle"]="Idee semplici adattate ai tuoi obiettivi e al tuo budget calorico.", ["plan_exercises"]="Esercizi da praticare", ["plan_recipes"]="Menu settimanale IA", ["plan_projection"]="Proiezione", ["plan_calories_format"]="Oggi: {0} kcal consumate / obiettivo {1} kcal · restano {2} kcal", ["plan_projection_format"]="Con un deficit stimato di {0} kcal al giorno: circa {1} kg/settimana e {2} kg/mese.", ["plan_estimate"]="Solo stime: i risultati dipendono da porzioni, attività e profilo di salute."
+    };
+    private static readonly Dictionary<string, string> PlanCopyDe = new()
+    {
+        ["plan_title"]="Mein Wochenplan", ["plan_tab"]="Plan", ["plan_subtitle"]="Einfache Ideen, abgestimmt auf Ihre Ziele und Ihr Kalorienbudget.", ["plan_exercises"]="Übungen zum Trainieren", ["plan_recipes"]="KI-Wochenmenü", ["plan_projection"]="Prognose", ["plan_calories_format"]="Heute: {0} kcal gegessen / Ziel {1} kcal · {2} kcal übrig", ["plan_projection_format"]="Bei einem geschätzten täglichen Defizit von {0} kcal: etwa {1} kg/Woche und {2} kg/Monat.", ["plan_estimate"]="Nur Schätzwerte: Ergebnisse hängen von Portionen, Aktivität und Gesundheitsprofil ab."
+    };
     private static readonly Dictionary<string, Dictionary<string, string>> ProductCopy = new()
     {
         ["en"] = new() { ["scan_meal_shortcut"]="Scan my meal", ["scan_meal_hint"]="Take a photo for an instant nutrition estimate", ["detected_items_title"]="Detected foods", ["nutrition_estimate_disclaimer"]="AI estimate only. Portions and nutrients may vary.", ["recommendation_estimate_disclaimer"]="Personalized guidance based on estimates, not medical advice.", ["analysis_in_progress"]="Analyzing your meal…", ["nutrition_totals_format"]="{0} kcal · Protein {1} g · Carbs {2} g · Fat {3} g", ["macro_short_protein"]="P", ["macro_short_carbs"]="C", ["macro_short_fat"]="F", ["recommendation_insights_format"]="Calories {0} (gap {1}) · Carbs {2} g ({3} g) · Protein {4} g ({5} g) · Activity {6} kcal", ["reco_title"]="Recommendations", ["reco_subtitle"]="Personalized from your recent meals and goals.", ["generate"]="Refresh recommendations", ["analysis"]="Your overview", ["privacy_law_message"]="Your personal data is handled under the GDPR. You can access, correct, export or delete it at any time." },
@@ -1940,6 +1968,11 @@ public static class LocalizationService
     public static string T(string key)
     {
         var lang = CurrentLanguageCode();
+        if (lang == "fr" && PlanCopyFr.TryGetValue(key, out var planFr)) return planFr;
+        if (lang == "pt" && PlanCopyPt.TryGetValue(key, out var planPt)) return planPt;
+        if (lang == "it" && PlanCopyIt.TryGetValue(key, out var planIt)) return planIt;
+        if (lang == "de" && PlanCopyDe.TryGetValue(key, out var planDe)) return planDe;
+        if (PlanCopy.TryGetValue(key, out var plan)) return plan;
         if (ProductCopy.TryGetValue(lang, out var copy) && copy.TryGetValue(key, out var productValue)) return productValue;
         if (ProductCopy["en"].TryGetValue(key, out var productFallback)) return productFallback;
         var dict = lang switch
@@ -1985,11 +2018,8 @@ public static class LocalizationService
         if (normalized.StartsWith("fr", StringComparison.Ordinal)) return "fr";
         if (normalized.StartsWith("en", StringComparison.Ordinal)) return "en";
         if (normalized.StartsWith("pt", StringComparison.Ordinal)) return "pt";
-        if (normalized.StartsWith("es", StringComparison.Ordinal)) return "es";
         if (normalized.StartsWith("it", StringComparison.Ordinal)) return "it";
         if (normalized.StartsWith("de", StringComparison.Ordinal)) return "de";
-        if (normalized.StartsWith("ro", StringComparison.Ordinal)) return "ro";
-        if (normalized.StartsWith("la", StringComparison.Ordinal)) return "la";
 
         return null;
     }

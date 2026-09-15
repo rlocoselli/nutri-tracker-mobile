@@ -20,7 +20,7 @@ public partial class ProfileViewModel : ObservableObject
     private readonly EmailAuthService _emailAuth;
     private readonly SubscriptionService _subscription;
 
-    public List<string> LanguageOptions { get; } = new() { "Français", "English", "Português (BR)", "Italiano", "Español (LatAm)", "Deutsch", "Română", "Latina" };
+    public List<string> LanguageOptions { get; } = new() { "Italiano", "Português (BR)", "English", "Deutsch", "Français" };
 
     [ObservableProperty] private string name = "";
     [ObservableProperty] private string email = "";
@@ -136,10 +136,7 @@ public partial class ProfileViewModel : ObservableObject
             "en" => "English",
             "pt" => "Português (BR)",
             "it" => "Italiano",
-            "es" => "Español (LatAm)",
             "de" => "Deutsch",
-            "ro" => "Română",
-            "la" => "Latina",
             _ => "Français",
         };
         CurrentLanguageText = appLang switch
@@ -149,8 +146,6 @@ public partial class ProfileViewModel : ObservableObject
             "it" => LocalizationService.T("current_lang_it"),
             "es" => LocalizationService.T("current_lang_es"),
             "de" => LocalizationService.T("current_lang_de"),
-            "ro" => "Limba curentă: Română",
-            "la" => "Lingua praesens: Latina",
             _ => LocalizationService.T("current_lang_fr"),
         };
 
@@ -257,10 +252,7 @@ public partial class ProfileViewModel : ObservableObject
             "English" => "en",
             "Português (BR)" => "pt",
             "Italiano" => "it",
-            "Español (LatAm)" => "es",
             "Deutsch" => "de",
-            "Română" => "ro",
-            "Latina" => "la",
             _ => "fr",
         };
         Preferences.Default.Set("app_lang", lang);
@@ -272,8 +264,6 @@ public partial class ProfileViewModel : ObservableObject
             "it" => LocalizationService.T("current_lang_it"),
             "es" => LocalizationService.T("current_lang_es"),
             "de" => LocalizationService.T("current_lang_de"),
-            "ro" => "Limba curentă: Română",
-            "la" => "Lingua praesens: Latina",
             _ => LocalizationService.T("current_lang_fr"),
         };
 

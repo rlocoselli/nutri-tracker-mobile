@@ -11,6 +11,7 @@
         <ShellContent x:Name="DiaryTab" Title="Journal" Icon="ic_diary.svg" ContentTemplate="{DataTemplate pages:DiaryPage}" Route="diary" />
         <ShellContent x:Name="AddTab" Title="Ajouter" Icon="ic_add.svg" ContentTemplate="{DataTemplate pages:AddMealPage}" Route="add" />
         <ShellContent x:Name="GoalsTab" Title="Objectifs" Icon="ic_goals.svg" ContentTemplate="{DataTemplate pages:GoalsPage}" Route="goals" />
+        <ShellContent x:Name="PlanTab" Title="Plan" Icon="ic_goals.svg" ContentTemplate="{DataTemplate pages:PlanPage}" Route="plan" />
         <ShellContent x:Name="StoriesTab" Title="Stories" Icon="ic_stories.svg" ContentTemplate="{DataTemplate pages:StoriesPage}" Route="stories" />
         <ShellContent x:Name="FriendsTab" Title="Amis" Icon="ic_profile.svg" ContentTemplate="{DataTemplate pages:FriendsPage}" Route="friends" />
         <ShellContent x:Name="StatisticsTab" Title="Stats" Icon="ic_stats.svg" ContentTemplate="{DataTemplate pages:StatisticsPage}" Route="statistics" />

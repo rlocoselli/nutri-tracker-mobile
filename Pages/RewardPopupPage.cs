@@ -22,11 +22,22 @@ public sealed class RewardPopupPage : ContentPage
 
         var streakLabel = new Label
         {
-            Text = $"🔥 {LocalizationService.T("reward_streak_title")}: {Math.Max(0, streakDays)}",
-            FontSize = 16,
+            Text = $"🔥\n{Math.Max(0, streakDays)}\n{LocalizationService.T("reward_streak_title")}",
+            FontSize = 18,
             FontAttributes = FontAttributes.Bold,
             HorizontalTextAlignment = TextAlignment.Center,
             TextColor = (Color)Application.Current!.Resources["Text"]
+        };
+
+        var streakMedal = new Border
+        {
+            Background = new LinearGradientBrush(new GradientStopCollection { new(Color.FromArgb("#FFF2B2"), 0), new(Color.FromArgb("#FFB648"), 1) }),
+            StrokeThickness = 0,
+            StrokeShape = new RoundRectangle { CornerRadius = 54 },
+            HeightRequest = 108,
+            WidthRequest = 108,
+            HorizontalOptions = LayoutOptions.Center,
+            Content = streakLabel
         };
 
         var earnedLabel = new Label
@@ -70,7 +81,7 @@ public sealed class RewardPopupPage : ContentPage
                 Children =
                 {
                     title,
-                    streakLabel,
+                    streakMedal,
                     earnedLabel,
                     balanceLabel,
                     closeButton,

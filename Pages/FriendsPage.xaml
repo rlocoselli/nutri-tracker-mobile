@@ -108,13 +108,19 @@
                                             <Label Text="{Binding DisplayName}" FontAttributes="Bold" />
                                             <Label Text="{Binding Handle}" Style="{StaticResource BodyMuted}" />
                                             <Label Text="{Binding Status}" Style="{StaticResource BodyMuted}" />
+                                            <Border IsVisible="{Binding HasProgress}" Background="#EFFAF3" Stroke="#C8EAD6" StrokeThickness="1" StrokeShape="RoundRectangle 12" Padding="8,3" HorizontalOptions="Start">
+                                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="5">
+                                                    <Label Text="{Binding TierBadge}" FontSize="13" />
+                                                    <Label Grid.Column="1" Text="{Binding ProgressText}" FontSize="11" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
+                                                </Grid>
+                                            </Border>
                                             <Label Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.NewMessagesText}"
                                                    FontSize="11" TextColor="{StaticResource Primary}"
                                                    IsVisible="{Binding HasUnread}" />
                                         </VerticalStackLayout>
                                     </Grid>
 
-                                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
                                         <Button Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.ChatText}"
                                                 Style="{StaticResource SecondaryButton}"
                                                 Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.OpenChatCommand}"
@@ -123,11 +129,6 @@
                                                 Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.StoriesText}"
                                                 Style="{StaticResource SecondaryButton}"
                                                 Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.ViewStoriesCommand}"
-                                                CommandParameter="{Binding .}" />
-                                        <Button Grid.Column="2"
-                                                Text="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.RemoveText}"
-                                                Style="{StaticResource SecondaryButton}"
-                                                Command="{Binding Source={x:Reference FriendsRoot}, Path=BindingContext.RemoveCommand}"
                                                 CommandParameter="{Binding .}" />
                                     </Grid>
                                 </VerticalStackLayout>

@@ -33,6 +33,7 @@ public partial class AppShell : Shell
         DiaryTab.Title = LocalizationService.T("tab_diary");
         AddTab.Title = LocalizationService.T("tab_add");
         GoalsTab.Title = LocalizationService.T("tab_goals");
+        PlanTab.Title = LocalizationService.T("plan_tab");
         StoriesTab.Title = LocalizationService.T("tab_stories");
         FriendsTab.Title = LocalizationService.T("tab_friends");
         StatisticsTab.Title = LocalizationService.T("tab_statistics");
