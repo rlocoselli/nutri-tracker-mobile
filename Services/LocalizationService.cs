@@ -11,7 +11,7 @@ public static class LocalizationService
         ["plan_exercises"] = "Exercises to practice", ["plan_recipes"] = "AI weekly menu", ["plan_projection"] = "Projection",
         ["plan_calories_format"] = "Today: {0} kcal consumed / {1} kcal target · {2} kcal remaining",
         ["plan_projection_format"] = "With an estimated {0} kcal daily deficit: about {1} kg/week and {2} kg/month.",
-        ["plan_estimate"] = "Estimates only: results depend on portions, activity and your health profile."
+        ["plan_estimate"] = "Estimates only: results depend on portions, activity and your health profile.", ["plan_consumption"] = "Calories today", ["plan_profile_hint"] = "Menu portions are adjusted to your {0} kcal daily target.", ["plan_weekly_total"] = "Weekly menu", ["plan_weekly_total_format"] = "{0} kcal planned this week · about {1} kcal/day", ["plan_preferences"] = "Personalize your plan", ["plan_grocery"] = "Grocery list", ["plan_replace"] = "Replace recipe"
     };
     private static readonly Dictionary<string, string> PlanCopyFr = new()
     {
@@ -19,7 +19,7 @@ public static class LocalizationService
         ["plan_exercises"] = "Exercices à pratiquer", ["plan_recipes"] = "Menu hebdomadaire IA", ["plan_projection"] = "Projection",
         ["plan_calories_format"] = "Aujourd'hui : {0} kcal consommées / objectif {1} kcal · reste {2} kcal",
         ["plan_projection_format"] = "Avec un déficit estimé de {0} kcal par jour : environ {1} kg/semaine et {2} kg/mois.",
-        ["plan_estimate"] = "Estimations uniquement : les résultats dépendent des portions, de l'activité et de votre profil de santé."
+        ["plan_estimate"] = "Estimations uniquement : les résultats dépendent des portions, de l'activité et de votre profil de santé.", ["plan_consumption"] = "Calories aujourd'hui", ["plan_profile_hint"] = "Les portions sont adaptées à votre objectif quotidien de {0} kcal.", ["plan_weekly_total"] = "Menu de la semaine", ["plan_weekly_total_format"] = "{0} kcal prévues cette semaine · environ {1} kcal/jour", ["plan_preferences"] = "Personnaliser le plan", ["plan_grocery"] = "Liste de courses", ["plan_replace"] = "Remplacer la recette"
     };
     private static readonly Dictionary<string, string> PlanCopyPt = new()
     {
@@ -114,7 +114,7 @@ public static class LocalizationService
         ["privacy_storage_body"] = "Les données sont hébergées en base de données en France, opérée par une entreprise française.",
         ["charity_title"] = "Soutien enfants atteints de cancer",
         ["charity_body"] = "La rentabilité de l'application est destinée à soutenir la recherche et les associations en France, notamment pour les enfants atteints de cancer.",
-        ["stats_title"] = "Analyse statistique",
+        ["stats_title"] = "Analyse statistique", ["stats_patterns_title"] = "Vos habitudes alimentaires", ["stats_top_foods"] = "Aliments les plus consommés", ["stats_top_meals"] = "Repas récurrents", ["stats_meal_averages"] = "Calories moyennes par repas", ["stats_pattern_insight"] = "Votre aliment le plus fréquent est : {0}.",
         ["stats_subtitle"] = "Moyennes nutrition et qualité par jour, semaine ou mois.",
         ["stats_avg_calories"] = "Calories moyennes",
         ["stats_avg_protein"] = "Protéines moyennes",
@@ -573,7 +573,7 @@ public static class LocalizationService
         ["privacy_storage_body"] = "Data is stored in a database hosted in France by a French company.",
         ["charity_title"] = "Support for children with cancer",
         ["charity_body"] = "App profitability is dedicated to support research and associations in France, especially for children with cancer.",
-        ["stats_title"] = "Statistical analysis",
+        ["stats_title"] = "Statistical analysis", ["stats_patterns_title"] = "Your eating patterns", ["stats_top_foods"] = "Most consumed foods", ["stats_top_meals"] = "Recurring meals", ["stats_meal_averages"] = "Average calories by meal", ["stats_pattern_insight"] = "Your most frequent food is {0}.",
         ["stats_subtitle"] = "Nutrition and quality averages by day, week or month.",
         ["stats_avg_calories"] = "Average calories",
         ["stats_avg_protein"] = "Average protein",

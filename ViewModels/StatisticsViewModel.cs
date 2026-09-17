@@ -13,6 +13,9 @@ public partial class StatisticsViewModel : ObservableObject
     private bool _reloadRequested;
 
     public ObservableCollection<StatisticsToggleItem> PeriodTabs { get; } = new();
+    public ObservableCollection<FoodStatItem> TopFoods { get; } = new();
+    public ObservableCollection<FoodStatItem> TopMeals { get; } = new();
+    public ObservableCollection<FoodStatItem> MealTypeAverages { get; } = new();
 
     [ObservableProperty] private string selectedPeriod = "Week";
     [ObservableProperty] private IList<double> chartValues = Array.Empty<double>();
@@ -28,6 +31,7 @@ public partial class StatisticsViewModel : ObservableObject
     [ObservableProperty] private string avgQualityText = "0/100";
     [ObservableProperty] private string avgHydrationText = "0 L";
     [ObservableProperty] private bool isLoading;
+    [ObservableProperty] private string patternInsightText = "";
 
     public string TitleText => LocalizationService.T("stats_title");
     public string SubtitleText => LocalizationService.T("stats_subtitle");
@@ -45,6 +49,10 @@ public partial class StatisticsViewModel : ObservableObject
     public string ChartLegendLowText => LocalizationService.T("stats_chart_legend_low");
     public string ChartLegendHydrationText => LocalizationService.T("stats_chart_legend_hydration");
     public string LoadingText => LocalizationService.T("main_loading");
+    public string PatternsTitle => LocalizationService.T("stats_patterns_title");
+    public string TopFoodsTitle => LocalizationService.T("stats_top_foods");
+    public string TopMealsTitle => LocalizationService.T("stats_top_meals");
+    public string MealAveragesTitle => LocalizationService.T("stats_meal_averages");
 
     public StatisticsViewModel(BackendSyncService sync)
     {
@@ -99,6 +107,7 @@ public partial class StatisticsViewModel : ObservableObject
                 OnPropertyChanged(nameof(ChartLegendLowText));
                 OnPropertyChanged(nameof(ChartLegendHydrationText));
                 OnPropertyChanged(nameof(LoadingText));
+                OnPropertyChanged(nameof(PatternsTitle)); OnPropertyChanged(nameof(TopFoodsTitle)); OnPropertyChanged(nameof(TopMealsTitle)); OnPropertyChanged(nameof(MealAveragesTitle));
 
                 await LoadStatsAsync();
             }
@@ -155,6 +164,7 @@ public partial class StatisticsViewModel : ObservableObject
         }
 
         var entries = backendMeals.Select(ToMealEntry).ToList();
+        BuildPatternStats(backendMeals, entries);
 
         if (entries.Count == 0)
         {
@@ -195,6 +205,28 @@ public partial class StatisticsViewModel : ObservableObject
 
         QualityDonutValues = new List<double> { good, medium, low };
         QualityDonutLabels = new List<string> { LocalizationService.T("stats_quality_good"), LocalizationService.T("stats_quality_medium"), LocalizationService.T("stats_quality_low") };
+    }
+
+    private void BuildPatternStats(List<BackendMeal> meals, List<MealEntry> entries)
+    {
+        TopFoods.Clear(); TopMeals.Clear(); MealTypeAverages.Clear();
+        var foods = meals.SelectMany(m => m.items).Select(x => NormalizeFood(x.name)).Where(x => x.Length > 1)
+            .GroupBy(x => x).OrderByDescending(g => g.Count()).Take(10);
+        foreach (var food in foods) TopFoods.Add(new(food.Key, $"{food.Count()} times", ""));
+        var mealGroups = meals.Where(m => !string.IsNullOrWhiteSpace(m.description)).GroupBy(m => m.description.Trim(), StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(g => g.Count()).Take(5);
+        foreach (var group in mealGroups) TopMeals.Add(new(group.Key, $"{group.Count()} times", $"{Math.Round(group.Average(x => x.total_calories))} kcal avg"));
+        foreach (var group in entries.GroupBy(x => string.IsNullOrWhiteSpace(x.MealType) ? "Meal" : x.MealType))
+            MealTypeAverages.Add(new(group.Key, $"{Math.Round(group.Average(x => x.TotalCalories))} kcal avg", $"{group.Count()} meals"));
+        var favorite = TopFoods.FirstOrDefault()?.Name ?? "your logged foods";
+        PatternInsightText = string.Format(LocalizationService.T("stats_pattern_insight"), favorite);
+    }
+
+    private static string NormalizeFood(string value)
+    {
+        var clean = value.Trim().ToLowerInvariant();
+        clean = clean.Replace("yaourt grec", "greek yogurt").Replace("greek yoghurt", "greek yogurt").Replace("poulet", "chicken").Replace("poulets", "chicken");
+        return clean.Length > 0 ? char.ToUpper(clean[0]) + clean[1..] : clean;
     }
 
     private List<(string Label, double Value)> BuildHydrationSeries(List<BackendWaterPoint> rows, DateTime fromLocalInclusive, DateTime toLocalExclusive)
@@ -340,6 +372,8 @@ public partial class StatisticsViewModel : ObservableObject
         PeriodTabs.Add(new StatisticsToggleItem { Key = "Month", Label = LocalizationService.T("period_month"), IsSelected = SelectedPeriod == "Month" });
     }
 }
+
+public record FoodStatItem(string Name, string CountText, string Detail);
 
 public class StatisticsToggleItem
 {

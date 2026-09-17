@@ -17,6 +17,10 @@
             <Label Text="{Binding TitleText}" Style="{StaticResource H1}" />
             <Label Text="{Binding SubtitleText}" Style="{StaticResource BodyMuted}" />
 
+            <Border Style="{StaticResource Card}" Background="{StaticResource Card2Brush}">
+                <VerticalStackLayout Spacing="5"><Label Text="{Binding PatternsTitle}" Style="{StaticResource H2}"/><Label Text="{Binding PatternInsightText}" Style="{StaticResource BodyMuted}" LineBreakMode="WordWrap"/></VerticalStackLayout>
+            </Border>
+
             <Label Text="{Binding PeriodTitle}" FontAttributes="Bold" FontSize="12" />
             <CollectionView ItemsSource="{Binding PeriodTabs}" SelectionMode="None" HeightRequest="46">
                 <CollectionView.ItemsLayout>
@@ -84,6 +88,13 @@
                                          Labels="{Binding ChartLabels}" />
                 </VerticalStackLayout>
             </Border>
+
+            <Label Text="{Binding TopFoodsTitle}" Style="{StaticResource H2}" />
+            <CollectionView ItemsSource="{Binding TopFoods}" SelectionMode="None"><CollectionView.ItemTemplate><DataTemplate><Grid ColumnDefinitions="*,Auto" Padding="0,6"><Label Text="{Binding Name}" FontAttributes="Bold"/><Label Grid.Column="1" Text="{Binding CountText}" Style="{StaticResource BodyMuted}"/></Grid></DataTemplate></CollectionView.ItemTemplate></CollectionView>
+            <Label Text="{Binding TopMealsTitle}" Style="{StaticResource H2}" />
+            <CollectionView ItemsSource="{Binding TopMeals}" SelectionMode="None"><CollectionView.ItemTemplate><DataTemplate><Border Style="{StaticResource Card}" Margin="0,0,0,8" Padding="12"><Grid ColumnDefinitions="*,Auto"><VerticalStackLayout Spacing="2"><Label Text="{Binding Name}" FontAttributes="Bold" LineBreakMode="WordWrap"/><Label Text="{Binding Detail}" Style="{StaticResource BodyMuted}"/></VerticalStackLayout><Label Grid.Column="1" Text="{Binding CountText}" Style="{StaticResource BodyMuted}"/></Grid></Border></DataTemplate></CollectionView.ItemTemplate></CollectionView>
+            <Label Text="{Binding MealAveragesTitle}" Style="{StaticResource H2}" />
+            <CollectionView ItemsSource="{Binding MealTypeAverages}" SelectionMode="None"><CollectionView.ItemTemplate><DataTemplate><Grid ColumnDefinitions="*,Auto" Padding="0,6"><Label Text="{Binding Name}" FontAttributes="Bold"/><Label Grid.Column="1" Text="{Binding CountText}" Style="{StaticResource BodyMuted}"/></Grid></DataTemplate></CollectionView.ItemTemplate></CollectionView>
 
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Spacing="8">
